@@ -10,7 +10,7 @@ class GameRoleSet(Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column()
-    is_global: Mapped[bool] = mapped_column()
+    is_global: Mapped[bool] = mapped_column(default=False)
 
     game_roles: Mapped[list['GameRole']] = relationship(
         back_populates='role_set')
@@ -22,10 +22,11 @@ class GameRole(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column()
     role_set_id: Mapped[UUID] = mapped_column(ForeignKey('role_sets.id'))
-    icon_url: Mapped[str] = mapped_column()
+    icon_url: Mapped[str | None] = mapped_column(nullable=True)
+    icon_id: Mapped[UUID | None] = mapped_column(nullable=True)
     min_in_team: Mapped[int] = mapped_column()
     max_in_team: Mapped[int] = mapped_column()
-    hidden: Mapped[bool] = mapped_column()
+    hidden: Mapped[bool] = mapped_column(default=False)
 
     role_set: Mapped['GameRoleSet'] = relationship(back_populates='game_roles')
     custom_ratings: Mapped[list['CustomRating']
@@ -50,6 +51,7 @@ class Rating(Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     icon_url: Mapped[str] = mapped_column()
+    icon_id: Mapped[UUID] = mapped_column()
     threshold: Mapped[int] = mapped_column()
     rating_set_id: Mapped[UUID] = mapped_column(ForeignKey('rating_sets.id'))
 
@@ -61,9 +63,11 @@ class Server(Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column()
-    description: Mapped[str] = mapped_column()
-    icon_url: Mapped[str] = mapped_column()
-    banner_url: Mapped[str] = mapped_column()
+    description: Mapped[str] = mapped_column(default="")
+    icon_url: Mapped[str | None] = mapped_column(nullable=True)
+    icon_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    banner_url: Mapped[str | None] = mapped_column(nullable=True)
+    banner_id: Mapped[UUID | None] = mapped_column(nullable=True)
     owner_id: Mapped[UUID] = mapped_column()
     rating_set_id: Mapped[UUID] = mapped_column(ForeignKey('rating_sets.id'))
     role_set_id: Mapped[UUID] = mapped_column(ForeignKey('role_sets.id'))
@@ -88,6 +92,7 @@ class Member(Base):
     user_id: Mapped[UUID | None] = mapped_column(nullable=True)
     server_role_id: Mapped[UUID] = mapped_column(ForeignKey('server_roles.id'))
     joined_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    active: Mapped[bool] = mapped_column(default=True)
 
     server: Mapped['Server'] = relationship(back_populates='members')
     server_role: Mapped['ServerRole'] = relationship()
