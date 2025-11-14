@@ -168,6 +168,18 @@ wheels = [
 ]
 
 [[package]]
+name = "fastapi-controllers"
+version = "0.3.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "fastapi" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/76/ed/e9bbbff8a9c83a57d301833e5441e49eb4416785215dca10eae33aad6fe1/fastapi_controllers-0.3.0.tar.gz", hash = "sha256:9cc652ed41972675e50cd862f31415e6686a0d316c7a7fec583c225924dc69ba", size = 10999 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/73/38/0a07a75285ea3a67946cee883ab0541cf5005c361d8926652a26f31b3022/fastapi_controllers-0.3.0-py3-none-any.whl", hash = "sha256:2f031a618238822bb170535ca6c34da1c134a7d7914cbbd16826a94ba19156d5", size = 7337 },
+]
+
+[[package]]
 name = "greenlet"
 version = "3.2.4"
 source = { registry = "https://pypi.org/simple" }
@@ -679,6 +691,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "alembic" },
     { name = "fastapi", extra = ["all"] },
+    { name = "fastapi-controllers" },
     { name = "redis" },
     { name = "sqlalchemy" },
 ]
@@ -687,6 +700,7 @@ dependencies = [
 requires-dist = [
     { name = "alembic", specifier = ">=1.17.1" },
     { name = "fastapi", extras = ["all"], specifier = ">=0.121.0" },
+    { name = "fastapi-controllers", specifier = ">=0.3.0" },
     { name = "redis", specifier = ">=7.0.1" },
     { name = "sqlalchemy", specifier = ">=2.0.44" },
 ]
