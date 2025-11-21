@@ -2,7 +2,7 @@ from uuid import UUID
 from datetime import datetime
 import uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import ForeignKey, func, String, UniqueConstraint, null
+from sqlalchemy import ForeignKey, func, String, UniqueConstraint
 from . import Base
 
 
@@ -80,7 +80,7 @@ class Server(Base):
     public: Mapped[bool] = mapped_column()
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
-    rating_set: Mapped['RatingSet'] = relationship(back_populates='servers')
+    rating_set: Mapped['RatingSet'] = relationship()
     role_set: Mapped['GameRoleSet'] = relationship()
     members: Mapped[list['Member']] = relationship(back_populates='server', cascade='all, delete-orphan')
     server_games: Mapped[list['ServerGame']] = relationship(back_populates='server', cascade='all, delete-orphan')
@@ -130,9 +130,8 @@ class Custom(Base):
 class CustomRating(Base):
     __tablename__ = 'custom_rating_table'
 
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    custom_id: Mapped[UUID] = mapped_column(ForeignKey('custom_table.id'))
-    game_role_id: Mapped[UUID] = mapped_column(ForeignKey('game_role_table.id'))
+    custom_id: Mapped[UUID] = mapped_column(ForeignKey('custom_table.id', ondelete='CASCADE'))
+    game_role_id: Mapped[UUID] = mapped_column(ForeignKey('game_role_table.id'), ondelete='CASCADE')
     rating: Mapped[int] = mapped_column()
 
     custom: Mapped['Custom'] = relationship(back_populates='custom_ratings')
@@ -146,8 +145,8 @@ class ServerGame(Base):
     server_id: Mapped[UUID] = mapped_column(ForeignKey('server_table.id', ondelete='CASCADE'))
     game_id: Mapped[UUID] = mapped_column(ForeignKey('game_table.id', ondelete='CASCADE'))
 
-    server: Mapped['Server'] = relationship(back_populates='server_game')
-    game: Mapped['Game'] = relationship(back_populates='server_game')
+    server: Mapped['Server'] = relationship(back_populates='server_games')
+    game: Mapped['Game'] = relationship(back_populates='server_games')
 
 
 class Game(Base):
