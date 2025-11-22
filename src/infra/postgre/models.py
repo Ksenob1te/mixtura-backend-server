@@ -107,7 +107,7 @@ class Member(Base):
 
     server: Mapped['Server'] = relationship(back_populates='members')
     server_role: Mapped['ServerRole'] = relationship()
-    customs: Mapped[list['Custom']] = relationship(back_populates='member')
+    customs: Mapped[list['Custom']] = relationship(back_populates='member', foreign_keys='[Custom.member_id]')
     restrictions: Mapped[list['Restriction']] = relationship(
         back_populates='member',
         cascade='all, delete-orphan'
@@ -121,17 +121,20 @@ class Custom(Base):
     member_id: Mapped[UUID] = mapped_column(ForeignKey('member_table.id', ondelete='CASCADE'))
     creator_id: Mapped[UUID] = mapped_column(ForeignKey('member_table.id', ondelete='SET NULL'), nullable=True)
 
-    member: Mapped['Member'] = relationship(
-        back_populates='customs', foreign_keys=[member_id])
+    member: Mapped['Member'] = relationship(back_populates='customs', foreign_keys=[member_id])
     creator: Mapped['Member'] = relationship(foreign_keys=[creator_id])
     custom_ratings: Mapped[list['CustomRating']] = relationship(back_populates='custom')
 
 
 class CustomRating(Base):
     __tablename__ = 'custom_rating_table'
+    __table_args__ = (
+        UniqueConstraint('custom_id', 'game_role_id', name='uq_custom_gamerole_pair'),
+    )
 
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     custom_id: Mapped[UUID] = mapped_column(ForeignKey('custom_table.id', ondelete='CASCADE'))
-    game_role_id: Mapped[UUID] = mapped_column(ForeignKey('game_role_table.id'), ondelete='CASCADE')
+    game_role_id: Mapped[UUID] = mapped_column(ForeignKey('game_role_table.id', ondelete='CASCADE'))
     rating: Mapped[int] = mapped_column()
 
     custom: Mapped['Custom'] = relationship(back_populates='custom_ratings')
@@ -140,6 +143,9 @@ class CustomRating(Base):
 
 class ServerGame(Base):
     __tablename__ = 'server_game'
+    __table_args__ = (
+        UniqueConstraint('server_id', 'game_id', name='uq_server_game_pair'),
+    )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     server_id: Mapped[UUID] = mapped_column(ForeignKey('server_table.id', ondelete='CASCADE'))
@@ -153,7 +159,7 @@ class Game(Base):
     __tablename__ = 'game_table'
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    name: Mapped[str] = mapped_column(String(128))
+    name: Mapped[str] = mapped_column(String(128), unique=True)
     icon_url: Mapped[str] = mapped_column()
     banner_url: Mapped[str] = mapped_column()
 
@@ -204,6 +210,9 @@ class Restriction(Base):
 
 class ServerRolePermission(Base):
     __tablename__ = 'server_role_permission'
+    __table_args__ = (
+        UniqueConstraint('server_role_id', 'permission_id', name='uq_role_permission_pair'),
+    )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
 

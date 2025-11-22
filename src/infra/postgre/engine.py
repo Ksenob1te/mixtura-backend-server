@@ -4,14 +4,10 @@ from typing import Any, AsyncIterator
 from sqlalchemy.ext.asyncio import (AsyncConnection, AsyncSession,
                                     async_sessionmaker, create_async_engine)
 from sqlalchemy.orm import DeclarativeBase
-from src.env_config import env
 
 
 class Base(DeclarativeBase):
     pass
-
-
-connect_string = env.postgres.url
 
 
 class DatabaseSessionManager:
@@ -60,7 +56,3 @@ class DatabaseSessionManager:
     @property
     async def opened(self) -> bool:
         return self._engine is not None or self._sessionmaker is not None
-
-
-
-
