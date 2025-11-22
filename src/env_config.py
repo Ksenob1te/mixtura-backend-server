@@ -10,7 +10,7 @@ class RedisConfig(LocalSettings):
     host: str = Field(default="localhost", alias="REDIS_HOST")
     port: int = Field(default=6379, alias="REDIS_PORT")
     user: str = Field(default="default", alias="REDIS_USER")
-    password: str = Field(alias="REDIS_PASSWORD")
+    password: str = Field(default="", alias="REDIS_PASSWORD")
 
     @property
     def url(self) -> str:
