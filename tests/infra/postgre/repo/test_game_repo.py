@@ -74,28 +74,6 @@ async def _create_server(session, name="Srv"):
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_add_and_list_servers(async_session):
-    repo = GameRepository(async_session)
-    g = await repo.create("LinkGame", "i.png", "b.png")
-    s1 = await _create_server(async_session, "S1")
-    s2 = await _create_server(async_session, "S2")
-    assert g is not None
-
-    await repo.add_to_server(g.id, s1.id)
-    await repo.add_to_server(g.id, s2.id)
-    # duplicate add should be ignored
-    await repo.add_to_server(g.id, s1.id)
-
-    server_ids = await repo.list_servers_for_game(g.id)
-    assert set(server_ids) == {s1.id, s2.id}
-
-    res = await async_session.execute(
-        select(ServerGame).where(ServerGame.game_id == g.id)
-    )
-    assert len(res.scalars().all()) == 2
-
-
-@pytest.mark.asyncio(loop_scope="session")
 async def test_remove_from_server(async_session):
     repo = GameRepository(async_session)
     g = await repo.create("RemGame", "i.png", "b.png")
@@ -124,3 +102,4 @@ async def test_bulk_add_to_server(async_session):
     )
     linked_game_ids = {row.game_id for row in res.all()}
     assert linked_game_ids == {g.id for g in games if g is not None}
+

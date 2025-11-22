@@ -38,11 +38,6 @@ class GameRepository:
         await self.session.flush()
         return bool(result.rowcount)    # type: ignore
 
-    async def list_servers_for_game(self, game_id: UUID) -> list[UUID]:
-        stmt = select(ServerGame.server_id).where(ServerGame.game_id == game_id)
-        res = await self.session.execute(stmt)
-        return list(res.scalars().all())
-
     async def add_to_server(self, game_id: UUID, server_id: UUID) -> None:
         stmt = select(ServerGame).where(
             ServerGame.game_id == game_id,
