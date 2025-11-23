@@ -2,7 +2,6 @@ from uuid import UUID
 from fastapi_controllers import Controller, get, post, delete
 
 class ServerGamesController(Controller):
-    # Четкий префикс только для игр конкретного сервера
     prefix = "/{server_id}/games"
     tags = ["Server games"]
 

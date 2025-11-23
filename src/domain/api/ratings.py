@@ -2,11 +2,8 @@ from uuid import UUID
 from fastapi_controllers import Controller, get, post, put, patch, delete
 
 class ServerRatingsController(Controller):
-    # Включаем /rating-set в префикс
     prefix = "/{server_id}/rating-set"
     tags = ["Server ratings"]
-
-    # --- Управление набором рейтингов (Rating Set) ---
 
     @get("/")
     def get_rating_set(self, server_id: UUID):
@@ -18,14 +15,11 @@ class ServerRatingsController(Controller):
         """Полное обновление/замена набора рейтингов"""
         pass
 
-    # --- Управление конкретными рейтингами (Ratings) ---
-    # Итоговый путь: /servers/{server_id}/rating-set/ratings/...
-
     @post("/ratings")
     def create_rating(self, server_id: UUID):
         pass
 
-    @get("/ratings/{rating_id}") # Добавил GET для полноты, если нужен
+    @get("/ratings/{rating_id}")
     def get_rating(self, server_id: UUID, rating_id: UUID):
         pass
 

@@ -2,7 +2,6 @@ from uuid import UUID
 from fastapi_controllers import Controller, get, post, put, delete
 
 class MemberCustomsController(Controller):
-    # Очень глубокий путь
     prefix = "/{server_id}/members/{member_id}/customs"
     tags = ["Members customs"]
 
@@ -22,9 +21,6 @@ class MemberCustomsController(Controller):
     def delete_custom(self, server_id: UUID, member_id: UUID, custom_id: UUID):
         pass
 
-    # --- Ratings внутри Customs ---
-    # Путь: .../customs/{custom_id}/ratings/{rating_id}
-    
     @post("/{custom_id}/ratings")
     def add_rating_to_custom(self, server_id: UUID, member_id: UUID, custom_id: UUID):
         pass

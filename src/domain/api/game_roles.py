@@ -1,13 +1,11 @@
 from uuid import UUID
+from fastapi import UploadFile
 from fastapi_controllers import Controller, get, post, put, patch, delete
 
 class ServerGameRolesController(Controller):
-    # Включаем /role-set в префикс для краткости методов
     prefix = "/{server_id}/role-set"
     tags = ["Server game roles"]
 
-    # --- Управление самим набором (Role Set) ---
-    
     @get("/")
     def get_role_set(self, server_id: UUID):
         """Получить настройки набора ролей"""
@@ -18,9 +16,7 @@ class ServerGameRolesController(Controller):
         """Обновить настройки набора ролей"""
         pass
 
-    # --- Управление конкретными ролями (Roles) ---
-    # Итоговый путь: /servers/{server_id}/role-set/roles/...
-    
+
     @post("/roles")
     def create_role(self, server_id: UUID):
         pass
@@ -38,5 +34,5 @@ class ServerGameRolesController(Controller):
         pass
         
     @put("/roles/{role_id}/icon")
-    def update_role_icon(self, server_id: UUID, role_id: UUID):
+    def update_role_icon(self, server_id: UUID, role_id: UUID, icon: UploadFile):
         pass

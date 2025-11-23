@@ -5,10 +5,6 @@ class ServerInvitesController(Controller):
     prefix = "" 
     tags = ["Server invites"]
 
-    # --- PUBLIC ACCESS (Вход) ---
-    # Путь: /servers/invites/{key}
-    # UUID сервера здесь не нужен, он определяется по key
-    
     @get("/invites/{key}")
     def get_invite_info(self, key: str):
         """Публичный: Проверить, куда ведет инвайт"""
@@ -18,9 +14,6 @@ class ServerInvitesController(Controller):
     def use_invite(self, key: str):
         """Публичный: Принять инвайт"""
         pass
-
-    # --- MANAGEMENT (Управление) ---
-    # Путь: /servers/{server_id}/invites
     
     @get("/{server_id}/invites")
     def list_invites(self, server_id: UUID):

@@ -9,7 +9,10 @@ class MembersController(Controller):
     def list_members(self, server_id: UUID):
         pass
 
-    # Виртуальный участник
+    @post("/")
+    def create_member(self, server_id: UUID): # Only for public servers
+        pass
+
     @post("/virtual") 
     def create_virtual(self, server_id: UUID):
         pass
@@ -30,8 +33,6 @@ class MembersController(Controller):
     def migrate_member(self, server_id: UUID, member_id: UUID):
         pass
 
-    # Restrictions (Ограничения)
-    # Можно вынести, но они тесно связаны с участником
     @get("/{member_id}/restrictions")
     def get_restrictions(self, server_id: UUID, member_id: UUID):
         pass
