@@ -1,36 +1,66 @@
 from uuid import UUID
+from fastapi import UploadFile
 from fastapi_controllers import Controller, get, post, put, patch, delete
+
+from src.domain.models.ratings.request import (
+    RatingItemCreateRequest,
+    RatingItemUpdateRequest,
+    RatingSetUpdateRequest,
+)
+from src.domain.models.ratings.response import RatingItemResponse, RatingSetResponse
+from src.domain.models.response import StatusResponse
+
 
 class ServerRatingController(Controller):
     prefix = "/{server_id}/rating-set"
     tags = ["Server rating"]
 
-    @get("/")
-    def get_rating_set(self, server_id: UUID):
-        """Получить текущий набор рейтингов"""
+    @get("/", response_model=list[RatingSetResponse])
+    def get_rating_set(self, server_id: UUID):  # TODO : User id depend
+        # TODO : Member get depend
         pass
 
-    @put("/")
-    def replace_rating_set(self, server_id: UUID):
-        """Полное обновление/замена набора рейтингов"""
+    @patch("/{rating_set_id}", response_model=RatingSetResponse)
+    def update_rating_set(
+        self, server_id: UUID, rating_set_id: UUID, body: RatingSetUpdateRequest
+    ):  # TODO : User id depend
+        # TODO : Member get depend
         pass
 
-    @post("/ratings")
-    def create_rating(self, server_id: UUID):
+    @post("/{rating_set_id}/ratings", response_model=RatingItemResponse)
+    def create_rating(
+        self,
+        server_id: UUID,
+        rating_set_id: UUID,
+        body: RatingItemCreateRequest,
+        icon: UploadFile,
+    ):  # TODO : User id depend
+        # TODO : Member get depend
         pass
 
-    @get("/ratings/{rating_id}")
-    def get_rating(self, server_id: UUID, rating_id: UUID):
+    @patch("/{rating_set_id}/ratings/{rating_id}", response_model=RatingItemResponse)
+    def update_rating(
+        self,
+        server_id: UUID,
+        rating_set_id: UUID,
+        rating_id: UUID,
+        body: RatingItemUpdateRequest,
+    ):  # TODO : User id depend
+        # TODO : Member get depend
         pass
 
-    @patch("/ratings/{rating_id}")
-    def update_rating(self, server_id: UUID, rating_id: UUID):
+    @delete("/{rating_set_id}/ratings/{rating_id}", response_mode=StatusResponse)
+    def delete_rating(
+        self, server_id: UUID, rating_set_id: UUID, rating_id: UUID
+    ):  # TODO : User id depend
+        # TODO : Member get depend
         pass
 
-    @delete("/ratings/{rating_id}")
-    def delete_rating(self, server_id: UUID, rating_id: UUID):
-        pass
-        
-    @put("/ratings/{rating_id}/icon") # Добавил иконку, как было в списке
-    def update_rating_icon(self, server_id: UUID, rating_id: UUID):
+    @put(
+        "/{rating_set_id}/ratings/{rating_id}/icon", response_model=RatingItemResponse
+    )  # Добавил иконку, как было в списке
+    def update_rating_icon(
+        self, server_id: UUID, rating_set_id: UUID, rating_id: UUID, icon: UploadFile
+    ):  # TODO : User id depend
+        # TODO : Member get depend
         pass

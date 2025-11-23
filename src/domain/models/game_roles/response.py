@@ -17,5 +17,5 @@ class GameRoleSetResponse(BaseModel):
 
     id: UUID
     name: str
-    is_global: bool
+
     game_roles: list[GameRoleItemResponse] = []

@@ -30,26 +30,34 @@ class ServerCoreController(Controller):
     def list_servers(self):
         pass
 
+    @get("/", response_model=list[ServerListResponse])
+    def list_user_servers(self): # TODO : User id depend
+        pass
+
     @post("/", status_code=201)
-    def create_server(self, body: ServerCreateRequest):
+    def create_server(self, body: ServerCreateRequest):  # TODO : User id depend
         pass
 
     @get("/{server_id}", response_model=ServerDetailResponse)
-    def get_server(self, server_id: UUID):
+    def get_server(self, server_id: UUID):  # TODO : User id depend
         pass
 
     @patch("/{server_id}", response_model=ServerDetailResponse)
-    def update_server(self, server_id: UUID, body: ServerUpdateRequest):
+    def update_server(self, server_id: UUID, body: ServerUpdateRequest): # TODO : User id depend
+        # TODO : Member get depend
         pass
 
     @delete("/{server_id}", response_model=StatusResponse)
-    def delete_server(self, server_id: UUID):
+    def delete_server(self, server_id: UUID): # TODO : User id depend
+        # TODO : Member get depend
         pass
 
     @put("/{server_id}/banner", response_model=ServerDetailResponse)
-    def update_banner(self, server_id: UUID, banner: UploadFile):
+    def update_banner(self, server_id: UUID, banner: UploadFile): # TODO : User id depend
+        # TODO : Member get depend
         pass
 
     @put("/{server_id}/icon", response_model=ServerDetailResponse)
-    def update_icon(self, server_id: UUID, icon: UploadFile):
+    def update_icon(self, server_id: UUID, icon: UploadFile): # TODO : User id depend
+        # TODO : Member get depend
         pass

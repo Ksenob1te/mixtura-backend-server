@@ -2,37 +2,57 @@ from uuid import UUID
 from fastapi import UploadFile
 from fastapi_controllers import Controller, get, post, put, patch, delete
 
+from src.domain.models.game_roles.request import (
+    GameRoleItemCreateRequest,
+    GameRoleItemUpdateRequest,
+    GameRoleSetUpdateRequest,
+)
+from src.domain.models.game_roles.response import (
+    GameRoleItemResponse,
+    GameRoleSetResponse,
+)
+from src.domain.models.response import StatusResponse
+
+
 class ServerGameRoleController(Controller):
     prefix = "/{server_id}/role-set"
     tags = ["Server game role"]
 
-    @get("/")
-    def get_role_set(self, server_id: UUID):
-        """Получить настройки набора ролей"""
+    @get("/", response_model=list[GameRoleSetResponse])
+    def get_role_set(self, server_id: UUID): # TODO : User id depend
+        # TODO : Member get depend
         pass
 
-    @patch("/")
-    def update_role_set(self, server_id: UUID):
-        """Обновить настройки набора ролей"""
+    @patch("/{role_set_id}", response_model=GameRoleSetResponse)
+    def update_role_set(
+        self, server_id: UUID, role_set_id: UUID, body: GameRoleSetUpdateRequest
+    ): # TODO : User id depend
+        # TODO : Member get depend
         pass
 
-
-    @post("/roles")
-    def create_role(self, server_id: UUID):
-        pass
-        
-    @get("/roles/{role_id}")
-    def get_role(self, server_id: UUID, role_id: UUID):
+    @post("/{role_set_id}/roles", response_model=StatusResponse)
+    def create_role(self, server_id: UUID, role_set_id: UUID, body: GameRoleItemCreateRequest, icon: UploadFile): # TODO : User id depend
+        # TODO : Member get depend
         pass
 
-    @patch("/roles/{role_id}")
-    def update_role(self, server_id: UUID, role_id: UUID):
+    @patch("/{role_set_id}/roles/{role_id}", response_model=GameRoleItemResponse)
+    def update_role(
+        self,
+        server_id: UUID,
+        role_set_id: UUID,
+        role_id: UUID,
+        body: GameRoleItemUpdateRequest,
+    ): # TODO : User id depend
+        # TODO : Member get depend
         pass
 
-    @delete("/roles/{role_id}")
-    def delete_role(self, server_id: UUID, role_id: UUID):
+    @delete("/{role_set_id}/roles/{role_id}", response_model=StatusResponse)
+    def delete_role(self, server_id: UUID, role_set_id: UUID, role_id: UUID): # TODO : User id depend
         pass
-        
-    @put("/roles/{role_id}/icon")
-    def update_role_icon(self, server_id: UUID, role_id: UUID, icon: UploadFile):
+
+    @put("/{role_set_id}/roles/{role_id}/icon", response_model=GameRoleItemResponse)
+    def update_role_icon(
+        self, server_id: UUID, role_id: UUID, role_set_id: UUID, icon: UploadFile
+    ): # TODO : User id depend
+        # TODO : Member get depend
         pass
