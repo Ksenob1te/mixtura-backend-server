@@ -3,3 +3,11 @@ from .permission import PermissionRepository
 from .rating import RatingRepository
 from .game_role import GameRoleRepository
 from .custom_rating import CustomRatingRepository
+from .custom import CustomRepository
+from .game_role_set import GameRoleSetRepository
+from .rating_set import RatingSetRepository
+from .invite import InviteRepository
+from .member import MemberRepository
+from .restriction import RestrictionRepository
+from .server import ServerRepository
+from .server_role import ServerRoleRepository

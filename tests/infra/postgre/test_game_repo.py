@@ -3,8 +3,20 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from src.infra.postgre.models import Game, Server, ServerGame
+from src.infra.postgre.models import Game, Server, ServerGame, GameRoleSet, RatingSet
 from src.infra.postgre.repo import GameRepository
+
+
+async def _create_server(session, name="Srv"):
+    rs = GameRoleSet(name="RS", is_global=False)
+    rts = RatingSet(name="RT", min_rating=0, max_rating=10, is_global=False)
+    session.add(rs)
+    session.add(rts)
+    await session.flush()
+    s = Server(name=name, owner_id=uuid.uuid4(), public=True, role_set_id=rs.id, rating_set_id=rts.id)
+    session.add(s)
+    await session.flush()
+    return s
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -62,17 +74,6 @@ async def test_delete_game(async_session):
     assert ok is True
     not_ok = await repo.delete(g.id)
     assert not_ok is False
-
-
-async def _create_server(session, name="Srv"):
-    s = Server(
-        name=name,
-        owner_id=uuid.uuid4(),
-        public=True
-    )
-    session.add(s)
-    await session.flush()
-    return s
 
 
 @pytest.mark.asyncio(loop_scope="session")

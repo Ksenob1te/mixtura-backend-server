@@ -1,0 +1,60 @@
+from uuid import UUID
+from typing import Sequence
+from sqlalchemy import select, delete
+from sqlalchemy.ext.asyncio import AsyncSession
+from ..models import RatingSet
+
+
+class RatingSetRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get_by_id(self, rating_set_id: UUID) -> RatingSet | None:
+        stmt = select(RatingSet).where(RatingSet.id == rating_set_id).limit(1)
+        return await self.session.scalar(stmt)
+
+    async def get_by_name(self, name: str) -> RatingSet | None:
+        stmt = select(RatingSet).where(RatingSet.name == name).limit(1)
+        return await self.session.scalar(stmt)
+
+    async def create(self, name: str, min_rating: int, max_rating: int, is_global: bool = False) -> RatingSet | None:
+        if min_rating > max_rating:
+            min_rating = max_rating
+        rs = RatingSet(name=name, min_rating=min_rating, max_rating=max_rating, is_global=is_global)
+        self.session.add(rs)
+        await self.session.flush()
+        return await self.get_by_id(rs.id)
+
+    async def set_name(self, rating_set: RatingSet, name: str) -> RatingSet:
+        rating_set.name = name
+        self.session.add(rating_set)
+        await self.session.flush()
+        return rating_set
+
+    async def set_min_rating(self, rating_set: RatingSet, min_rating: int) -> RatingSet:
+        rating_set.min_rating = min_rating
+        if rating_set.max_rating < min_rating:
+            rating_set.min_rating = rating_set.max_rating
+        self.session.add(rating_set)
+        await self.session.flush()
+        return rating_set
+
+    async def set_max_rating(self, rating_set: RatingSet, max_rating: int) -> RatingSet:
+        rating_set.max_rating = max_rating
+        if rating_set.min_rating > max_rating:
+            rating_set.max_rating = rating_set.min_rating
+        self.session.add(rating_set)
+        await self.session.flush()
+        return rating_set
+
+    async def set_global(self, rating_set: RatingSet, is_global: bool) -> RatingSet:
+        rating_set.is_global = is_global
+        self.session.add(rating_set)
+        await self.session.flush()
+        return rating_set
+
+    async def delete(self, rating_set_id: UUID) -> bool:
+        stmt = delete(RatingSet).where(RatingSet.id == rating_set_id)
+        res = await self.session.execute(stmt)
+        await self.session.flush()
+        return bool(res.rowcount)  # type: ignore

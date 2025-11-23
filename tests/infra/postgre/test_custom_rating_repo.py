@@ -2,12 +2,17 @@ import uuid
 import pytest
 from sqlalchemy.exc import IntegrityError
 
-from src.infra.postgre.models import Member, Custom, GameRoleSet, GameRole, Server
+from src.infra.postgre.models import Member, Custom, GameRoleSet, GameRole, Server, RatingSet
 from src.infra.postgre.repo import CustomRatingRepository
 
 
 async def _server(session):
-    s = Server(id=uuid.uuid4(), name="Server", owner_id=uuid.uuid4(), public=False)
+    rs = GameRoleSet(name="RS", is_global=False)
+    rts = RatingSet(name="RT", min_rating=0, max_rating=50, is_global=False)
+    session.add(rs)
+    session.add(rts)
+    await session.flush()
+    s = Server(id=uuid.uuid4(), name="Server", owner_id=uuid.uuid4(), public=False, role_set_id=rs.id, rating_set_id=rts.id)
     session.add(s)
     await session.flush()
     return s
@@ -29,7 +34,7 @@ async def _custom(session, s: Server):
 
 
 async def _role(session, name="Role"):
-    rs = GameRoleSet(name="Set")
+    rs = GameRoleSet(name="Set", is_global=False)
     session.add(rs)
     await session.flush()
     r = GameRole(name=name, role_set_id=rs.id, min_in_team=0, max_in_team=1)

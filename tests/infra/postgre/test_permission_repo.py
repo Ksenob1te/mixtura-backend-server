@@ -3,15 +3,20 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from src.infra.postgre.models import ServerRole, ServerRolePermission, Permission, Server
+from src.infra.postgre.models import ServerRole, ServerRolePermission, Permission, Server, GameRoleSet, RatingSet
 from src.infra.postgre.repo import PermissionRepository
 
 
 async def _create_role(session, name="Role", position: int = 0):
-    server_id = uuid.uuid4()
-    s = Server(id=server_id, name="Server", owner_id=uuid.uuid4(), public=False)
-    r = ServerRole(server_id=server_id, name=name, position=position)
+    rs = GameRoleSet(name="RS", is_global=False)
+    rts = RatingSet(name="RT", min_rating=0, max_rating=10, is_global=False)
+    session.add(rs)
+    session.add(rts)
+    await session.flush()
+    s = Server(name="Server", owner_id=uuid.uuid4(), public=False, role_set_id=rs.id, rating_set_id=rts.id)
     session.add(s)
+    await session.flush()
+    r = ServerRole(server_id=s.id, name=name, position=position)
     session.add(r)
     await session.flush()
     return r
@@ -111,4 +116,3 @@ async def test_list_for_role_empty_when_none_assigned(async_session):
     role = await _create_role(async_session)
     listed = await repo.list_for_role(role.id)
     assert listed == []
-

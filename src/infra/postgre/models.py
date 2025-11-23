@@ -1,8 +1,8 @@
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, time, timezone
 import uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import ForeignKey, func, String, UniqueConstraint
+from sqlalchemy import ForeignKey, func, String, UniqueConstraint, DateTime
 from . import Base
 
 
@@ -73,15 +73,13 @@ class Server(Base):
     banner_url: Mapped[str | None] = mapped_column(nullable=True)
     banner_id: Mapped[UUID | None] = mapped_column(nullable=True)
     owner_id: Mapped[UUID] = mapped_column()
-    rating_set_id: Mapped[UUID | None] = mapped_column(ForeignKey('rating_set_table.id', ondelete='SET NULL'),
-                                                       nullable=True)
-    role_set_id: Mapped[UUID | None] = mapped_column(ForeignKey('role_set_table.id', ondelete='SET NULL'),
-                                                     nullable=True)
     public: Mapped[bool] = mapped_column()
-    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    role_set_id: Mapped[UUID] = mapped_column(ForeignKey('role_set_table.id', ondelete='RESTRICT'))
+    rating_set_id: Mapped[UUID] = mapped_column(ForeignKey('rating_set_table.id', ondelete='RESTRICT'))
 
-    rating_set: Mapped['RatingSet'] = relationship()
-    role_set: Mapped['GameRoleSet'] = relationship()
+    role_set: Mapped['GameRoleSet'] = relationship(uselist=False)
+    rating_set: Mapped['RatingSet'] = relationship(uselist=False)
     members: Mapped[list['Member']] = relationship(back_populates='server', cascade='all, delete-orphan')
     server_games: Mapped[list['ServerGame']] = relationship(back_populates='server', cascade='all, delete-orphan')
     server_roles: Mapped[list['ServerRole']] = relationship(back_populates='server', cascade='all, delete-orphan')
@@ -97,13 +95,16 @@ class Server(Base):
 
 class Member(Base):
     __tablename__ = 'member_table'
+    __table_args__ = (
+        UniqueConstraint('server_id', 'user_id', name='uq_member_server_user'),
+    )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     server_id: Mapped[UUID] = mapped_column(ForeignKey('server_table.id', ondelete='CASCADE'))
     user_id: Mapped[UUID | None] = mapped_column(nullable=True)
     server_role_id: Mapped[UUID | None] = mapped_column(ForeignKey('server_role_table.id', ondelete='SET NULL'),
                                                         nullable=True)
-    joined_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     active: Mapped[bool] = mapped_column(default=True)
 
     server: Mapped['Server'] = relationship(back_populates='members')
@@ -203,7 +204,7 @@ class Restriction(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     member_id: Mapped[UUID] = mapped_column(ForeignKey('member_table.id', ondelete='CASCADE'))
     reason: Mapped[str] = mapped_column()
-    expiration_date: Mapped[datetime] = mapped_column()
+    expiration_date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     type_code: Mapped[str] = mapped_column()
 
     member: Mapped['Member'] = relationship(back_populates='restrictions')
