@@ -8,6 +8,7 @@ from .game_role_set import GameRoleSetRepository
 from .rating_set import RatingSetRepository
 from .invite import InviteRepository
 from .member import MemberRepository
-from .restriction import RestrictionRepository
 from .server import ServerRepository
 from .server_role import ServerRoleRepository
+from .restriction import RestrictionRepository
+from .member_restriction import MemberRestrictionRepository

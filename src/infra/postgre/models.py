@@ -1,3 +1,4 @@
+from enum import unique
 from uuid import UUID
 from datetime import datetime, time, timezone
 import uuid
@@ -111,7 +112,7 @@ class Member(Base):
     server: Mapped['Server'] = relationship(back_populates='members')
     server_role: Mapped['ServerRole'] = relationship()
     customs: Mapped[list['Custom']] = relationship(back_populates='member', foreign_keys='[Custom.member_id]')
-    restrictions: Mapped[list['Restriction']] = relationship(
+    restrictions: Mapped[list['MemberRestriction']] = relationship(
         back_populates='member',
         cascade='all, delete-orphan'
     )
@@ -199,16 +200,26 @@ class ServerRole(Base):
     )
 
 
+class MemberRestriction(Base):
+    __tablename__ = 'member_restriction_table'
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    member_id: Mapped[UUID] = mapped_column(ForeignKey('member_table.id', ondelete='CASCADE'))
+    restriction_code_id: Mapped[UUID] = mapped_column(ForeignKey('restriction_table.id', ondelete='RESTRICT'))
+    reason: Mapped[str] = mapped_column()
+    expiration_date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+    member: Mapped['Member'] = relationship(back_populates='restrictions')
+    restriction_code: Mapped['Restriction'] = relationship(back_populates='member_restrictions')
+
+
 class Restriction(Base):
     __tablename__ = 'restriction_table'
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    member_id: Mapped[UUID] = mapped_column(ForeignKey('member_table.id', ondelete='CASCADE'))
-    reason: Mapped[str] = mapped_column()
-    expiration_date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    type_code: Mapped[str] = mapped_column()
+    code: Mapped[str] = mapped_column(String(128), unique=True)
 
-    member: Mapped['Member'] = relationship(back_populates='restrictions')
+    member_restrictions: Mapped[list['MemberRestriction']] = relationship(back_populates='restriction_code')
 
 
 class ServerRolePermission(Base):
