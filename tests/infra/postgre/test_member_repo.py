@@ -29,8 +29,8 @@ async def _role(session, server: Server, name="Role", position=0):
 async def test_create_and_get_member(async_session):
     repo = MemberRepository(async_session)
     s = await _server(async_session)
-    m = await repo.create(server_id=s.id, user_id=uuid.uuid4())
-    assert m is not None
+    m = await repo.create(server_id=s.id, user_id=uuid.uuid4(), name="Alice")
+    assert m is not None and m.name == "Alice"
     by_id = await repo.get_by_id(m.id)
     assert by_id is not None and by_id.id == m.id
     assert await repo.get_by_id(uuid.uuid4()) is None
@@ -41,16 +41,16 @@ async def test_duplicate_user_membership_raises(async_session):
     repo = MemberRepository(async_session)
     s = await _server(async_session)
     user_id = uuid.uuid4()
-    _ = await repo.create(server_id=s.id, user_id=user_id)
+    _ = await repo.create(server_id=s.id, user_id=user_id, name="UserOne")
     with pytest.raises(IntegrityError):
-        await repo.create(server_id=s.id, user_id=user_id)
+        await repo.create(server_id=s.id, user_id=user_id, name="UserOneDup")
 
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_list_and_list_active(async_session):
     repo = MemberRepository(async_session)
     s = await _server(async_session)
-    members = [await repo.create(server_id=s.id, user_id=uuid.uuid4()) for _ in range(3)]
+    members = [await repo.create(server_id=s.id, user_id=uuid.uuid4(), name=f"U{i}") for i in range(3)]
     listed = await repo.list_for_server(s.id)
     assert {m.id for m in listed} == {m.id for m in members if m is not None}
     active_listed = await repo.list_active_for_server(s.id)
@@ -61,7 +61,7 @@ async def test_list_and_list_active(async_session):
 async def test_activation_and_deactivation(async_session):
     repo = MemberRepository(async_session)
     s = await _server(async_session)
-    m = await repo.create(server_id=s.id, user_id=uuid.uuid4())
+    m = await repo.create(server_id=s.id, user_id=uuid.uuid4(), name="ActUser")
     assert m is not None and m.active is True
     m = await repo.deactivate(m)
     assert m.active is False
@@ -78,7 +78,7 @@ async def test_set_role(async_session):
     repo = MemberRepository(async_session)
     s = await _server(async_session)
     role = await _role(async_session, s)
-    m = await repo.create(server_id=s.id, user_id=uuid.uuid4())
+    m = await repo.create(server_id=s.id, user_id=uuid.uuid4(), name="RoleUser")
     assert m is not None
     m = await repo.set_role(m, role.id)
     assert m.server_role_id == role.id
@@ -89,10 +89,22 @@ async def test_set_role(async_session):
 
 
 @pytest.mark.asyncio(loop_scope="session")
+async def test_set_name(async_session):
+    repo = MemberRepository(async_session)
+    s = await _server(async_session)
+    m = await repo.create(server_id=s.id, user_id=uuid.uuid4(), name="OldName")
+    assert m is not None and m.name == "OldName"
+    m = await repo.set_name(m, "NewName")
+    assert m.name == "NewName"
+    m2 = await repo.set_name(m, "NewName")
+    assert m2.id == m.id and m2.name == "NewName"
+
+
+@pytest.mark.asyncio(loop_scope="session")
 async def test_delete_member(async_session):
     repo = MemberRepository(async_session)
     s = await _server(async_session)
-    m = await repo.create(server_id=s.id, user_id=uuid.uuid4())
+    m = await repo.create(server_id=s.id, user_id=uuid.uuid4(), name="DelUser")
     assert m is not None
     ok = await repo.delete(m.id)
     assert ok is True
@@ -104,10 +116,48 @@ async def test_delete_member(async_session):
 async def test_multiple_anonymous_members_allowed(async_session):
     repo = MemberRepository(async_session)
     s = await _server(async_session)
-    anon_members = [await repo.create(server_id=s.id, user_id=None) for _ in range(5)]
+    anon_members = [await repo.create(server_id=s.id, user_id=None, name=f"Anon{i}") for i in range(5)]
     assert all(m is not None for m in anon_members)
     assert all(m.user_id is None for m in anon_members if m is not None)
     ids = {m.id for m in anon_members if m is not None}
     assert len(ids) == len(anon_members)
     listed = await repo.list_for_server(s.id)
     assert ids.issubset({m.id for m in listed})
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_set_user_if_none_success(async_session):
+    repo = MemberRepository(async_session)
+    s = await _server(async_session)
+    virtual = await repo.create(server_id=s.id, user_id=None, name="Virtual")
+    assert virtual is not None and virtual.user_id is None
+    new_user_id = uuid.uuid4()
+    ok = await repo.set_user_if_none(virtual, new_user_id)
+    assert ok is True
+    assert virtual.user_id == new_user_id
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_set_user_if_none_conflict_existing_user(async_session):
+    repo = MemberRepository(async_session)
+    s = await _server(async_session)
+    user_id = uuid.uuid4()
+    existing = await repo.create(server_id=s.id, user_id=user_id, name="Existing")
+    virtual = await repo.create(server_id=s.id, user_id=None, name="Virtual2")
+    assert existing is not None and virtual is not None
+    ok = await repo.set_user_if_none(virtual, user_id)
+    assert ok is False
+    assert virtual.user_id is None
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_set_user_if_none_already_has_user(async_session):
+    repo = MemberRepository(async_session)
+    s = await _server(async_session)
+    user_id = uuid.uuid4()
+    member = await repo.create(server_id=s.id, user_id=user_id, name="HasUser")
+    assert member is not None and member.user_id == user_id
+    new_user_id = uuid.uuid4()
+    ok = await repo.set_user_if_none(member, new_user_id)
+    assert ok is False
+    assert member.user_id == user_id

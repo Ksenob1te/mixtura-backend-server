@@ -1,7 +1,8 @@
 from uuid import UUID
 from typing import Sequence
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 from ..models import Member
 
 
@@ -27,8 +28,9 @@ class MemberRepository:
         res = await self.session.scalars(stmt)
         return res.all()
 
-    async def create(self, server_id: UUID, user_id: UUID | None, server_role_id: UUID | None = None) -> Member | None:
-        m = Member(server_id=server_id, user_id=user_id, server_role_id=server_role_id)
+    async def create(self, server_id: UUID, user_id: UUID | None, name: str,
+                     server_role_id: UUID | None = None) -> Member | None:
+        m = Member(server_id=server_id, user_id=user_id, name=name, server_role_id=server_role_id)
         self.session.add(m)
         await self.session.flush()
         return await self.get_by_id(m.id)
@@ -40,6 +42,39 @@ class MemberRepository:
         self.session.add(member)
         await self.session.flush()
         return member
+
+    async def set_name(self, member: Member, name: str) -> Member:
+        if member.name == name:
+            return member
+        member.name = name
+        self.session.add(member)
+        await self.session.flush()
+        return member
+
+    async def set_user_if_none(self, member: Member, user_id: UUID) -> bool:
+        if member.user_id is not None:
+            return False
+
+        conflict_exists = select(Member.id).where(
+            Member.server_id == member.server_id,
+            Member.user_id == user_id
+        ).exists()
+
+        stmt = (
+            update(Member)
+            .where(Member.id == member.id)
+            .where(Member.user_id.is_(None))
+            .where(~conflict_exists)
+            .values(user_id=user_id)
+            .returning(Member.id)
+        )
+        res = await self.session.execute(stmt)
+        success = res.scalar_one_or_none() is not None
+        if success:
+            member.user_id = user_id
+            await self.session.flush()
+            return True
+        return False
 
     async def deactivate(self, member: Member) -> Member:
         if not member.active:

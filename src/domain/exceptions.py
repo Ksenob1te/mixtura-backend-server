@@ -25,6 +25,27 @@ class ExceedRetryLimitException(HTTPException):
         )
 
 
+class MigrationException(HTTPException):
+    def __init__(self):
+        super().__init__(
+            status_code=HTTP_409_CONFLICT,
+            detail={
+                "status": "error",
+                "message": "Unable to perform migration"
+            }
+        )
+
+class NotFoundException(HTTPException):
+    def __init__(self, message: str):
+        super().__init__(
+            status_code=HTTP_404_NOT_FOUND,
+            detail={
+                "status": "error",
+                "message": message
+            }
+        )
+
+
 class InternalLogicException(HTTPException):
     def __init__(self, message: str):
         super().__init__(

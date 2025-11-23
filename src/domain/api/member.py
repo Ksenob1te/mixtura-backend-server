@@ -1,6 +1,7 @@
 from uuid import UUID
 from fastapi_controllers import Controller, get, post, put, delete
 
+
 class MemberController(Controller):
     prefix = "/{server_id}/members"
     tags = ['Member']
@@ -8,6 +9,7 @@ class MemberController(Controller):
     @get("/")
     def list_members(self, server_id: UUID):
         pass
+
 
     @post("/")
     def create_member(self, server_id: UUID): # Only for public servers

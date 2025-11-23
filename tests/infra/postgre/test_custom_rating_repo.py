@@ -19,7 +19,7 @@ async def _server(session):
 
 
 async def _member(session, s: Server):
-    m = Member(server_id=s.id, user_id=uuid.uuid4(), server_role_id=None)
+    m = Member(server_id=s.id, user_id=uuid.uuid4(), server_role_id=None, name="CRMember")
     session.add(m)
     await session.flush()
     return m
