@@ -2,15 +2,18 @@ from uuid import UUID
 from fastapi import UploadFile
 from fastapi_controllers import Controller, get, post, put, patch, delete
 
+from src.domain.models.game_roles.response import GameRoleSetResponse
+from src.domain.models.ratings.response import RatingSetResponse
+
 class ServerCoreController(Controller):
     prefix = ""
     tags = ["Server Core"]
 
-    @get("/role-set", response_model=None)
+    @get("/role-set", response_model=GameRoleSetResponse)
     def get_global_role_templates(self):
         pass
 
-    @get("/rating-set", response_model=None)
+    @get("/rating-set", response_model=RatingSetResponse)
     def get_global_rating_templates(self):
         pass
     

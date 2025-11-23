@@ -1,21 +1,21 @@
 from fastapi import APIRouter
 
-from src.domain.api.member_customs import MemberCustomsController
-from src.domain.api.members import MembersController
+from src.domain.api.member_custom import MemberCustomController
+from src.domain.api.member import MemberController
 from src.domain.api.core import ServerCoreController
-from src.domain.api.game_roles import ServerGameRolesController
-from src.domain.api.games import ServerGamesController
-from src.domain.api.invites import ServerInvitesController
-from src.domain.api.ratings import ServerRatingsController
+from src.domain.api.game_role import ServerGameRoleController
+from src.domain.api.game import ServerGameController
+from src.domain.api.invite import ServerInviteController
+from src.domain.api.rating import ServerRatingController
 
 router = APIRouter(
     prefix="/api/servers",
 )
 
-router.include_router(ServerInvitesController.create_router())
-router.include_router(ServerGamesController.create_router())
-router.include_router(ServerGameRolesController.create_router())
-router.include_router(ServerRatingsController.create_router())
-router.include_router(MemberCustomsController.create_router())
-router.include_router(MembersController.create_router())
+router.include_router(ServerInviteController.create_router())
+router.include_router(ServerGameController.create_router())
+router.include_router(ServerGameRoleController.create_router())
+router.include_router(ServerRatingController.create_router())
+router.include_router(MemberCustomController.create_router())
+router.include_router(MemberController.create_router())
 router.include_router(ServerCoreController.create_router())

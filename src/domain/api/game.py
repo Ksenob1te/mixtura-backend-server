@@ -1,9 +1,9 @@
 from uuid import UUID
 from fastapi_controllers import Controller, get, post, delete
 
-class ServerGamesController(Controller):
+class ServerGameController(Controller):
     prefix = "/{server_id}/games"
-    tags = ["Server games"]
+    tags = ["Server game"]
 
     @get("/")
     def list_server_games(self, server_id: UUID):

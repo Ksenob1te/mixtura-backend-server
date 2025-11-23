@@ -1,9 +1,9 @@
 from uuid import UUID
 from fastapi_controllers import Controller, get, post, put, patch, delete
 
-class ServerRatingsController(Controller):
+class ServerRatingController(Controller):
     prefix = "/{server_id}/rating-set"
-    tags = ["Server ratings"]
+    tags = ["Server rating"]
 
     @get("/")
     def get_rating_set(self, server_id: UUID):

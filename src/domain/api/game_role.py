@@ -2,9 +2,9 @@ from uuid import UUID
 from fastapi import UploadFile
 from fastapi_controllers import Controller, get, post, put, patch, delete
 
-class ServerGameRolesController(Controller):
+class ServerGameRoleController(Controller):
     prefix = "/{server_id}/role-set"
-    tags = ["Server game roles"]
+    tags = ["Server game role"]
 
     @get("/")
     def get_role_set(self, server_id: UUID):

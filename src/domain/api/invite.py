@@ -1,9 +1,9 @@
 from uuid import UUID
 from fastapi_controllers import Controller, get, post, delete
 
-class ServerInvitesController(Controller):
+class ServerInviteController(Controller):
     prefix = "" 
-    tags = ["Server invites"]
+    tags = ["Server invite"]
 
     @get("/invites/{key}")
     def get_invite_info(self, key: str):
