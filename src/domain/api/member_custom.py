@@ -1,34 +1,35 @@
 from uuid import UUID
 from fastapi_controllers import Controller, get, post, put, delete
 
+from src.domain.models.custom.request import GameRoleRatingSetRequest
+from src.domain.models.custom.response import CustomResponse
+from src.domain.models.response import StatusResponse
+
 class MemberCustomController(Controller):
     prefix = "/{server_id}/members/{member_id}/customs"
     tags = ["Member custom"]
 
-    @get("/")
-    def list_customs(self, server_id: UUID, member_id: UUID):
+    @get("/", response_model=list[CustomResponse])
+    def list_customs(self, server_id: UUID, member_id: UUID): # TODO : User id depend
+        # TODO : Issuer Member get depend
         pass
 
-    @post("/")
-    def create_custom(self, server_id: UUID, member_id: UUID):
+    @post("/", response_model=CustomResponse)
+    def create_custom(self, server_id: UUID, member_id: UUID): # TODO : User id depend
+        # TODO : Issuer Member get depend
         pass
 
-    @get("/{custom_id}")
-    def get_custom(self, server_id: UUID, member_id: UUID, custom_id: UUID):
+    @get("/{custom_id}", response_model=CustomResponse)
+    def get_custom(self, server_id: UUID, member_id: UUID, custom_id: UUID): # TODO : User id depend
+        # TODO : Issuer Member get depend
         pass
 
-    @delete("/{custom_id}")
-    def delete_custom(self, server_id: UUID, member_id: UUID, custom_id: UUID):
+    @delete("/{custom_id}", response_model=StatusResponse)
+    def delete_custom(self, server_id: UUID, member_id: UUID, custom_id: UUID): # TODO : User id depend
+        # TODO : Issuer Member get depend
         pass
 
-    @post("/{custom_id}/ratings")
-    def add_rating_to_custom(self, server_id: UUID, member_id: UUID, custom_id: UUID):
-        pass
-
-    @put("/{custom_id}/ratings/{rating_id}")
-    def update_rating_value(self, server_id: UUID, member_id: UUID, custom_id: UUID, rating_id: UUID):
-        pass
-
-    @delete("/{custom_id}/ratings/{rating_id}")
-    def remove_rating_from_custom(self, server_id: UUID, member_id: UUID, custom_id: UUID, rating_id: UUID):
+    @put("/{custom_id}/ratings/{game_role_id}", response_model=CustomResponse)
+    def update_rating_value(self, server_id: UUID, member_id: UUID, custom_id: UUID, game_role_id: UUID, body: GameRoleRatingSetRequest): # TODO : User id depend
+        # TODO : Issuer Member get depend
         pass
