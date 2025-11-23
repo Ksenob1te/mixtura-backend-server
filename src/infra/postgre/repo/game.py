@@ -24,10 +24,20 @@ class GameRepository:
         await self.session.flush()
         return await self.get_by_id(game.id)
 
-    async def update(self, game: Game, **changes) -> Game:
-        for k, v in changes.items():
-            if hasattr(game, k) and v is not None:
-                setattr(game, k, v)
+    async def set_name(self, game: Game, name: str) -> Game:
+        game.name = name
+        self.session.add(game)
+        await self.session.flush()
+        return game
+
+    async def set_icon(self, game: Game, icon_url: str) -> Game:
+        game.icon_url = icon_url
+        self.session.add(game)
+        await self.session.flush()
+        return game
+
+    async def set_banner(self, game: Game, banner_url: str) -> Game:
+        game.banner_url = banner_url
         self.session.add(game)
         await self.session.flush()
         return game

@@ -3,8 +3,20 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from src.infra.postgre.models import Game, Server, ServerGame
+from src.infra.postgre.models import Game, Server, ServerGame, GameRoleSet, RatingSet
 from src.infra.postgre.repo import GameRepository
+
+
+async def _create_server(session, name="Srv"):
+    rs = GameRoleSet(name="RS", is_global=False)
+    rts = RatingSet(name="RT", min_rating=0, max_rating=10, is_global=False)
+    session.add(rs)
+    session.add(rts)
+    await session.flush()
+    s = Server(name=name, owner_id=uuid.uuid4(), public=True, role_set_id=rs.id, rating_set_id=rts.id)
+    session.add(s)
+    await session.flush()
+    return s
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -41,14 +53,16 @@ async def test_get_by_id_and_name(async_session):
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_update_game(async_session):
+async def test_setters_modify_fields(async_session):
     repo = GameRepository(async_session)
-    g = await repo.create("UpGame", "i.png", "b.png")
+    g = await repo.create("SetterGame", "i.png", "b.png")
     assert g is not None
-    updated = await repo.update(g, name="UpGame2", icon_url="new_icon.png")
-    assert updated.name == "UpGame2"
-    assert updated.icon_url == "new_icon.png"
-    assert updated.banner_url == "b.png"
+    g = await repo.set_name(g, "SetterGame2")
+    assert g.name == "SetterGame2"
+    g = await repo.set_icon(g, "new_icon.png")
+    assert g.icon_url == "new_icon.png"
+    g = await repo.set_banner(g, "new_banner.png")
+    assert g.banner_url == "new_banner.png"
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -62,15 +76,22 @@ async def test_delete_game(async_session):
     assert not_ok is False
 
 
-async def _create_server(session, name="Srv"):
-    s = Server(
-        name=name,
-        owner_id=uuid.uuid4(),
-        public=True
+@pytest.mark.asyncio(loop_scope="session")
+async def test_add_and_list_servers(async_session):
+    repo = GameRepository(async_session)
+    g = await repo.create("LinkGame", "i.png", "b.png")
+    s1 = await _create_server(async_session, "S1")
+    s2 = await _create_server(async_session, "S2")
+    assert g is not None
+
+    await repo.add_to_server(g.id, s1.id)
+    await repo.add_to_server(g.id, s2.id)
+    await repo.add_to_server(g.id, s1.id)
+
+    res = await async_session.execute(
+        select(ServerGame).where(ServerGame.game_id == g.id)
     )
-    session.add(s)
-    await session.flush()
-    return s
+    assert len(res.scalars().all()) == 2
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -102,4 +123,3 @@ async def test_bulk_add_to_server(async_session):
     )
     linked_game_ids = {row.game_id for row in res.all()}
     assert linked_game_ids == {g.id for g in games if g is not None}
-

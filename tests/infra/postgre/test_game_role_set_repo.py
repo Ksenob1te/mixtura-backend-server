@@ -1,0 +1,42 @@
+import uuid
+import pytest
+
+from src.infra.postgre.models import GameRoleSet
+from src.infra.postgre.repo import GameRoleSetRepository
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_create_and_get_role_set(async_session):
+    repo = GameRoleSetRepository(async_session)
+    rs = await repo.create("SetA", is_global=False)
+    assert rs is not None
+    assert rs.name == "SetA"
+    assert rs.is_global is False
+    by_id = await repo.get_by_id(rs.id)
+    assert by_id is not None and by_id.id == rs.id
+    by_name = await repo.get_by_name("SetA")
+    assert by_name is not None and by_name.id == rs.id
+    assert await repo.get_by_id(uuid.uuid4()) is None
+    assert await repo.get_by_name("MissingName") is None
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_setters_update_fields(async_session):
+    repo = GameRoleSetRepository(async_session)
+    rs = await repo.create("MutSet", is_global=False)
+    assert rs is not None
+    rs = await repo.set_name(rs, "MutSet2")
+    assert rs.name == "MutSet2"
+    rs = await repo.set_global(rs, True)
+    assert rs.is_global is True
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_delete_role_set(async_session):
+    repo = GameRoleSetRepository(async_session)
+    rs = await repo.create("DelSet")
+    assert rs is not None
+    ok = await repo.delete(rs.id)
+    assert ok is True
+    not_ok = await repo.delete(rs.id)
+    assert not_ok is False
