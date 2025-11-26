@@ -2,11 +2,15 @@ from fastapi import Request, Depends
 
 from .infra.postgre import DatabaseSessionManager
 from .infra.redis import RedisSessionManager, RedisRepository
+from .infra.postgre.repo import *
 
 from typing import Annotated
+from sqlalchemy.ext.asyncio import AsyncSession
 from redis.asyncio import Redis
 
+
 import logging
+
 
 logger = logging.getLogger(__name__)
 
@@ -31,3 +35,59 @@ async def get_redis_session(request: Request):
 
 async def get_redis_repository(redis: Annotated[Redis, Depends(get_redis_session)]):
     return RedisRepository(redis)
+
+
+async def get_custom_repository(session: Annotated[AsyncSession, Depends(get_db_session)]):
+    return CustomRepository(session)
+
+
+async def get_custom_rating_repository(session: Annotated[AsyncSession, Depends(get_db_session)]):
+    return CustomRatingRepository(session)
+
+
+async def get_game_repository(session: Annotated[AsyncSession, Depends(get_db_session)]):
+    return GameRepository(session)
+
+
+async def get_game_role_repository(session: Annotated[AsyncSession, Depends(get_db_session)]):
+    return GameRoleRepository(session)
+
+
+async def get_game_role_set_repository(session: Annotated[AsyncSession, Depends(get_db_session)]):
+    return GameRoleSetRepository(session)
+
+
+async def get_invite_repository(session: Annotated[AsyncSession, Depends(get_db_session)]):
+    return InviteRepository(session)
+
+
+async def get_member_repository(session: Annotated[AsyncSession, Depends(get_db_session)]):
+    return MemberRepository(session)
+
+
+async def get_member_restriction_repository(session: Annotated[AsyncSession, Depends(get_db_session)]):
+    return MemberRestrictionRepository(session)
+
+
+async def get_permission_repository(session: Annotated[AsyncSession, Depends(get_db_session)]):
+    return PermissionRepository(session)
+
+
+async def get_rating_repository(session: Annotated[AsyncSession, Depends(get_db_session)]):
+    return RatingRepository(session)
+
+
+async def get_rating_set_repository(session: Annotated[AsyncSession, Depends(get_db_session)]):
+    return RatingSetRepository(session)
+
+
+async def get_restriction_repository(session: Annotated[AsyncSession, Depends(get_db_session)]):
+    return RestrictionRepository(session)
+
+
+async def get_server_repository(session: Annotated[AsyncSession, Depends(get_db_session)]):
+    return ServerRepository(session)
+
+
+async def get_server_role_repository(session: Annotated[AsyncSession, Depends(get_db_session)]):
+    return ServerRoleRepository(session)

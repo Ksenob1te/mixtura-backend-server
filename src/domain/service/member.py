@@ -43,6 +43,7 @@ class MemberService:
         self.restriction_repo = restriction_repo
 
     async def list_members(self, server_id: UUID) -> list[Member]:
+        # TODO: Check permissions to list members
         members = await self.member_repo.list_active_for_server(server_id)
         return list(members)
 
@@ -91,48 +92,39 @@ class MemberService:
         return member_field
 
     async def get_member(self, server_id: UUID, member_id: UUID) -> Member:
+        # TODO: Check permissions to get member details
         member = await self.member_repo.get_by_id(member_id)
         if not member or member.server_id != server_id:
             raise NotFoundException(f"Member with id {member_id} not found")
         return member
 
-    # async def update_member(
-    #     self,
-    #     server_id: UUID,
-    #     member_id: UUID,
-    #     body: MemberUpdateRequest
-    # ) -> MemberResponse:
-    #     member = await self.member_repo.get_by_id(member_id)
-    #     if not member or member.server_id != server_id:
-    #         raise NotFoundException(f"Member with id {member_id} not found")
-    #
-    #     if body.name and body.name != member.name:
-    #         member = await self.member_repo.set_name(member, body.name)
-    #
-    #     if body.server_role_id is not None:
-    #         # Validate that the role belongs to this server
-    #         if body.server_role_id:
-    #             role = await self.server_role_repo.get_by_id(body.server_role_id)
-    #             if not role or role.server_id != server_id:
-    #                 raise NotFoundException(f"Server role with id {body.server_role_id} not found in server {server_id}")
-    #
-    #         member = await self.member_repo.set_role(member, body.server_role_id)
-    #
-    #     # Update user_id if provided (only for virtual members)
-    #     if body.user_id is not None:
-    #         if member.user_id is None:
-    #             # Check if user is already a member of this server
-    #             existing_member = await self.member_repo.get_by_user_in_server(server_id, body.user_id)
-    #             if existing_member:
-    #                 raise MigrationException()
-    #
-    #             success = await self.member_repo.set_user_if_none(member, body.user_id)
-    #             if not success:
-    #                 raise MigrationException()
-    #             # Refresh member
-    #             member = await self.member_repo.get_by_id(member_id)
-    #
-    #     return await self._to_member_response(member)
+    async def update_member(
+        self,
+        server_id: UUID,
+        member_id: UUID,
+        body: MemberUpdateRequest
+    ) -> Member:
+        member = await self.member_repo.get_by_id(member_id)
+        if member is None or member.server_id != server_id:
+            raise NotFoundException(f"Member with id {member_id} not found")
+
+        if body.name and body.name != member.name:
+            # TODO: Check if member has permission to change name
+            member = await self.member_repo.set_name(member, body.name)
+
+        if body.server_role_id is not None:
+            role = await self.server_role_repo.get_by_id(body.server_role_id)
+            if not role or role.server_id != server_id:
+                raise NotFoundException(f"Server role with id {body.server_role_id} not found")
+            # TODO: Check if member has permission to assign this role
+            member = await self.member_repo.set_role(member, body.server_role_id)
+
+        if body.user_id is not None:
+            success = await self.member_repo.set_user_if_none(member, body.user_id)
+            if not success:
+                raise MigrationException()
+
+        return member
     #
     # async def kick_member(self, server_id: UUID, member_id: UUID) -> StatusResponse:
     #     """
