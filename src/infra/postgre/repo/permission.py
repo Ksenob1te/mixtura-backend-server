@@ -17,6 +17,11 @@ class PermissionRepository:
         stmt = select(Permission).where(Permission.code_name == code_name).limit(1)
         return await self.session.scalar(stmt)
 
+    async def get_by_code_name_bulk(self, code_names: list[str]) -> Sequence[Permission]:
+        stmt = select(Permission).where(Permission.code_name.in_(code_names))
+        res = await self.session.scalars(stmt)
+        return res.all()
+
     async def list_all(self) -> Sequence[Permission]:
         stmt = select(Permission)
         res = await self.session.scalars(stmt)

@@ -5,5 +5,4 @@ __pycache__
 .*
 !.gitignore
 /logger.log
-/**/alembic/versions/*
 /.local/

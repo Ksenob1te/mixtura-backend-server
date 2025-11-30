@@ -12,4 +12,4 @@ COPY . .
 
 ENV PYTHONUNBUFFERED=1
 
-CMD ["sh", "-c", "alembic revision --autogenerate && alembic upgrade head && python start.py"]
+CMD ["sh", "-c", "entrypoint.sh"]

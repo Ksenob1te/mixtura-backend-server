@@ -6,6 +6,5 @@ __pycache__
 !.dockerignore
 !.gitignore
 /logger.log
-/**/alembic/versions/*
 /.local/
 docker-compose*override.yaml
