@@ -1,1 +1,1 @@
-from .permissions import init_permissions
+from .permissions import init_permissions, PERMISSION
