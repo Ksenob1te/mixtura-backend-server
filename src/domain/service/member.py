@@ -4,7 +4,7 @@ from datetime import datetime
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload, joinedload
 
-from src.domain.exceptions import NotFoundException, MigrationException, InternalLogicException
+from src.domain.exceptions import NotFoundException, MigrationException, InternalLogicException, ForbiddenException
 from src.domain.models.member.request import (
     VirtualMemberCreateRequest,
     MemberUpdateRequest,
@@ -26,15 +26,17 @@ from src.infra.postgre.repo.server_role import ServerRoleRepository
 from src.infra.postgre.repo.restriction import RestrictionRepository
 from src.infra.postgre.models import Member, MemberRestriction
 
+from src.infra.postgre.static import PERMISSION, RESTRICTION
+
 
 class MemberService:
     def __init__(
-        self,
-        member_repo: MemberRepository,
-        member_restriction_repo: MemberRestrictionRepository,
-        server_repo: ServerRepository,
-        server_role_repo: ServerRoleRepository,
-        restriction_repo: RestrictionRepository,
+            self,
+            member_repo: MemberRepository,
+            member_restriction_repo: MemberRestrictionRepository,
+            server_repo: ServerRepository,
+            server_role_repo: ServerRoleRepository,
+            restriction_repo: RestrictionRepository,
     ):
         self.member_repo = member_repo
         self.member_restriction_repo = member_restriction_repo
@@ -42,23 +44,28 @@ class MemberService:
         self.server_role_repo = server_role_repo
         self.restriction_repo = restriction_repo
 
-    async def list_members(self, server_id: UUID) -> list[Member]:
-        # TODO: Check permissions to list members
+    # async def get_member_or_none(self, server_id: UUID, user_id: UUID,
+    #                              ) -> Member | None:
+    #     return await self.member_repo.get_by_user_in_server(server_id, user_id)
+
+    async def list_members(self, server_id: UUID, permission_mask: int = 0) -> list[Member]:
+        if not PERMISSION.check_permission(permission_mask, PERMISSION.LIST_MEMBERS):
+            raise NotFoundException(f"Server {server_id} not found")
         members = await self.member_repo.list_active_for_server(server_id)
         return list(members)
 
-    async def join_server(self, server_id: UUID, user_id: UUID, name: str) -> Member:
+    async def join_server(self, server_id: UUID, user_id: UUID, name: str, restriction_mask: int = 0) -> Member:
         server = await self.server_repo.get_by_id(server_id)
         if not server or not server.public:
+            raise NotFoundException(f"Server {server_id} not found")
+        if RESTRICTION.check_restriction(restriction_mask, RESTRICTION.SERVER_BAN):
             raise NotFoundException(f"Server {server_id} not found")
 
         existing_member = await self.member_repo.get_by_user_in_server(server_id, user_id)
         if existing_member:
-            # TODO: Handle bans and restrictions here
             if not existing_member.active:
                 await self.member_repo.activate(existing_member)
             return existing_member
-
         try:
             member_field = await self.member_repo.create(
                 server_id=server_id,
@@ -73,11 +80,13 @@ class MemberService:
         return member_field
 
     async def create_virtual(
-        self,
-        server_id: UUID,
-        body: VirtualMemberCreateRequest
+            self,
+            server_id: UUID,
+            body: VirtualMemberCreateRequest,
+            permission_mask: int = 0
     ) -> Member:
-        # TODO: Check permissions to create virtual members
+        if not PERMISSION.check_permission(permission_mask, PERMISSION.CREATE_VIRTUAL):
+            raise ForbiddenException("Unable to create virtual member")
         try:
             member_field = await self.member_repo.create(
                 server_id=server_id,
@@ -91,92 +100,94 @@ class MemberService:
             raise InternalLogicException("Failed to create virtual member")
         return member_field
 
-    async def get_member(self, server_id: UUID, member_id: UUID) -> Member:
-        # TODO: Check permissions to get member details
+    async def get_member(self, member_id: UUID, permission_mask: int) -> Member:
+        if not PERMISSION.check_permission(permission_mask, PERMISSION.LIST_MEMBERS):
+            raise NotFoundException(f"Member with id {member_id} not found")
         member = await self.member_repo.get_by_id(member_id)
-        if not member or member.server_id != server_id:
+        if not member:
             raise NotFoundException(f"Member with id {member_id} not found")
         return member
 
     async def update_member(
-        self,
-        server_id: UUID,
-        member_id: UUID,
-        body: MemberUpdateRequest
+            self,
+            issuer_id: UUID,
+            member_id: UUID,
+            body: MemberUpdateRequest,
+            permission_mask: int,
+            restriction_mask: int
     ) -> Member:
         member = await self.member_repo.get_by_id(member_id)
-        if member is None or member.server_id != server_id:
+        if member is None:
             raise NotFoundException(f"Member with id {member_id} not found")
 
         if body.name and body.name != member.name:
-            # TODO: Check if member has permission to change name
+            if PERMISSION.check_permission(
+                    permission_mask, PERMISSION.SELF_EDIT
+            ) and RESTRICTION.check_restriction(
+                    restriction_mask, RESTRICTION.SELF_EDIT
+            ):
+                raise ForbiddenException("Unable to edit member name")
+            if not PERMISSION.check_permission_bulk(
+                    permission_mask,
+                    [PERMISSION.SELF_EDIT, PERMISSION.EDIT_MEMBERS],
+                    any
+            ):
+                raise ForbiddenException("Unable to edit member name")
             member = await self.member_repo.set_name(member, body.name)
 
         if body.server_role_id is not None:
-            role = await self.server_role_repo.get_by_id(body.server_role_id)
-            if not role or role.server_id != server_id:
-                raise NotFoundException(f"Server role with id {body.server_role_id} not found")
-            # TODO: Check if member has permission to assign this role
+            if not PERMISSION.check_permission(
+                    permission_mask, PERMISSION.EDIT_MEMBERS
+            ):
+                raise ForbiddenException("Unable to assign role to member")
+
+            assign_role = await self.server_role_repo.get_by_id(body.server_role_id)
+            issuer_field = await self.member_repo.get_by_id(issuer_id)
+            if not assign_role or not issuer_field.server_role:
+                raise NotFoundException(f"Server role not found")
+            if assign_role.position >= issuer_field.server_role.position:   # type: ignore
+                raise ForbiddenException("Unable to assign role to member")
             member = await self.member_repo.set_role(member, body.server_role_id)
-
-        if body.user_id is not None:
-            success = await self.member_repo.set_user_if_none(member, body.user_id)
-            if not success:
-                raise MigrationException()
-
         return member
-    #
-    # async def kick_member(self, server_id: UUID, member_id: UUID) -> StatusResponse:
-    #     """
-    #     Kick a member from the server (soft delete by deactivating).
-    #     """
-    #     member = await self.member_repo.get_by_id(member_id)
-    #     if not member or member.server_id != server_id:
-    #         raise NotFoundException(f"Member with id {member_id} not found in server {server_id}")
-    #
-    #     # Deactivate the member (soft delete)
-    #     await self.member_repo.deactivate(member)
-    #
-    #     return StatusResponse(status="ok")
-    #
-    # async def migrate_member(
-    #     self,
-    #     server_id: UUID,
-    #     member_id: UUID,
-    #     body: MigrationRequest
-    # ) -> MemberResponse:
-    #     """
-    #     Migrate a virtual member to an existing member.
-    #     Transfers all customs and data from the source member to the target member.
-    #     """
-    #     # Get source member (the one being migrated from)
-    #     source_member = await self.member_repo.get_by_id(member_id)
-    #     if not source_member or source_member.server_id != server_id:
-    #         raise NotFoundException(f"Member with id {member_id} not found in server {server_id}")
-    #
-    #     # Get target member (the one being migrated to)
-    #     target_member = await self.member_repo.get_by_id(body.target_member_id)
-    #     if not target_member or target_member.server_id != server_id:
-    #         raise NotFoundException(f"Target member with id {body.target_member_id} not found in server {server_id}")
-    #
-    #     # Ensure source is virtual (no user_id)
-    #     if source_member.user_id is not None:
-    #         raise MigrationException()
-    #
-    #     # Ensure target has a user
-    #     if target_member.user_id is None:
-    #         raise MigrationException()
-    #
-    #     # Migration: Transfer customs from source to target
-    #     # This is handled by updating the customs' member_id
-    #     # Since we're using the repository pattern, we would need a custom migration
-    #     # For now, we'll deactivate the source member
-    #     # In a full implementation, you'd transfer customs, ratings, etc.
-    #
-    #     await self.member_repo.deactivate(source_member)
-    #
-    #     # Return the target member
-    #     return await self._to_member_response(target_member)
+
+    async def kick_member(self, member_id: UUID, permission_mask: int) -> None:
+        if not PERMISSION.check_permission(permission_mask, PERMISSION.KICK_MEMBERS):
+            raise ForbiddenException("Unable to kick member")
+        member = await self.member_repo.get_by_id(member_id)
+        await self.member_repo.deactivate(member)
+
+    async def migrate_member(
+        self,
+        member_id: UUID,
+        body: MigrationRequest,
+        permission_mask: int
+    ) -> Member:
+        if not PERMISSION.check_permission(permission_mask, PERMISSION.MIGRATE_MEMBERS):
+            raise ForbiddenException("Unable to migrate member")
+        member = await self.member_repo.get_by_id(member_id)
+        if not member:
+            raise NotFoundException(f"Member with id {member_id} not found")
+
+        target_member = await self.member_repo.get_by_id(body.target_member_id)
+        if target_member:
+            if not target_member.active:
+                await self.member_repo.activate(target_member)
+            return target_member
+
+        try:
+            migrated_member = await self.member_repo.create(
+                server_id=body.target_server_id,
+                user_id=body.user_id,
+                name=member.name,
+                server_role_id=None
+            )
+        except IntegrityError:
+            raise MigrationException("Failed to migrate member due to integrity error")
+        if migrated_member is None:
+            raise MigrationException("Failed to migrate member")
+        return migrated_member
+
+
     #
     # async def get_restrictions(
     #     self,

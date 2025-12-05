@@ -3,15 +3,51 @@ import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.infra.postgre.repo.permission import PermissionRepository
 
+from typing import Iterable, Callable
+
 logger = logging.getLogger(__name__)
 
 
 class PERMISSION(StrEnum):
     SELF_EDIT = 'self_edit'
-    MANAGE_MEMBERS = 'manage_members'
-    MANAGE_ROLES = 'manage_roles'
-    MANAGE_CHANNELS = 'manage_channels'
-    MANAGE_SERVER = 'manage_server'
+    LIST_MEMBERS = 'list_members'
+    CREATE_VIRTUAL = 'create_virtual'
+    EDIT_MEMBERS = 'edit_members'
+    KICK_MEMBERS = 'kick_members'
+    MIGRATE_MEMBERS = 'migrate_members'
+
+    # MANAGE_ROLES = 'manage_roles'
+    # MANAGE_CHANNELS = 'manage_channels'
+    # MANAGE_SERVER = 'manage_server'
+
+    @staticmethod
+    def serialize_permission_codes(permissions: Iterable["PERMISSION"]) -> int:
+        mask = 0
+        for i, member in enumerate(PERMISSION):
+            if member in permissions:
+                mask |= (1 << i)
+        return mask
+
+    @staticmethod
+    def deserialize_permission_codes(mask: int) -> set["PERMISSION"]:
+        permissions = set()
+        for i, member in enumerate(PERMISSION):
+            if mask & (1 << i):
+                permissions.add(member)
+        return permissions
+
+    @staticmethod
+    def check_permission(mask: int, permission: "PERMISSION") -> bool:
+        index = list(PERMISSION).index(permission)
+        return (mask & (1 << index)) != 0
+
+    @staticmethod
+    def check_permission_bulk(mask: int, permissions: Iterable["PERMISSION"],
+                              method: Callable[[Iterable[object]], bool]) -> bool:
+        return method(
+            PERMISSION.check_permission(mask, permission)
+            for permission in permissions
+        )
 
 
 async def init_permissions(session: AsyncSession) -> None:

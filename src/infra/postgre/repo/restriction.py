@@ -37,3 +37,8 @@ class RestrictionRepository:
         await self.session.flush()
         return bool(res.rowcount)  # type: ignore
 
+    async def get_by_code_bulk(self, codes: Sequence[str]) -> Sequence[Restriction]:
+        stmt = select(Restriction).where(Restriction.code.in_(codes))
+        res = await self.session.scalars(stmt)
+        return res.all()
+
