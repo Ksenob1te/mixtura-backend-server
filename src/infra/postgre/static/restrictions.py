@@ -12,7 +12,7 @@ class RESTRICTION(StrEnum):
     SERVER_BAN = 'server_ban'
     MIX_BAN = 'mix_ban'
     TOURNAMENT_BAN = 'tournament_ban'
-    SELF_EDIT = 'self_edit'
+    SELF_EDIT_NAME = 'self_edit_name'
 
     @staticmethod
     def serialize_restriction_codes(restrictions: Iterable["RESTRICTION"]) -> int:

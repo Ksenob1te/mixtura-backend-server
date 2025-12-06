@@ -9,16 +9,23 @@ logger = logging.getLogger(__name__)
 
 
 class PERMISSION(StrEnum):
-    SELF_EDIT = 'self_edit'
-    LIST_MEMBERS = 'list_members'
-    CREATE_VIRTUAL = 'create_virtual'
-    EDIT_MEMBERS = 'edit_members'
-    KICK_MEMBERS = 'kick_members'
-    MIGRATE_MEMBERS = 'migrate_members'
+    # overwrite permission
+    ADMINISTRATOR = 'administrator'
 
-    # MANAGE_ROLES = 'manage_roles'
-    # MANAGE_CHANNELS = 'manage_channels'
-    # MANAGE_SERVER = 'manage_server'
+    # base permission
+    SELF_EDIT_NAME = 'self_edit_name'
+    VIEW_SERVER = 'view_server'
+    EDIT_NAME = 'edit_name'
+    EDIT_ROLES = 'edit_roles'
+    CREATE_VIRTUAL = 'create_virtual'
+    MIGRATE_MEMBERS = 'migrate_members'
+    KICK_MEMBERS = 'kick_members'
+
+    # apply restrictions
+    RESTRICT_SERVER_BAN = 'restrict_server_ban'
+    RESTRICT_MIX_BAN = 'restrict_mix_ban'
+    RESTRICT_TOURNAMENT_BAN = 'restrict_tournament_ban'
+    RESTRICT_SELF_EDIT_NAME = 'restrict_self_edit_name'
 
     @staticmethod
     def serialize_permission_codes(permissions: Iterable["PERMISSION"]) -> int:
@@ -37,7 +44,9 @@ class PERMISSION(StrEnum):
         return permissions
 
     @staticmethod
-    def check_permission(mask: int, permission: "PERMISSION") -> bool:
+    def check_permission(mask: int, permission: "PERMISSION | str") -> bool:
+        if isinstance(permission, str):
+            permission = PERMISSION(permission)
         index = list(PERMISSION).index(permission)
         return (mask & (1 << index)) != 0
 

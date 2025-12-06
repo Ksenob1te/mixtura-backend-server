@@ -76,6 +76,14 @@ class MemberRepository:
             return True
         return False
 
+    async def remove_user(self, member: Member) -> Member:
+        if member.user_id is None:
+            return member
+        member.user_id = None
+        self.session.add(member)
+        await self.session.flush()
+        return member
+
     async def deactivate(self, member: Member) -> Member:
         if not member.active:
             return member

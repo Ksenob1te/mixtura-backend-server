@@ -1,8 +1,8 @@
 """initial commit
 
-Revision ID: 55f40fdd9bd6
+Revision ID: aa1aa0e0ba40
 Revises: 
-Create Date: 2025-11-30 01:18:43.370833
+Create Date: 2025-12-06 03:44:58.981818
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '55f40fdd9bd6'
+revision: str = 'aa1aa0e0ba40'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -155,11 +155,13 @@ def upgrade() -> None:
     op.create_table('member_restriction_table',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('member_id', sa.Uuid(), nullable=False),
-    sa.Column('restriction_code_id', sa.Uuid(), nullable=False),
+    sa.Column('restriction_id', sa.Uuid(), nullable=False),
+    sa.Column('creator_id', sa.Uuid(), nullable=True),
     sa.Column('reason', sa.String(), nullable=False),
     sa.Column('expiration_date', sa.DateTime(timezone=True), nullable=False),
+    sa.ForeignKeyConstraint(['creator_id'], ['member_table.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['member_id'], ['member_table.id'], ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['restriction_code_id'], ['restriction_table.id'], ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['restriction_id'], ['restriction_table.id'], ondelete='RESTRICT'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('custom_rating_table',

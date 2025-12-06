@@ -161,3 +161,20 @@ async def test_set_user_if_none_already_has_user(async_session):
     ok = await repo.set_user_if_none(member, new_user_id)
     assert ok is False
     assert member.user_id == user_id
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_remove_user(async_session):
+    repo = MemberRepository(async_session)
+    s = await _server(async_session)
+    user_id = uuid.uuid4()
+    member = await repo.create(server_id=s.id, user_id=user_id, name="Removable")
+    assert member is not None and member.user_id == user_id
+
+    updated = await repo.remove_user(member)
+    assert updated.id == member.id
+    assert updated.user_id is None
+
+    reloaded = await repo.get_by_id(member.id)
+    assert reloaded is not None
+    assert reloaded.user_id is None

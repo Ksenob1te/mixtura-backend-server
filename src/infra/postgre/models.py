@@ -114,6 +114,7 @@ class Member(Base):
     customs: Mapped[list['Custom']] = relationship(back_populates='member', foreign_keys='[Custom.member_id]')
     restrictions: Mapped[list['MemberRestriction']] = relationship(
         back_populates='member',
+        foreign_keys='[MemberRestriction.member_id]',
         cascade='all, delete-orphan'
     )
 
@@ -205,12 +206,14 @@ class MemberRestriction(Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     member_id: Mapped[UUID] = mapped_column(ForeignKey('member_table.id', ondelete='CASCADE'))
-    restriction_code_id: Mapped[UUID] = mapped_column(ForeignKey('restriction_table.id', ondelete='RESTRICT'))
+    restriction_id: Mapped[UUID] = mapped_column(ForeignKey('restriction_table.id', ondelete='RESTRICT'))
+    creator_id: Mapped[UUID | None] = mapped_column(ForeignKey('member_table.id', ondelete='SET NULL'), nullable=True)
     reason: Mapped[str] = mapped_column()
     expiration_date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
-    member: Mapped['Member'] = relationship(back_populates='restrictions')
-    restriction_code: Mapped['Restriction'] = relationship(back_populates='member_restrictions')
+    member: Mapped['Member'] = relationship(back_populates='restrictions', foreign_keys=[member_id])
+    restriction: Mapped['Restriction'] = relationship(back_populates='member_restrictions')
+    creator: Mapped['Member'] = relationship(foreign_keys=[creator_id])
 
 
 class Restriction(Base):
@@ -219,7 +222,7 @@ class Restriction(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     code: Mapped[str] = mapped_column(String(128), unique=True)
 
-    member_restrictions: Mapped[list['MemberRestriction']] = relationship(back_populates='restriction_code')
+    member_restrictions: Mapped[list['MemberRestriction']] = relationship(back_populates='restriction')
 
 
 class ServerRolePermission(Base):
