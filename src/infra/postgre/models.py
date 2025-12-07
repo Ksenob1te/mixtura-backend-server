@@ -103,7 +103,7 @@ class Member(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     server_id: Mapped[UUID] = mapped_column(ForeignKey('server_table.id', ondelete='CASCADE'))
     user_id: Mapped[UUID | None] = mapped_column(nullable=True)
-    name: Mapped[str] = mapped_column(String(128))
+    name: Mapped[str] = mapped_column(String(128)) # TODO : rename to nickname
     server_role_id: Mapped[UUID | None] = mapped_column(ForeignKey('server_role_table.id', ondelete='SET NULL'),
                                                         nullable=True)
     joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
