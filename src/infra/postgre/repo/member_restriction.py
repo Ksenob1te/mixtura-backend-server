@@ -29,10 +29,15 @@ class MemberRestrictionRepository:
         res = await self.session.scalars(stmt)
         return res.all()
 
-    async def create(self, member_id: UUID, restriction_code_id: UUID, reason: str,
-                     expiration_date: datetime) -> MemberRestriction | None:
-        r = MemberRestriction(member_id=member_id, restriction_code_id=restriction_code_id, reason=reason,
-                              expiration_date=expiration_date)
+    async def create(self, member_id: UUID, restriction_id: UUID, reason: str,
+                     expiration_date: datetime, creator_id: UUID) -> MemberRestriction | None:
+        r = MemberRestriction(
+            member_id=member_id,
+            restriction_id=restriction_id,
+            reason=reason,
+            expiration_date=expiration_date,
+            creator_id=creator_id,
+        )
         self.session.add(r)
         await self.session.flush()
         return await self.get_by_id(r.id)
@@ -50,7 +55,7 @@ class MemberRestrictionRepository:
         return restriction
 
     async def set_code(self, restriction: MemberRestriction, restriction_code_id: UUID) -> MemberRestriction:
-        restriction.restriction_code_id = restriction_code_id
+        restriction.restriction_id = restriction_code_id
         self.session.add(restriction)
         await self.session.flush()
         return restriction

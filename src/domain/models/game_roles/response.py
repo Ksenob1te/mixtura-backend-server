@@ -12,6 +12,7 @@ class GameRoleItemResponse(BaseModel):
     max_in_team: int
     hidden: bool
 
+
 class GameRoleSetResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

@@ -18,6 +18,11 @@ class GameRepository:
         stmt = select(Game).where(Game.name == name).limit(1)
         return await self.session.scalar(stmt)
 
+    async def get_all(self) -> Sequence[Game]:
+        stmt = select(Game)
+        res = await self.session.scalars(stmt)
+        return res.all()
+
     async def create(self, name: str, icon_url: str, banner_url: str) -> Game | None:
         game = Game(name=name, icon_url=icon_url, banner_url=banner_url)
         self.session.add(game)
@@ -48,17 +53,18 @@ class GameRepository:
         await self.session.flush()
         return bool(result.rowcount)    # type: ignore
 
-    async def add_to_server(self, game_id: UUID, server_id: UUID) -> None:
+    async def add_to_server(self, game_id: UUID, server_id: UUID) -> ServerGame:
         stmt = select(ServerGame).where(
             ServerGame.game_id == game_id,
             ServerGame.server_id == server_id
         ).limit(1)
         existing = await self.session.scalar(stmt)
         if existing:
-            return
+            return existing
         link = ServerGame(game_id=game_id, server_id=server_id)
         self.session.add(link)
         await self.session.flush()
+        return link
 
     async def remove_from_server(self, game_id: UUID, server_id: UUID) -> bool:
         stmt = delete(ServerGame).where(
@@ -69,6 +75,17 @@ class GameRepository:
         await self.session.flush()
         return bool(result.rowcount)    # type: ignore
 
-    async def bulk_add_to_server(self, server_id: UUID, game_ids: list[UUID]) -> None:
-        for gid in game_ids:
-            await self.add_to_server(gid, server_id)
+    async def bulk_add_to_server(self, server_id: UUID, game_ids: list[UUID]) -> list[ServerGame]:
+        stmt = select(ServerGame).where(
+            ServerGame.server_id == server_id,
+            ServerGame.game_id.in_(game_ids)
+        )
+        existing = await self.session.scalars(stmt)
+        existing_ids = {eg.game_id for eg in existing.all()}
+        new_links = [
+            ServerGame(game_id=gid, server_id=server_id)
+            for gid in game_ids if gid not in existing_ids
+        ]
+        self.session.add_all(new_links)
+        await self.session.flush()
+        return new_links

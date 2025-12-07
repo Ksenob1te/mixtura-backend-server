@@ -10,6 +10,7 @@ from src.domain.models.member.response import RestrictionResponse
 from src.domain.models.rating.response import RatingSetResponse
 from src.domain.models.response import StatusResponse
 
+
 class ServerCoreController(Controller):
     prefix = ""
     tags = ["Server Core"]
@@ -22,10 +23,14 @@ class ServerCoreController(Controller):
     def get_global_rating_templates(self):
         pass
 
+    @get("/permissions", response_model=list[RestrictionResponse])
+    def get_global_permissions(self):
+        pass
+
     @get("/restrictions", response_model=list[RestrictionResponse])
     def get_global_restrictions(self):
         pass
-    
+
     @get("/games", response_model=list[GameResponse])
     def get_global_games(self):
         pass

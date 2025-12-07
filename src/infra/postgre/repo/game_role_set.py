@@ -17,6 +17,11 @@ class GameRoleSetRepository:
         stmt = select(GameRoleSet).where(GameRoleSet.name == name).limit(1)
         return await self.session.scalar(stmt)
 
+    async def get_global(self) -> Sequence[GameRoleSet]:
+        stmt = select(GameRoleSet).where(GameRoleSet.is_global.is_(True))
+        res = await self.session.scalars(stmt)
+        return res.all()
+
     async def create(self, name: str, is_global: bool = False) -> GameRoleSet | None:
         rs = GameRoleSet(name=name, is_global=is_global)
         self.session.add(rs)

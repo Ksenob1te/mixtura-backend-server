@@ -56,3 +56,14 @@ class InternalLogicException(HTTPException):
                 "message": message
             }
         )
+
+
+class ForbiddenException(HTTPException):
+    def __init__(self, message: str):
+        super().__init__(
+            status_code=HTTP_403_FORBIDDEN,
+            detail={
+                "status": "error",
+                "message": message
+            }
+        )

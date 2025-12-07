@@ -123,3 +123,15 @@ async def test_bulk_add_to_server(async_session):
     )
     linked_game_ids = {row.game_id for row in res.all()}
     assert linked_game_ids == {g.id for g in games if g is not None}
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_get_all_games(async_session):
+    repo = GameRepository(async_session)
+    g1 = await repo.create("AllGame1", "i1.png", "b1.png")
+    g2 = await repo.create("AllGame2", "i2.png", "b2.png")
+    all_games = await repo.get_all()
+    all_game_ids = {g.id for g in all_games}
+    assert g1 is not None and g2 is not None
+    assert g1.id in all_game_ids
+    assert g2.id in all_game_ids

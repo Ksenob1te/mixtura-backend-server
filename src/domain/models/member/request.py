@@ -8,8 +8,7 @@ class VirtualMemberCreateRequest(BaseModel):
 
 
 class MemberUpdateRequest(BaseModel):
-    name: str
-    user_id: UUID | None = None
+    name: str | None = None
     server_role_id: UUID | None = None
 
 
