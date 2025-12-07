@@ -1,8 +1,5 @@
 from uuid import UUID
-from typing import Sequence
-from datetime import datetime
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import selectinload, joinedload
 
 from src.domain.exceptions import NotFoundException, MigrationException, InternalLogicException, ForbiddenException
 from src.domain.models.member.request import (
@@ -11,14 +8,6 @@ from src.domain.models.member.request import (
     MigrationRequest,
     MemberRestrictionCreateRequest
 )
-from src.domain.models.member.response import (
-    MemberResponse,
-    MemberRestrictionResponse,
-    RestrictionResponse,
-    ServerRoleResponse,
-    ServerPermissionResponse
-)
-from src.domain.models.response import StatusResponse
 from src.infra.postgre.repo.member import MemberRepository
 from src.infra.postgre.repo.member_restriction import MemberRestrictionRepository
 from src.infra.postgre.repo.server import ServerRepository
@@ -43,10 +32,6 @@ class MemberService:
         self.server_repo = server_repo
         self.server_role_repo = server_role_repo
         self.restriction_repo = restriction_repo
-
-    # async def get_member_or_none(self, server_id: UUID, user_id: UUID,
-    #                              ) -> Member | None:
-    #     return await self.member_repo.get_by_user_in_server(server_id, user_id)
 
     async def list_members(self, server_id: UUID, permission_mask: int = 0) -> list[Member]:
         if not PERMISSION.check_permission(permission_mask, PERMISSION.VIEW_SERVER):

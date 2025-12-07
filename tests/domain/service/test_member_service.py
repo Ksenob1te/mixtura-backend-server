@@ -179,6 +179,7 @@ async def test_update_member_name_and_role(async_session, member_service):
     target_role = await server_role_repo.create(server_id=server.id, name="Mod", position=5)
 
     issuer.server_role_id = issuer_role.id
+    issuer.server_role = issuer_role
     await async_session.flush()
 
     body = MemberUpdateRequest(name="New", server_role_id=target_role.id)  # type: ignore
@@ -232,6 +233,7 @@ async def test_update_member_forbidden_assign_higher_role(async_session, member_
     higher_role = await server_role_repo.create(server_id=server.id, name="Admin", position=10)
 
     issuer.server_role_id = issuer_role.id
+    issuer.server_role = issuer_role
     await async_session.flush()
 
     body = MemberUpdateRequest(name=None, server_role_id=higher_role.id)  # type: ignore

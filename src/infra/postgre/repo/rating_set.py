@@ -17,6 +17,11 @@ class RatingSetRepository:
         stmt = select(RatingSet).where(RatingSet.name == name).limit(1)
         return await self.session.scalar(stmt)
 
+    async def get_global(self) -> Sequence[RatingSet]:
+        stmt = select(RatingSet).where(RatingSet.is_global.is_(True))
+        res = await self.session.scalars(stmt)
+        return res.all()
+
     async def create(self, name: str, min_rating: int, max_rating: int, is_global: bool = False) -> RatingSet | None:
         if min_rating > max_rating:
             min_rating = max_rating

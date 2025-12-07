@@ -21,6 +21,12 @@ class PERMISSION(StrEnum):
     MIGRATE_MEMBERS = 'migrate_members'
     KICK_MEMBERS = 'kick_members'
 
+    # server settings
+    EDIT_SERVER_PUBLIC = 'edit_server_public'
+    EDIT_SERVER_NAME = 'edit_server_name'
+    EDIT_SERVER_DESCRIPTION = 'edit_server_description'
+    DELETE_SERVER = 'delete_server'
+
     # apply restrictions
     RESTRICT_SERVER_BAN = 'restrict_server_ban'
     RESTRICT_MIX_BAN = 'restrict_mix_ban'

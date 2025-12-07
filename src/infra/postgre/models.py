@@ -16,7 +16,8 @@ class GameRoleSet(Base):
 
     game_roles: Mapped[list['GameRole']] = relationship(
         back_populates='role_set',
-        cascade='all, delete-orphan'
+        cascade='all, delete-orphan',
+        lazy="selectin"
     )
 
 
@@ -32,8 +33,8 @@ class GameRole(Base):
     max_in_team: Mapped[int] = mapped_column()
     hidden: Mapped[bool] = mapped_column(default=False)
 
-    role_set: Mapped['GameRoleSet'] = relationship(back_populates='game_roles')
-    custom_ratings: Mapped[list['CustomRating']] = relationship(back_populates='game_role')
+    role_set: Mapped['GameRoleSet'] = relationship(back_populates='game_roles', lazy="selectin")
+    custom_ratings: Mapped[list['CustomRating']] = relationship(back_populates='game_role', lazy="selectin")
 
 
 class RatingSet(Base):
@@ -47,7 +48,8 @@ class RatingSet(Base):
 
     ratings: Mapped[list['Rating']] = relationship(
         back_populates='rating_set',
-        cascade='all, delete-orphan'
+        cascade='all, delete-orphan',
+        lazy="selectin"
     )
 
 
@@ -60,7 +62,7 @@ class Rating(Base):
     threshold: Mapped[int] = mapped_column()
     rating_set_id: Mapped[UUID] = mapped_column(ForeignKey('rating_set_table.id', ondelete='CASCADE'))
 
-    rating_set: Mapped['RatingSet'] = relationship(back_populates='ratings')
+    rating_set: Mapped['RatingSet'] = relationship(back_populates='ratings', lazy="selectin")
 
 
 class Server(Base):
@@ -79,18 +81,23 @@ class Server(Base):
     role_set_id: Mapped[UUID] = mapped_column(ForeignKey('role_set_table.id', ondelete='RESTRICT'))
     rating_set_id: Mapped[UUID] = mapped_column(ForeignKey('rating_set_table.id', ondelete='RESTRICT'))
 
-    role_set: Mapped['GameRoleSet'] = relationship(uselist=False)
-    rating_set: Mapped['RatingSet'] = relationship(uselist=False)
-    members: Mapped[list['Member']] = relationship(back_populates='server', cascade='all, delete-orphan')
-    server_games: Mapped[list['ServerGame']] = relationship(back_populates='server', cascade='all, delete-orphan')
-    server_roles: Mapped[list['ServerRole']] = relationship(back_populates='server', cascade='all, delete-orphan')
-    invites: Mapped[list['Invite']] = relationship(back_populates='server', cascade='all, delete-orphan')
+    role_set: Mapped['GameRoleSet'] = relationship(uselist=False, lazy="selectin")
+    rating_set: Mapped['RatingSet'] = relationship(uselist=False, lazy="selectin")
+    members: Mapped[list['Member']] = relationship(back_populates='server', cascade='all, delete-orphan',
+                                                   lazy="selectin")
+    server_games: Mapped[list['ServerGame']] = relationship(back_populates='server', cascade='all, delete-orphan',
+                                                            lazy="selectin")
+    server_roles: Mapped[list['ServerRole']] = relationship(back_populates='server', cascade='all, delete-orphan',
+                                                            lazy="selectin")
+    invites: Mapped[list['Invite']] = relationship(back_populates='server', cascade='all, delete-orphan',
+                                                   lazy="selectin")
 
     games: Mapped[list['Game']] = relationship(
         'Game',
         secondary='server_game',
         back_populates='servers',
-        viewonly=True
+        viewonly=True,
+        lazy="selectin"
     )
 
 
@@ -109,13 +116,15 @@ class Member(Base):
     joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     active: Mapped[bool] = mapped_column(default=True)
 
-    server: Mapped['Server'] = relationship(back_populates='members')
-    server_role: Mapped['ServerRole'] = relationship()
-    customs: Mapped[list['Custom']] = relationship(back_populates='member', foreign_keys='[Custom.member_id]')
+    server: Mapped['Server'] = relationship(back_populates='members', lazy="selectin")
+    server_role: Mapped['ServerRole'] = relationship(lazy="selectin")
+    customs: Mapped[list['Custom']] = relationship(back_populates='member', foreign_keys='[Custom.member_id]',
+                                                   lazy="selectin")
     restrictions: Mapped[list['MemberRestriction']] = relationship(
         back_populates='member',
         foreign_keys='[MemberRestriction.member_id]',
-        cascade='all, delete-orphan'
+        cascade='all, delete-orphan',
+        lazy="selectin"
     )
 
 
@@ -126,9 +135,9 @@ class Custom(Base):
     member_id: Mapped[UUID] = mapped_column(ForeignKey('member_table.id', ondelete='CASCADE'))
     creator_id: Mapped[UUID] = mapped_column(ForeignKey('member_table.id', ondelete='SET NULL'), nullable=True)
 
-    member: Mapped['Member'] = relationship(back_populates='customs', foreign_keys=[member_id])
-    creator: Mapped['Member'] = relationship(foreign_keys=[creator_id])
-    custom_ratings: Mapped[list['CustomRating']] = relationship(back_populates='custom')
+    member: Mapped['Member'] = relationship(back_populates='customs', foreign_keys=[member_id], lazy="selectin")
+    creator: Mapped['Member'] = relationship(foreign_keys=[creator_id], lazy="selectin")
+    custom_ratings: Mapped[list['CustomRating']] = relationship(back_populates='custom', lazy="selectin")
 
 
 class CustomRating(Base):
@@ -142,8 +151,8 @@ class CustomRating(Base):
     game_role_id: Mapped[UUID] = mapped_column(ForeignKey('game_role_table.id', ondelete='CASCADE'))
     rating: Mapped[int] = mapped_column()
 
-    custom: Mapped['Custom'] = relationship(back_populates='custom_ratings')
-    game_role: Mapped['GameRole'] = relationship(back_populates='custom_ratings')
+    custom: Mapped['Custom'] = relationship(back_populates='custom_ratings', lazy="selectin")
+    game_role: Mapped['GameRole'] = relationship(back_populates='custom_ratings', lazy="selectin")
 
 
 class ServerGame(Base):
@@ -156,8 +165,8 @@ class ServerGame(Base):
     server_id: Mapped[UUID] = mapped_column(ForeignKey('server_table.id', ondelete='CASCADE'))
     game_id: Mapped[UUID] = mapped_column(ForeignKey('game_table.id', ondelete='CASCADE'))
 
-    server: Mapped['Server'] = relationship(back_populates='server_games')
-    game: Mapped['Game'] = relationship(back_populates='server_games')
+    server: Mapped['Server'] = relationship(back_populates='server_games', lazy="selectin")
+    game: Mapped['Game'] = relationship(back_populates='server_games', lazy="selectin")
 
 
 class Game(Base):
@@ -168,13 +177,14 @@ class Game(Base):
     icon_url: Mapped[str] = mapped_column()
     banner_url: Mapped[str] = mapped_column()
 
-    server_games: Mapped[list['ServerGame']] = relationship(back_populates='game')
+    server_games: Mapped[list['ServerGame']] = relationship(back_populates='game', lazy="selectin")
 
     servers: Mapped[list['Server']] = relationship(
         'Server',
         secondary='server_game',
         back_populates='games',
-        viewonly=True
+        viewonly=True,
+        lazy="selectin"
     )
 
 
@@ -187,17 +197,19 @@ class ServerRole(Base):
     name: Mapped[str] = mapped_column(String(128))
     position: Mapped[int] = mapped_column()
 
-    server: Mapped['Server'] = relationship(back_populates='server_roles')
+    server: Mapped['Server'] = relationship(back_populates='server_roles', lazy="selectin")
     permissions: Mapped[list['ServerRolePermission']] = relationship(
         back_populates='server_role',
-        cascade='all, delete-orphan'
+        cascade='all, delete-orphan',
+        lazy="selectin"
     )
 
     permissions_list: Mapped[list['Permission']] = relationship(
         'Permission',
         secondary='server_role_permission',
         back_populates='roles',
-        viewonly=True
+        viewonly=True,
+        lazy="selectin"
     )
 
 
@@ -211,9 +223,9 @@ class MemberRestriction(Base):
     reason: Mapped[str] = mapped_column()
     expiration_date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
-    member: Mapped['Member'] = relationship(back_populates='restrictions', foreign_keys=[member_id])
-    restriction: Mapped['Restriction'] = relationship(back_populates='member_restrictions')
-    creator: Mapped['Member'] = relationship(foreign_keys=[creator_id])
+    member: Mapped['Member'] = relationship(back_populates='restrictions', foreign_keys=[member_id], lazy="selectin")
+    restriction: Mapped['Restriction'] = relationship(back_populates='member_restrictions', lazy="selectin")
+    creator: Mapped['Member'] = relationship(foreign_keys=[creator_id], lazy="selectin")
 
 
 class Restriction(Base):
@@ -222,7 +234,7 @@ class Restriction(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     code: Mapped[str] = mapped_column(String(128), unique=True)
 
-    member_restrictions: Mapped[list['MemberRestriction']] = relationship(back_populates='restriction')
+    member_restrictions: Mapped[list['MemberRestriction']] = relationship(back_populates='restriction', lazy="selectin")
 
 
 class ServerRolePermission(Base):
@@ -236,8 +248,8 @@ class ServerRolePermission(Base):
     server_role_id: Mapped[UUID] = mapped_column(ForeignKey('server_role_table.id', ondelete='CASCADE'))
     permission_id: Mapped[UUID] = mapped_column(ForeignKey('permission_table.id', ondelete='CASCADE'))
 
-    server_role: Mapped['ServerRole'] = relationship(back_populates='permissions')
-    permission: Mapped['Permission'] = relationship()
+    server_role: Mapped['ServerRole'] = relationship(back_populates='permissions', lazy="selectin")
+    permission: Mapped['Permission'] = relationship(lazy="selectin")
 
 
 class Permission(Base):
@@ -249,7 +261,8 @@ class Permission(Base):
         'ServerRole',
         secondary='server_role_permission',
         back_populates='permissions_list',
-        viewonly=True
+        viewonly=True,
+        lazy="selectin"
     )
 
 
@@ -262,5 +275,5 @@ class Invite(Base):
     key: Mapped[str] = mapped_column(unique=True)
     use_limit: Mapped[int] = mapped_column()
 
-    server: Mapped['Server'] = relationship(back_populates='invites')
-    inviter: Mapped['Member'] = relationship()
+    server: Mapped['Server'] = relationship(back_populates='invites', lazy="selectin")
+    inviter: Mapped['Member'] = relationship(lazy="selectin")

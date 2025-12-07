@@ -11,6 +11,8 @@ from redis.asyncio import Redis
 
 import logging
 
+from .domain.service.core import CoreService
+
 
 logger = logging.getLogger(__name__)
 
@@ -91,3 +93,19 @@ async def get_server_repository(session: Annotated[AsyncSession, Depends(get_db_
 
 async def get_server_role_repository(session: Annotated[AsyncSession, Depends(get_db_session)]):
     return ServerRoleRepository(session)
+
+
+async def get_core_service(
+    server_repo: Annotated[ServerRepository, Depends(get_server_repository)],
+    game_repo: Annotated[GameRepository, Depends(get_game_repository)],
+    game_role_set_repo: Annotated[GameRoleSetRepository, Depends(get_game_role_set_repository)],
+    rating_set_repo: Annotated[RatingSetRepository, Depends(get_rating_set_repository)],
+    restriction_repo: Annotated[RestrictionRepository, Depends(get_restriction_repository)],
+) -> CoreService:
+    return CoreService(
+        server_repo=server_repo,
+        game_repo=game_repo,
+        game_role_set_repo=game_role_set_repo,
+        rating_set_repo=rating_set_repo,
+        restriction_repo=restriction_repo,
+    )

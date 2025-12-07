@@ -49,3 +49,17 @@ async def test_delete_rating_set(async_session):
     assert ok is True
     not_ok = await repo.delete(rs.id)
     assert not_ok is False
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_get_global_rating_sets(async_session):
+    repo = RatingSetRepository(async_session)
+    rs1 = await repo.create("GlobalRSet1", 0, 50, is_global=True)
+    rs2 = await repo.create("GlobalRSet2", 10, 60, is_global=True)
+    rs3 = await repo.create("NonGlobalRSet", 20, 70, is_global=False)
+    globals = await repo.get_global()
+    global_ids = {rs.id for rs in globals}
+    assert rs1 is not None and rs2 is not None and rs3 is not None
+    assert rs1.id in global_ids
+    assert rs2.id in global_ids
+    assert rs3.id not in global_ids
