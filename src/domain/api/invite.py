@@ -33,3 +33,4 @@ class ServerInviteController(Controller):
     def revoke_invite(self, server_id: UUID, invite_id: UUID):  # TODO : User id depend
         # TODO : Member get depend
         pass
+
