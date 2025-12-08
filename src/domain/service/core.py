@@ -48,6 +48,7 @@ class CoreService:
         return list(servers)
 
     async def create_server(self, owner_id: UUID, body: ServerCreateRequest) -> Server:
+        # TODO: here we need to create new copy of role_set and rating_set for the server from the global templates
         role_set_field = None
         rating_set_field = None
 
