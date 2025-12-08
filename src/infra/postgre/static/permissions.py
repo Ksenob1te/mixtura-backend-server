@@ -31,6 +31,7 @@ class PERMISSION(StrEnum):
     EDIT_SERVER_GAME = 'edit_server_game'
     DELETE_SERVER = 'delete_server'
     EDIT_ROLE_SET = 'edit_role_set'
+    EDIT_RATING_SET = 'edit_rating_set'
     EDIT_INVITES = 'edit_invites'
 
     # apply restrictions

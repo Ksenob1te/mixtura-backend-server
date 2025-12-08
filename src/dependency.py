@@ -8,14 +8,13 @@ from typing import Annotated
 from sqlalchemy.ext.asyncio import AsyncSession
 from redis.asyncio import Redis
 
-
 import logging
 
 from .domain.service.core import CoreService
 from .domain.service.game import GameService
 from .domain.service.game_role import GameRoleService
 from .domain.service.invite import InviteService
-
+from .domain.service.rating import RatingService
 
 logger = logging.getLogger(__name__)
 
@@ -99,8 +98,8 @@ async def get_server_role_repository(session: Annotated[AsyncSession, Depends(ge
 
 
 async def get_game_service(
-    game_repo: Annotated[GameRepository, Depends(get_game_repository)],
-    server_repo: Annotated[ServerRepository, Depends(get_server_repository)],
+        game_repo: Annotated[GameRepository, Depends(get_game_repository)],
+        server_repo: Annotated[ServerRepository, Depends(get_server_repository)],
 ) -> GameService:
     return GameService(
         game_repo=game_repo,
@@ -109,12 +108,12 @@ async def get_game_service(
 
 
 async def get_core_service(
-    server_repo: Annotated[ServerRepository, Depends(get_server_repository)],
-    game_repo: Annotated[GameRepository, Depends(get_game_repository)],
-    game_role_set_repo: Annotated[GameRoleSetRepository, Depends(get_game_role_set_repository)],
-    rating_set_repo: Annotated[RatingSetRepository, Depends(get_rating_set_repository)],
-    restriction_repo: Annotated[RestrictionRepository, Depends(get_restriction_repository)],
-    member_repo: Annotated[MemberRepository, Depends(get_member_repository)],
+        server_repo: Annotated[ServerRepository, Depends(get_server_repository)],
+        game_repo: Annotated[GameRepository, Depends(get_game_repository)],
+        game_role_set_repo: Annotated[GameRoleSetRepository, Depends(get_game_role_set_repository)],
+        rating_set_repo: Annotated[RatingSetRepository, Depends(get_rating_set_repository)],
+        restriction_repo: Annotated[RestrictionRepository, Depends(get_restriction_repository)],
+        member_repo: Annotated[MemberRepository, Depends(get_member_repository)],
 ) -> CoreService:
     return CoreService(
         server_repo=server_repo,
@@ -127,9 +126,9 @@ async def get_core_service(
 
 
 async def get_game_role_service(
-    server_repo: Annotated[ServerRepository, Depends(get_server_repository)],
-    game_role_set_repo: Annotated[GameRoleSetRepository, Depends(get_game_role_set_repository)],
-    game_role_repo: Annotated[GameRoleRepository, Depends(get_game_role_repository)],
+        server_repo: Annotated[ServerRepository, Depends(get_server_repository)],
+        game_role_set_repo: Annotated[GameRoleSetRepository, Depends(get_game_role_set_repository)],
+        game_role_repo: Annotated[GameRoleRepository, Depends(get_game_role_repository)],
 ) -> GameRoleService:
     return GameRoleService(
         server_repo=server_repo,
@@ -139,12 +138,24 @@ async def get_game_role_service(
 
 
 async def get_invite_service(
-    invite_repo: Annotated[InviteRepository, Depends(get_invite_repository)],
-    server_repo: Annotated[ServerRepository, Depends(get_server_repository)],
-    member_repo: Annotated[MemberRepository, Depends(get_member_repository)],
+        invite_repo: Annotated[InviteRepository, Depends(get_invite_repository)],
+        server_repo: Annotated[ServerRepository, Depends(get_server_repository)],
+        member_repo: Annotated[MemberRepository, Depends(get_member_repository)],
 ) -> InviteService:
     return InviteService(
         invite_repo=invite_repo,
         server_repo=server_repo,
         member_repo=member_repo,
+    )
+
+
+async def get_rating_service(
+        rating_repo: Annotated[RatingRepository, Depends(get_rating_repository)],
+        rating_set_repo: Annotated[RatingSetRepository, Depends(get_rating_set_repository)],
+        server_repo: Annotated[ServerRepository, Depends(get_server_repository)],
+) -> RatingService:
+    return RatingService(
+        rating_repo=rating_repo,
+        rating_set_repo=rating_set_repo,
+        server_repo=server_repo
     )

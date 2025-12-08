@@ -104,14 +104,11 @@ class GameRoleService:
         return role
 
     async def delete_role(self, role_id: UUID, permission_mask: int = 0) -> None:
-        role = await self.role_repo.get_by_id(role_id)
-        if not role:
-            raise NotFoundException("Role not found")
         if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_ROLE_SET):
             raise ForbiddenException("Unable to delete role")
         deleted = await self.role_repo.delete(role_id)
         if not deleted:
-            raise InternalLogicException("Failed to delete role")
+            raise NotFoundException("Role not found")
 
     # async def update_role_icon(
     #     self, server_id: UUID, role_id: UUID, role_set_id: UUID, icon: UploadFile | None, permission_mask: int = 0

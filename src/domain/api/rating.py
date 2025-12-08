@@ -64,3 +64,4 @@ class ServerRatingController(Controller):
     ):  # TODO : User id depend
         # TODO : Member get depend
         pass
+
