@@ -74,10 +74,6 @@ class InviteService:
         inviter_id: UUID | None,
         permission_mask: int = 0,
     ) -> Invite:
-        server = await self.server_repo.get_by_id(server_id)
-        if not server:
-            raise NotFoundException("Server not found")
-
         if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_INVITES):
             raise ForbiddenException("Unable to create invite")
 
@@ -92,24 +88,20 @@ class InviteService:
                 inviter_id=inviter_id,
             )
         except IntegrityError as exc:
-            # SQLSTATE_FK_VIOLATION - some games do not exist
+            # SQLSTATE_FK_VIOLATION - some fields do not exist
             sql_state = getattr(exc.orig, "sqlstate", None)
             if sql_state == "23503":
-                raise NotFoundException("Inviter not found")
-            raise InternalLogicException("Failed to add games to server")
+                raise NotFoundException("Some foreign fields are not found")
+            raise InternalLogicException("Failed to create invite")
         if invite is None:
             raise InternalLogicException("Failed to create invite")
 
         return invite
 
-    async def revoke_invite(self, server_id: UUID, invite_id: UUID, permission_mask: int = 0) -> None:
-        server = await self.server_repo.get_by_id(server_id)
-        if not server:
-            raise NotFoundException("Server not found")
-
+    async def revoke_invite(self, invite_id: UUID, permission_mask: int = 0) -> None:
         if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_INVITES):
             raise ForbiddenException("Unable to revoke invite")
 
         ok = await self.invite_repo.delete(invite_id)
         if not ok:
-            raise InternalLogicException("Failed to revoke invite")
+            raise NotFoundException("Invite not found")

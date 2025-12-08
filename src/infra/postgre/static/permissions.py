@@ -20,6 +20,9 @@ class PERMISSION(StrEnum):
     CREATE_VIRTUAL = 'create_virtual'
     MIGRATE_MEMBERS = 'migrate_members'
     KICK_MEMBERS = 'kick_members'
+    CREATE_CUSTOM = 'create_custom'
+    DELETE_CUSTOM = 'delete_custom'
+    EDIT_ALL_CUSTOMS = 'edit_all_customs'
 
     # server settings
     EDIT_SERVER_PUBLIC = 'edit_server_public'
@@ -28,6 +31,7 @@ class PERMISSION(StrEnum):
     EDIT_SERVER_GAME = 'edit_server_game'
     DELETE_SERVER = 'delete_server'
     EDIT_ROLE_SET = 'edit_role_set'
+    EDIT_INVITES = 'edit_invites'
 
     # apply restrictions
     RESTRICT_SERVER_BAN = 'restrict_server_ban'

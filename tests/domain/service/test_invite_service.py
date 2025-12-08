@@ -202,7 +202,7 @@ async def test_create_invite_zero_and_negative(async_session, invite_service):
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_create_invite_forbidden_and_not_found(invite_service):
+async def test_create_invite_not_found(async_session, invite_service):
     with pytest.raises(NotFoundException):
         await invite_service.create_invite(
             uuid.uuid4(),
@@ -210,7 +210,11 @@ async def test_create_invite_forbidden_and_not_found(invite_service):
             inviter_id=None,
             permission_mask=perm_mask(PERMISSION.EDIT_INVITES),
         )
-    server = await _server(invite_service.invite_repo.session)
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_create_invite_forbidden(async_session, invite_service):
+    server = await _server(async_session)
     with pytest.raises(ForbiddenException):
         await invite_service.create_invite(
             server.id,
@@ -242,10 +246,9 @@ async def test_revoke_invite(async_session, invite_service):
     assert inv is not None
 
     with pytest.raises(ForbiddenException):
-        await invite_service.revoke_invite(inv.server_id, inv.id, permission_mask=perm_mask())
+        await invite_service.revoke_invite(inv.id, permission_mask=perm_mask())
 
     await invite_service.revoke_invite(
-        inv.server_id,
         inv.id,
         permission_mask=perm_mask(PERMISSION.EDIT_INVITES),
     )
@@ -256,7 +259,6 @@ async def test_revoke_invite(async_session, invite_service):
 async def test_revoke_invite_server_not_found(invite_service):
     with pytest.raises(NotFoundException):
         await invite_service.revoke_invite(
-            uuid.uuid4(),
             uuid.uuid4(),
             permission_mask=perm_mask(PERMISSION.EDIT_INVITES),
         )

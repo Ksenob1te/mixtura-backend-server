@@ -14,6 +14,7 @@ import logging
 from .domain.service.core import CoreService
 from .domain.service.game import GameService
 from .domain.service.game_role import GameRoleService
+from .domain.service.invite import InviteService
 
 
 logger = logging.getLogger(__name__)
@@ -134,4 +135,16 @@ async def get_game_role_service(
         server_repo=server_repo,
         role_set_repo=game_role_set_repo,
         role_repo=game_role_repo,
+    )
+
+
+async def get_invite_service(
+    invite_repo: Annotated[InviteRepository, Depends(get_invite_repository)],
+    server_repo: Annotated[ServerRepository, Depends(get_server_repository)],
+    member_repo: Annotated[MemberRepository, Depends(get_member_repository)],
+) -> InviteService:
+    return InviteService(
+        invite_repo=invite_repo,
+        server_repo=server_repo,
+        member_repo=member_repo,
     )
