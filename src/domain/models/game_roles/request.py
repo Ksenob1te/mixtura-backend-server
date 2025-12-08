@@ -9,11 +9,13 @@ class GameRoleItemUpdateRequest(BaseModel):
     max_in_team: int | None = None
     hidden: bool | None = None
 
+
 class GameRoleItemCreateRequest(BaseModel):
-    name: str = Field( max_length=32)
+    name: str = Field(max_length=32)
     min_in_team: int
     max_in_team: int
     hidden: bool = False
+
 
 class GameRoleSetUpdateRequest(BaseModel):
     name: str | None = Field(None, max_length=32)

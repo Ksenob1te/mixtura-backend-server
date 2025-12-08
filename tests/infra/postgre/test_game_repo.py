@@ -135,3 +135,22 @@ async def test_get_all_games(async_session):
     assert g1 is not None and g2 is not None
     assert g1.id in all_game_ids
     assert g2.id in all_game_ids
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_add_non_existing_game(async_session):
+    repo = GameRepository(async_session)
+    s = await _create_server(async_session)
+    non_existing_game_id = uuid.uuid4()
+    with pytest.raises(IntegrityError):
+        await repo.add_to_server(non_existing_game_id, s.id)
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_add_bulk_non_existing_game(async_session):
+    repo = GameRepository(async_session)
+    s = await _create_server(async_session)
+    non_existing_game_ids = [uuid.uuid4() for _ in range(3)]
+    with pytest.raises(IntegrityError):
+        await repo.bulk_add_to_server(s.id, non_existing_game_ids)
+

@@ -216,16 +216,7 @@ async def test_get_server_permission(async_session, core_service):
 
     private_server = await _server(async_session, public=False)
 
-    with pytest.raises(NotFoundException):
-        await core_service.get_server(private_server.id)
-
-    with pytest.raises(NotFoundException):
-        await core_service.get_server(private_server.id, permission_mask=0)
-
-    fetched_private = await core_service.get_server(
-        private_server.id,
-        permission_mask=perm_mask(PERMISSION.VIEW_SERVER),
-    )
+    fetched_private = await core_service.get_server(private_server.id)
     assert fetched_private.id == private_server.id
 
 
@@ -238,7 +229,7 @@ async def test_get_server_not_found(async_session, core_service):
 @pytest.mark.asyncio(loop_scope="session")
 async def test_update_server_not_found(async_session, core_service):
     body = ServerUpdateRequest(name="NewName", description=None, public=None)
-    with pytest.raises(ForbiddenException):
+    with pytest.raises(NotFoundException):
         await core_service.update_server(uuid.uuid4(), body, permission_mask=0)
 
 
@@ -284,7 +275,7 @@ async def test_update_server_without_permissions(async_session, core_service):
             permission_mask=perm_mask(),
         )
 
-    with pytest.raises(ForbiddenException):
+    with pytest.raises(NotFoundException):
         await core_service.update_server(
             uuid.uuid4(),
             body,
@@ -292,6 +283,17 @@ async def test_update_server_without_permissions(async_session, core_service):
                 PERMISSION.EDIT_SERVER_NAME,
                 PERMISSION.EDIT_SERVER_DESCRIPTION,
                 PERMISSION.EDIT_SERVER_PUBLIC,
+            ),
+        )
+
+    with pytest.raises(NotFoundException):
+        await core_service.update_server(
+            uuid.uuid4(),
+            body,
+            permission_mask=perm_mask(
+                PERMISSION.EDIT_SERVER_NAME,
+                PERMISSION.EDIT_SERVER_DESCRIPTION,
+                PERMISSION.EDIT_SERVER_PUBLIC
             ),
         )
 
@@ -309,4 +311,3 @@ async def test_delete_server_permission_and_flow(async_session, core_service):
     await core_service.delete_server(server.id, permission_mask=perm_mask(PERMISSION.DELETE_SERVER))
     repo = core_service.server_repo
     assert await repo.get_by_id(server.id) is None
-

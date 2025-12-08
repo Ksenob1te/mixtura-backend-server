@@ -14,7 +14,7 @@ class PERMISSION(StrEnum):
 
     # base permission
     SELF_EDIT_NAME = 'self_edit_name'
-    VIEW_SERVER = 'view_server'
+    # TODO: think if we need self_edit right if its base permission that cannot be removed and we have edit restriction
     EDIT_NAME = 'edit_name'
     EDIT_ROLES = 'edit_roles'
     CREATE_VIRTUAL = 'create_virtual'
@@ -25,7 +25,9 @@ class PERMISSION(StrEnum):
     EDIT_SERVER_PUBLIC = 'edit_server_public'
     EDIT_SERVER_NAME = 'edit_server_name'
     EDIT_SERVER_DESCRIPTION = 'edit_server_description'
+    EDIT_SERVER_GAME = 'edit_server_game'
     DELETE_SERVER = 'delete_server'
+    EDIT_ROLE_SET = 'edit_role_set'
 
     # apply restrictions
     RESTRICT_SERVER_BAN = 'restrict_server_ban'

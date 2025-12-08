@@ -74,19 +74,22 @@ class CoreService:
             raise InternalLogicException("Failed to create server due to integrity error")
         if server is None:
             raise InternalLogicException("Failed to create server")
+        try:
+            links = await self.game_repo.bulk_add_to_server(server.id, body.game_ids)
+        except IntegrityError as exc:
+            # SQLSTATE_FK_VIOLATION - some games do not exist
+            sql_state = getattr(exc.orig, "sqlstate", None)
+            if sql_state == "23503":
+                raise NotFoundException("Some games are not found")
+            raise InternalLogicException("Failed to add games to server")
 
-        links = await self.game_repo.bulk_add_to_server(server.id, body.game_ids)
         server.server_games = links
         server.games = [link.game for link in links]
         return server
 
-    async def get_server(self, server_id: UUID, permission_mask: int = 0) -> Server:
+    async def get_server(self, server_id: UUID) -> Server:
         server = await self.server_repo.get_by_id(server_id)
         if not server:
-            raise NotFoundException("Server not found")
-        if server.public:
-            return server
-        if not PERMISSION.check_permission(permission_mask, PERMISSION.VIEW_SERVER):
             raise NotFoundException("Server not found")
         return server
 
@@ -94,7 +97,7 @@ class CoreService:
                             permission_mask: int = 0) -> Server:
         server = await self.server_repo.get_by_id(server_id)
         if not server:
-            raise ForbiddenException("Unable to edit server")
+            raise NotFoundException("Server not found")
         if body.name is not None and body.name != server.name:
             if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_SERVER_NAME):
                 raise ForbiddenException("Unable to edit server")
@@ -111,10 +114,10 @@ class CoreService:
 
     async def delete_server(self, server_id: UUID, permission_mask: int = 0) -> None:
         server = await self.server_repo.get_by_id(server_id)
-        if not PERMISSION.check_permission(permission_mask, PERMISSION.DELETE_SERVER):
-            raise ForbiddenException("Unable to delete server")
         if not server:
             raise NotFoundException("Server not found")
+        if not PERMISSION.check_permission(permission_mask, PERMISSION.DELETE_SERVER):
+            raise ForbiddenException("Unable to delete server")
         ok = await self.server_repo.delete(server_id)
         if not ok:
             raise InternalLogicException("Failed to delete server")

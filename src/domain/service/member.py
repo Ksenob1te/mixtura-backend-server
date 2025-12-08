@@ -33,9 +33,7 @@ class MemberService:
         self.server_role_repo = server_role_repo
         self.restriction_repo = restriction_repo
 
-    async def list_members(self, server_id: UUID, permission_mask: int = 0) -> list[Member]:
-        if not PERMISSION.check_permission(permission_mask, PERMISSION.VIEW_SERVER):
-            raise NotFoundException(f"Server not found")
+    async def list_members(self, server_id: UUID) -> list[Member]:
         members = await self.member_repo.list_active_for_server(server_id)
         return list(members)
 
@@ -85,9 +83,7 @@ class MemberService:
             raise InternalLogicException("Failed to create virtual member")
         return member_field
 
-    async def get_member(self, member_id: UUID, permission_mask: int) -> Member:
-        if not PERMISSION.check_permission(permission_mask, PERMISSION.VIEW_SERVER):
-            raise NotFoundException(f"Member with id not found")
+    async def get_member(self, member_id: UUID) -> Member:
         member = await self.member_repo.get_by_id(member_id)
         if not member:
             raise NotFoundException(f"Member with id not found")
@@ -103,7 +99,7 @@ class MemberService:
     ) -> Member:
         member = await self.member_repo.get_by_id(member_id)
         if member is None:
-            raise NotFoundException(f"Member with id not found")
+            raise NotFoundException(f"Member not found")
 
         if body.name and body.name != member.name:
             if PERMISSION.check_permission(
@@ -111,6 +107,7 @@ class MemberService:
             ) and RESTRICTION.check_restriction(
                     restriction_mask, RESTRICTION.SELF_EDIT_NAME
             ):
+                # TODO: think about self_edit_name
                 raise ForbiddenException("Unable to edit member name")
             if not PERMISSION.check_permission_bulk(
                     permission_mask,
@@ -166,9 +163,7 @@ class MemberService:
         # TODO: we need to check if user is still removed from current_member if set_user_if_none fails
         return target_member
 
-    async def get_restrictions(self, member_id: UUID, permission_mask: int) -> list[MemberRestriction]:
-        if not PERMISSION.check_permission(permission_mask, PERMISSION.VIEW_SERVER):
-            raise NotFoundException(f"Member not found")
+    async def get_restrictions(self, member_id: UUID) -> list[MemberRestriction]:
         restrictions = await self.member_restriction_repo.list_for_member(member_id)
         return list(restrictions)
 

@@ -3,6 +3,7 @@ from uuid import UUID
 
 from ..exceptions import NotAuthorizedException
 
+
 class UserService:
     def __init__(self, redis_repo: RedisRepository):
         self.redis_repo = redis_repo

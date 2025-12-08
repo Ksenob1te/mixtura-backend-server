@@ -30,12 +30,12 @@ class ServerGameRoleController(Controller):
         # TODO : Member get depend
         pass
 
-    @post("/{role_set_id}/roles", response_model=StatusResponse)
+    @post("/{role_set_id}/role", response_model=StatusResponse)
     def create_role(self, server_id: UUID, role_set_id: UUID, body: GameRoleItemCreateRequest, icon: UploadFile): # TODO : User id depend
         # TODO : Member get depend
         pass
 
-    @patch("/{role_set_id}/roles/{role_id}", response_model=GameRoleItemResponse)
+    @patch("/{role_set_id}/role/{role_id}", response_model=GameRoleItemResponse)
     def update_role(
         self,
         server_id: UUID,

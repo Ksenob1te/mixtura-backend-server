@@ -3,7 +3,7 @@ import pytest
 from datetime import datetime, timedelta, UTC
 
 from src.domain.service.member import MemberService
-from src.domain.exceptions import NotFoundException, ForbiddenException, InternalLogicException, MigrationException
+from src.domain.exceptions import NotFoundException, ForbiddenException, MigrationException
 from src.domain.models.member.request import (
     VirtualMemberCreateRequest,
     MemberUpdateRequest,
@@ -18,7 +18,7 @@ from src.infra.postgre.repo import (
     ServerRoleRepository,
     RestrictionRepository,
 )
-from src.infra.postgre.models import Server, GameRoleSet, RatingSet, ServerRole, Restriction
+from src.infra.postgre.models import Server, GameRoleSet, RatingSet
 
 
 def perm_mask(*perms: PERMISSION) -> int:
@@ -60,13 +60,6 @@ async def member_service(async_session):
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_list_members_denied_without_view_permission(async_session, member_service):
-    server_id = uuid.uuid4()
-    with pytest.raises(NotFoundException):
-        await member_service.list_members(server_id, permission_mask=0)
-
-
-@pytest.mark.asyncio(loop_scope="session")
 async def test_list_members_returns_active_members(async_session, member_service):
     server = await _server(async_session)
     member_repo = member_service.member_repo
@@ -78,7 +71,6 @@ async def test_list_members_returns_active_members(async_session, member_service
 
     res = await member_service.list_members(
         server.id,
-        permission_mask=perm_mask(PERMISSION.VIEW_SERVER),
     )
     assert isinstance(res, list)
     assert {m.id for m in res} == {m1.id}
@@ -152,17 +144,11 @@ async def test_get_member_permission_and_not_found(async_session, member_service
     member = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), name="User")
     assert member is not None
 
-    with pytest.raises(NotFoundException):
-        await member_service.get_member(member.id, permission_mask=0)
-
-    fetched = await member_service.get_member(
-        member.id,
-        permission_mask=perm_mask(PERMISSION.VIEW_SERVER),
-    )
+    fetched = await member_service.get_member(member.id)
     assert fetched.id == member.id
 
     with pytest.raises(NotFoundException):
-        await member_service.get_member(uuid.uuid4(), permission_mask=perm_mask(PERMISSION.VIEW_SERVER))
+        await member_service.get_member(uuid.uuid4())
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -331,15 +317,8 @@ async def test_get_restrictions_permissions_and_empty(async_session, member_serv
     member = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), name="Restricted")
     assert member is not None
 
-    restriction = await restriction_repo.create(code=RESTRICTION.SERVER_BAN)
-
-    with pytest.raises(NotFoundException):
-        await member_service.get_restrictions(member.id, permission_mask=perm_mask())
-
-    assert await member_service.get_restrictions(
-        member.id,
-        permission_mask=perm_mask(PERMISSION.VIEW_SERVER),
-    ) == []
+    await restriction_repo.create(code=RESTRICTION.SERVER_BAN)
+    assert await member_service.get_restrictions(member.id) == []
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -377,10 +356,7 @@ async def test_add_restriction_permission_and_success(async_session, member_serv
     )
     assert mr is not None and mr.member_id == member.id
 
-    restrictions = await member_service.get_restrictions(
-        member.id,
-        permission_mask=perm_mask(PERMISSION.VIEW_SERVER),
-    )
+    restrictions = await member_service.get_restrictions(member.id)
     assert len(restrictions) == 1
 
 
@@ -430,8 +406,5 @@ async def test_remove_restriction_permission_and_success(async_session, member_s
         member_restriction_id=mr.id,
         permission_mask=perm_mask(PERMISSION.RESTRICT_SERVER_BAN),
     )
-    restrictions_after = await member_service.get_restrictions(
-        member.id,
-        permission_mask=perm_mask(PERMISSION.VIEW_SERVER),
-    )
+    restrictions_after = await member_service.get_restrictions(member.id)
     assert restrictions_after == []

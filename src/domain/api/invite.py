@@ -6,29 +6,30 @@ from src.domain.models.invites.response import InviteAdminResponse, InviteKeyRes
 from src.domain.models.member.response import MemberResponse
 from src.domain.models.response import StatusResponse
 
+
 class ServerInviteController(Controller):
-    prefix = "" 
+    prefix = ""
     tags = ["Server invite"]
 
     @get("/invites/{key}", response_model=InviteKeyResponse)
-    def get_invite_info(self, key: str): # TODO : User id depend
+    def get_invite_info(self, key: str):  # TODO : User id depend
         pass
 
     @post("/invites/{key}", response_model=MemberResponse)
-    def use_invite(self, key: str): # TODO : User id depend
+    def use_invite(self, key: str):  # TODO : User id depend
         pass
-    
+
     @get("/{server_id}/invites", response_model=list[InviteAdminResponse])
-    def list_invites(self, server_id: UUID): # TODO : User id depend
+    def list_invites(self, server_id: UUID):  # TODO : User id depend
         # TODO : Member get depend
         pass
 
     @post("/{server_id}/invites", response_model=StatusResponse)
-    def create_invite(self, server_id: UUID, body: InviteCreateRequest): # TODO : User id depend
+    def create_invite(self, server_id: UUID, body: InviteCreateRequest):  # TODO : User id depend
         # TODO : Member get depend
         pass
 
     @delete("/{server_id}/invites/{invite_id}", response_model=StatusResponse)
-    def revoke_invite(self, server_id: UUID, invite_id: UUID): # TODO : User id depend
+    def revoke_invite(self, server_id: UUID, invite_id: UUID):  # TODO : User id depend
         # TODO : Member get depend
         pass
