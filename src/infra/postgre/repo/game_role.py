@@ -74,3 +74,18 @@ class GameRoleRepository:
         await self.session.flush()
         return bool(res.rowcount)  # type: ignore
 
+    async def copy_role(self, template_role: GameRole, new_role_set_id: UUID) -> GameRole | None:
+        # TODO: add tests for this method
+        role = GameRole(
+            name=template_role.name,
+            role_set_id=new_role_set_id,
+            min_in_team=template_role.min_in_team,
+            max_in_team=template_role.max_in_team,
+            icon_url=template_role.icon_url,
+            icon_id=template_role.icon_id,
+            hidden=template_role.hidden
+        )
+        self.session.add(role)
+        await self.session.flush()
+        return await self.get_by_id(role.id)
+

@@ -6,6 +6,18 @@ class LocalSettings(BaseSettings):
     model_config = SettingsConfigDict(extra="ignore")
 
 
+class PostgresConfig(LocalSettings):
+    host: str = Field(default="localhost", alias="POSTGRES_HOST")
+    port: int = Field(default=5432, alias="POSTGRES_PORT")
+    user: str = Field(default="postgres", alias="POSTGRES_USER")
+    password: str = Field(default="pgAdminPassword", alias="POSTGRES_PASSWORD")
+    db: str = Field(default="mixtura-auth", alias="POSTGRES_DB")
+
+    @property
+    def url(self) -> str:
+        return f"postgresql+asyncpg://{self.user}:{self.password}@{self.host}:{self.port}/{self.db}"
+
+
 class RedisConfig(LocalSettings):
     host: str = Field(default="localhost", alias="REDIS_HOST")
     port: int = Field(default=6379, alias="REDIS_PORT")
@@ -38,6 +50,7 @@ class Env(LocalSettings):
     server: ServerConfig = Field(default_factory=ServerConfig)  # type: ignore
     redis: RedisConfig = Field(default_factory=RedisConfig)  # type: ignore
     rabbit: RabbitConfig = Field(default_factory=RabbitConfig)  # type: ignore
+    postgres: PostgresConfig = Field(default_factory=PostgresConfig)  # type: ignore
 
     @classmethod
     def load(cls) -> "Env":

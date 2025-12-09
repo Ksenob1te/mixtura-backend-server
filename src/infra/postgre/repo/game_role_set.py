@@ -45,3 +45,13 @@ class GameRoleSetRepository:
         res = await self.session.execute(stmt)
         await self.session.flush()
         return bool(res.rowcount)  # type: ignore
+
+    async def copy_global(self, global_set_id: UUID) -> GameRoleSet | None:
+        # TODO: add tests for this method
+        global_set = await self.get_by_id(global_set_id)
+        if not global_set or not global_set.is_global:
+            return None
+        new_set = GameRoleSet(name=global_set.name, is_global=False)
+        self.session.add(new_set)
+        await self.session.flush()
+        return await self.get_by_id(new_set.id)
