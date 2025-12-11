@@ -23,6 +23,7 @@ class PERMISSION(StrEnum):
     CREATE_CUSTOM = 'create_custom'
     DELETE_CUSTOM = 'delete_custom'
     EDIT_ALL_CUSTOMS = 'edit_all_customs'
+    EDIT_SERVER_ROLES = 'edit_server_roles'
 
     # server settings
     EDIT_SERVER_PUBLIC = 'edit_server_public'
