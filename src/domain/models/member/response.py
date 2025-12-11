@@ -3,11 +3,11 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict
 
 
-class ServerPermissionResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: UUID
-    code_name: str
+# class ServerPermissionResponse(BaseModel):
+#     model_config = ConfigDict(from_attributes=True)
+#
+#     id: UUID
+#     code_name: str
 
 
 class ServerRoleResponse(BaseModel):
@@ -15,7 +15,7 @@ class ServerRoleResponse(BaseModel):
 
     name: str
     position: int
-    permissions: list[ServerPermissionResponse]
+    permission_mask: int
 
 
 class MemberResponse(BaseModel):
