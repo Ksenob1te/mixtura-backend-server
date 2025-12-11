@@ -1,69 +1,52 @@
-from fastapi import HTTPException
-from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_409_CONFLICT, HTTP_400_BAD_REQUEST, \
-    HTTP_500_INTERNAL_SERVER_ERROR, HTTP_403_FORBIDDEN, HTTP_404_NOT_FOUND
+class DomainException(Exception):
+    def __init__(self, status_code: int, message: str):
+        self.status_code = status_code
+        self.message = message
+        super().__init__(message)
 
-
-class NotAuthorizedException(HTTPException):
+class NotAuthorizedException(DomainException):
     def __init__(self):
         super().__init__(
-            status_code=HTTP_401_UNAUTHORIZED,
-            detail={
-                "status": "error",
-                "message": "Not authorized"
-            }
+            status_code=401,
+            message="Not authorized"
         )
 
 
-class ExceedRetryLimitException(HTTPException):
+class ExceedRetryLimitException(DomainException):
     def __init__(self):
         super().__init__(
-            status_code=HTTP_409_CONFLICT,
-            detail={
-                "status": "error",
-                "message": "Exceed retry limit"
-            }
+            status_code=409,
+            message="Exceed retry limit"
         )
 
 
-class MigrationException(HTTPException):
+class MigrationException(DomainException):
     def __init__(self):
         super().__init__(
-            status_code=HTTP_409_CONFLICT,
-            detail={
-                "status": "error",
-                "message": "Unable to perform migration"
-            }
+            status_code=409,
+            message="Unable to perform migration"
         )
 
 
-class NotFoundException(HTTPException):
+class NotFoundException(DomainException):
     def __init__(self, message: str):
         super().__init__(
-            status_code=HTTP_404_NOT_FOUND,
-            detail={
-                "status": "error",
-                "message": message
-            }
+            status_code=404,
+            message=message
         )
 
 
-class InternalLogicException(HTTPException):
+class InternalLogicException(DomainException):
     def __init__(self, message: str):
         super().__init__(
-            status_code=HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "status": "error",
-                "message": message
-            }
+            status_code=500,
+            message=message
         )
 
 
-class ForbiddenException(HTTPException):
+class ForbiddenException(DomainException):
     def __init__(self, message: str):
         super().__init__(
-            status_code=HTTP_403_FORBIDDEN,
-            detail={
-                "status": "error",
-                "message": message
-            }
+            status_code=403,
+            message=message
         )

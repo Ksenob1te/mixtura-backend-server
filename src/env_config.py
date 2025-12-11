@@ -29,10 +29,6 @@ class RedisConfig(LocalSettings):
         return f"redis://{self.user}:{self.password}@{self.host}:{self.port}"
 
 
-class ServerConfig(LocalSettings):
-    host: str = Field(default="0.0.0.0", alias="SERVER_HOST")
-    port: int = Field(default=8000, alias="SERVER_PORT")
-
 
 class RabbitConfig(LocalSettings):
     host: str = Field(default="localhost", alias="RABBITMQ_HOST")
@@ -47,7 +43,6 @@ class RabbitConfig(LocalSettings):
 
 
 class Env(LocalSettings):
-    server: ServerConfig = Field(default_factory=ServerConfig)  # type: ignore
     redis: RedisConfig = Field(default_factory=RedisConfig)  # type: ignore
     rabbit: RabbitConfig = Field(default_factory=RabbitConfig)  # type: ignore
     postgres: PostgresConfig = Field(default_factory=PostgresConfig)  # type: ignore

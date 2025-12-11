@@ -1,37 +1,49 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware import Middleware
+from faststream import ContextRepo, ExceptionMiddleware, FastStream
+from faststream.rabbit import RabbitBroker, Channel
 
 import src.domain.api as api
 from src.env_config import env
 from src.infra.postgre import DatabaseSessionManager
 from src.infra.redis import RedisSessionManager
 
+from .exceptions import DomainException
+from .models.response import ErrorResponse, ResponseMessage
+
+exc_middleware = ExceptionMiddleware()
+
+
+@exc_middleware.add_handler(DomainException, publish=True)
+def error_handler(exc: DomainException) -> ResponseMessage[ErrorResponse]:
+    return ResponseMessage(
+        status=exc.status_code, message=ErrorResponse(message=exc.message)
+    )
+
+
+broker = RabbitBroker(
+    env.rabbit.url,
+    middlewares=[exc_middleware],
+    default_channel=Channel(prefetch_count=10),
+)
+
+broker.include_router(api.router)
+
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(context: ContextRepo):
     session_manager = DatabaseSessionManager(env.postgres.url)
     redis_engine = RedisSessionManager(env.redis.url)
 
-    # Expose managers for DI functions in src.dependency
-    app.state.postgres_manager = session_manager
-    app.state.redis_manager = redis_engine
+    context.set_global("session_manager", session_manager)
+    context.set_global("redis_engine", redis_engine)
+
     yield
+
     if await session_manager.opened:
         await session_manager.close()
     if await redis_engine.opened:
         await redis_engine.close()
 
-app = FastAPI(
-    docs_url="/api/servers/docs",
-    openapi_url="/api/servers/openapi.json",
-    title='Mixtura',
-    version="2.0",
-    middleware=[
-        Middleware(CORSMiddleware, allow_origins=["localhost"], allow_methods=["*"])
-    ],
-    lifespan=lifespan)
 
-app.include_router(api.router)
+app = FastStream(broker, lifespan=lifespan)

@@ -1,6 +1,10 @@
 from uuid import UUID
 from pydantic import BaseModel, Field
 
+from ..request import UserIncludedRequest
+
+class ServerGetRequest(UserIncludedRequest):
+    server_id: UUID
 
 class ServerCreateRequest(BaseModel):
     name: str = Field(..., max_length=128)

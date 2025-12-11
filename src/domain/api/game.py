@@ -1,5 +1,4 @@
 from uuid import UUID
-from fastapi_controllers import Controller, get, post, delete
 
 from src.domain.models.games.request import GameAddRequest
 from src.domain.models.games.response import GameResponse

@@ -1,6 +1,4 @@
 from uuid import UUID
-from fastapi import UploadFile
-from fastapi_controllers import Controller, get, post, put, patch, delete
 
 from src.domain.models.game_roles.request import (
     GameRoleItemCreateRequest,
