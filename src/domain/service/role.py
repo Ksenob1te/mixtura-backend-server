@@ -39,8 +39,12 @@ class RoleService:
             position = 0
         try:
             role = await self.role_repo.create(server_id=server_id, name=name, position=position)
-        except IntegrityError:
-            raise InternalLogicException("Failed to create role due to integrity error")
+        except IntegrityError as exc:
+            # SQLSTATE_FK_VIOLATION - server not found
+            sql_state = getattr(exc.orig, "sqlstate", None)
+            if sql_state == "23503":
+                raise NotFoundException("Server not found")
+            raise InternalLogicException("Failed to create role")
         if role is None:
             raise InternalLogicException("Failed to create role")
         return role
@@ -68,14 +72,11 @@ class RoleService:
             role_id: UUID,
             permission_mask: int = 0,
     ) -> None:
-        # TODO: test here if deleting role from server, that has assigned user to it - role set to None for this user
         if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_SERVER_ROLES):
             raise ForbiddenException("Unable to delete role")
         try:
-            await self.role_repo.delete(role_id)
-        except IntegrityError as exc:
-            # SQLSTATE_FK_VIOLATION - role not found
-            sql_state = getattr(exc.orig, "sqlstate", None)
-            if sql_state == "23503":
-                raise NotFoundException("Role not found")
+            ok = await self.role_repo.delete(role_id)
+        except IntegrityError:
             raise InternalLogicException("Failed to delete role")
+        if not ok:
+            raise NotFoundException("Role not found")

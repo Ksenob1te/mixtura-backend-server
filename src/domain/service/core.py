@@ -123,4 +123,3 @@ class CoreService:
         if not ok:
             raise InternalLogicException("Failed to delete server")
 
-    # TODO: add S3 services for updating logo and banner images
