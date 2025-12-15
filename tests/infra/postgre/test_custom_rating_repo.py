@@ -1,9 +1,9 @@
 import uuid
 import pytest
-from sqlalchemy.exc import IntegrityError
-
 from src.infra.postgre.models import Member, Custom, GameRoleSet, GameRole, Server, RatingSet
 from src.infra.postgre.repo import CustomRatingRepository
+
+from src.infra.postgre import IntegrityUnknownException, IntegrityForeignException, IntegrityUniqueException
 
 
 async def _server(session):
@@ -69,7 +69,7 @@ async def test_unique_pair_constraint(async_session):
     c = await _custom(async_session, s)
     r = await _role(async_session, name="PairRole")
     await repo.create(c.id, r.id, 1)
-    with pytest.raises(IntegrityError):
+    with pytest.raises(IntegrityUniqueException):
         await repo.create(c.id, r.id, 2)
 
 

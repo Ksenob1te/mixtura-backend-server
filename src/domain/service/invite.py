@@ -6,15 +6,16 @@ from src.infra.postgre.models import Invite, Member
 from src.infra.postgre.repo import InviteRepository, ServerRepository, MemberRepository
 from src.infra.postgre.static import RESTRICTION, PERMISSION
 
-from src.infra.postgre import IntegrityForeignException, IntegrityUnknownException, IntegrityUniqueException
+from src.infra.postgre import (IntegrityForeignException, IntegrityUnknownException, IntegrityUniqueException,
+                               InviteUniqueException)
 
 
 class InviteService:
     def __init__(
-        self,
-        invite_repo: InviteRepository,
-        server_repo: ServerRepository,
-        member_repo: MemberRepository,
+            self,
+            invite_repo: InviteRepository,
+            server_repo: ServerRepository,
+            member_repo: MemberRepository,
     ) -> None:
         self.invite_repo = invite_repo
         self.server_repo = server_repo
@@ -35,7 +36,7 @@ class InviteService:
             raise NotFoundException("Invite not found")
 
         server = invite.server
-        existing_member = await self.member_repo.get_by_user_in_server(server.id, user_id)      # type: ignore
+        existing_member = await self.member_repo.get_by_user_in_server(server.id, user_id)  # type: ignore
         if existing_member:
             if not existing_member.active:
                 await self.member_repo.activate(existing_member)
@@ -43,7 +44,7 @@ class InviteService:
         else:
             try:
                 member = await self.member_repo.create(
-                    server_id=server.id,        # type: ignore
+                    server_id=server.id,  # type: ignore
                     user_id=user_id,
                     name=username,
                     server_role_id=None,
@@ -67,11 +68,11 @@ class InviteService:
         return list(invites)
 
     async def create_invite(
-        self,
-        server_id: UUID,
-        body: InviteCreateRequest,
-        inviter_id: UUID | None,
-        permission_mask: int = 0,
+            self,
+            server_id: UUID,
+            body: InviteCreateRequest,
+            inviter_id: UUID | None,
+            permission_mask: int = 0,
     ) -> Invite:
         if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_INVITES):
             raise ForbiddenException("Unable to create invite")
@@ -86,7 +87,9 @@ class InviteService:
                 use_limit=use_limit,
                 inviter_id=inviter_id,
             )
-        except IntegrityUniqueException as exc:
+        except IntegrityForeignException as exc:
+            raise NotFoundException(exc.message)
+        except (IntegrityUnknownException, IntegrityUniqueException, InviteUniqueException) as exc:
             raise InternalLogicException(exc.message)
         return invite
 

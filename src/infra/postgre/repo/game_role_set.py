@@ -3,6 +3,8 @@ from typing import Sequence
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..models import GameRoleSet
+from sqlalchemy.exc import IntegrityError
+from ..exceptions import IntegrityUnknownException, IntegrityUniqueException, IntegrityForeignException
 
 
 class GameRoleSetRepository:
@@ -22,12 +24,21 @@ class GameRoleSetRepository:
         res = await self.session.scalars(stmt)
         return res.all()
 
-    async def create(self, name: str, is_global: bool = False) -> GameRoleSet | None:
-        rs = GameRoleSet(name=name, is_global=is_global)
-        # TODO: handle integrity errors
-        self.session.add(rs)
-        await self.session.flush()
-        return await self.get_by_id(rs.id)
+    async def create(self, name: str, is_global: bool = False) -> GameRoleSet:
+        role_set_field = GameRoleSet(name=name, is_global=is_global)
+        try:
+            self.session.add(role_set_field)
+            await self.session.flush()
+            role_set_field = await self.get_by_id(role_set_field.id)
+            if role_set_field is None:
+                raise IntegrityUnknownException("Failed to create game role set")
+            return role_set_field
+        except IntegrityError as exc:
+            # SQLSTATE_UNIQUE_VIOLATION - role set with this name already exists
+            sql_state = getattr(exc.orig, "sqlstate", None)
+            if sql_state == "23505":
+                raise IntegrityUniqueException("Game role set with this name already exists")
+            raise IntegrityUnknownException("Failed to create game role set")
 
     async def set_name(self, role_set: GameRoleSet, name: str) -> GameRoleSet:
         role_set.name = name
@@ -53,6 +64,7 @@ class GameRoleSetRepository:
         global_set = await self.get_by_id(global_set_id)
         if not global_set or not global_set.is_global:
             return None
+        # just use self.create here
         new_set = GameRoleSet(name=global_set.name, is_global=False)
         self.session.add(new_set)
         await self.session.flush()

@@ -1,8 +1,8 @@
 import uuid
 import pytest
 
-from src.infra.postgre.models import GameRoleSet
 from src.infra.postgre.repo import GameRoleSetRepository
+from src.infra.postgre import IntegrityUniqueException
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -18,6 +18,15 @@ async def test_create_and_get_role_set(async_session):
     assert by_name is not None and by_name.id == rs.id
     assert await repo.get_by_id(uuid.uuid4()) is None
     assert await repo.get_by_name("MissingName") is None
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_create_role_set_unique_name(async_session):
+    repo = GameRoleSetRepository(async_session)
+    rs1 = await repo.create("UniqueSet", is_global=False)
+    assert rs1 is not None
+    with pytest.raises(IntegrityUniqueException):
+        await repo.create("UniqueSet", is_global=True)
 
 
 @pytest.mark.asyncio(loop_scope="session")

@@ -3,6 +3,8 @@ import pytest
 
 from src.infra.postgre.models import GameRoleSet, GameRole
 from src.infra.postgre.repo import GameRoleRepository
+from src.infra.postgre import IntegrityUnknownException, IntegrityForeignException, IntegrityUniqueException
+
 
 
 async def _create_role_set(session, name="Set", is_global=False):
@@ -22,6 +24,15 @@ async def test_create_and_get_game_role(async_session):
     by_id = await repo.get_by_id(role.id)
     assert by_id is not None and by_id.id == role.id
     assert await repo.get_by_id(uuid.uuid4()) is None
+
+
+# test creating with invalid role_set_id
+@pytest.mark.asyncio(loop_scope="session")
+async def test_create_game_role_invalid_role_set(async_session):
+    repo = GameRoleRepository(async_session)
+    invalid_role_set_id = uuid.uuid4()
+    with pytest.raises(IntegrityForeignException):
+        await repo.create("InvalidRole", invalid_role_set_id, 1, 2)
 
 
 @pytest.mark.asyncio(loop_scope="session")

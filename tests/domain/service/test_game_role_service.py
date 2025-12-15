@@ -110,7 +110,7 @@ async def test_create_role_forbidden_without_permission(async_session, game_role
     rs = await _role_set(async_session)
     body = GameRoleItemCreateRequest(name="R", min_in_team=1, max_in_team=2, hidden=False)
     with pytest.raises(ForbiddenException):
-        await game_role_service.create_role(rs.id, body, icon=None, permission_mask=0)
+        await game_role_service.create_role(rs.id, body, permission_mask=0)
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -120,7 +120,6 @@ async def test_create_role_role_set_not_found(async_session, game_role_service):
         await game_role_service.create_role(
             uuid.uuid4(),
             body,
-            icon=None,
             permission_mask=perm_mask(PERMISSION.EDIT_ROLE_SET),
         )
 
@@ -132,7 +131,6 @@ async def test_create_role_success(async_session, game_role_service):
     role = await game_role_service.create_role(
         rs.id,
         body,
-        icon=None,
         permission_mask=perm_mask(PERMISSION.EDIT_ROLE_SET),
     )
     assert role is not None

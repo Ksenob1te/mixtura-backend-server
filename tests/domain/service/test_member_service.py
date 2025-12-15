@@ -17,6 +17,7 @@ from src.infra.postgre.repo import (
     ServerRepository,
     ServerRoleRepository,
     RestrictionRepository,
+    PermissionRepository,
 )
 from src.infra.postgre.models import Server, GameRoleSet, RatingSet
 
@@ -49,6 +50,7 @@ async def member_service(async_session):
     server_repo = ServerRepository(async_session)
     server_role_repo = ServerRoleRepository(async_session)
     restriction_repo = RestrictionRepository(async_session)
+    permission_repo = PermissionRepository(async_session)
 
     return MemberService(
         member_repo,
@@ -56,6 +58,7 @@ async def member_service(async_session):
         server_repo,
         server_role_repo,
         restriction_repo,
+        permission_repo
     )
 
 
@@ -335,7 +338,7 @@ async def test_add_restriction_permission_and_success(async_session, member_serv
     restriction = await restriction_repo.create(code=RESTRICTION.SERVER_BAN)
 
     create_body = MemberRestrictionCreateRequest(
-        restriction_id=restriction.id,
+        restriction_id=restriction.id,      # type: ignore
         reason="Bad behavior",
         expiration_date=datetime.now(UTC) + timedelta(days=1),
     )
@@ -374,7 +377,7 @@ async def test_remove_restriction_permission_and_success(async_session, member_s
     restriction = await restriction_repo.create(code=RESTRICTION.SERVER_BAN)
 
     create_body = MemberRestrictionCreateRequest(
-        restriction_id=restriction.id,
+        restriction_id=restriction.id,      # type: ignore
         reason="Bad behavior",
         expiration_date=datetime.now(UTC) + timedelta(days=1),
     )

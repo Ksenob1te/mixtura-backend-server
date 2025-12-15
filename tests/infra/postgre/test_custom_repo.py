@@ -1,6 +1,6 @@
 import uuid
 import pytest
-from sqlalchemy.exc import IntegrityError
+from src.infra.postgre import IntegrityUnknownException, IntegrityForeignException, IntegrityUniqueException
 
 from src.infra.postgre.models import Server, Member, Custom, GameRoleSet, RatingSet
 from src.infra.postgre.repo import CustomRepository
@@ -37,6 +37,25 @@ async def test_create_and_get_custom(async_session):
     by_id = await repo.get_by_id(c.id)
     assert by_id is not None and by_id.id == c.id
     assert await repo.get_by_id(uuid.uuid4()) is None
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_create_custom_unreal_member(async_session):
+    repo = CustomRepository(async_session)
+    unreal_member_id = uuid.uuid4()
+    with pytest.raises(IntegrityForeignException):
+        await repo.create(member_id=unreal_member_id)
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_create_custom_unreal_issuer(async_session):
+    repo = CustomRepository(async_session)
+    s = await _server(async_session)
+    m = await _member(async_session, s)
+
+    unreal_member_id = uuid.uuid4()
+    with pytest.raises(IntegrityForeignException):
+        await repo.create(member_id=m.id, creator_id=unreal_member_id)
 
 
 @pytest.mark.asyncio(loop_scope="session")

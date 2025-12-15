@@ -1,4 +1,3 @@
-from os import stat
 from uuid import UUID
 import secrets
 from typing import Sequence
@@ -7,6 +6,9 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..models import Invite
+
+from ..exceptions import (IntegrityUniqueException, IntegrityUnknownException, IntegrityForeignException,
+                          InviteUniqueException)
 
 
 class InviteRepository:
@@ -46,8 +48,18 @@ class InviteRepository:
                 .values(**values)
                 .returning(Invite)
             )
-            result = await self.session.execute(stmt)
-            return result.scalar_one()
+            try:
+                result = await self.session.execute(stmt)
+                return result.scalar_one()
+            except IntegrityError as exc:
+                # SQLSTATE_UNIQUE_VIOLATION - key is not unique
+                sql_state = getattr(exc.orig, "sqlstate", None)
+                if sql_state == "23505":
+                    raise IntegrityUniqueException("Invite key is not unique")
+                # SQLSTATE_FK_VIOLATION - some fields do not exist
+                if sql_state == "23503":
+                    raise IntegrityForeignException("Server or inviter fields are not found")
+                raise IntegrityUnknownException("Could not create invite")
 
         for _ in range(5):
             candidate = await self._generate_key()
@@ -59,12 +71,19 @@ class InviteRepository:
                 .on_conflict_do_nothing(index_elements=['key'])
                 .returning(Invite)
             )
-            result = await self.session.execute(stmt)
-            invite = result.scalar_one_or_none()
+            try:
+                result = await self.session.execute(stmt)
+                invite = result.scalar_one_or_none()
+            except IntegrityError as exc:
+                sql_state = getattr(exc.orig, "sqlstate", None)
+                # SQLSTATE_FK_VIOLATION - some fields do not exist
+                if sql_state == "23503":
+                    raise IntegrityForeignException("Server or inviter fields are not found")
+                raise IntegrityUnknownException("Could not create invite")
 
             if invite is not None:
                 return invite
-        raise IntegrityError(None, None, Exception("Could not generate unique invite key"))
+        raise InviteUniqueException()
 
     async def set_use_limit(self, invite: Invite, use_limit: int) -> Invite:
         if use_limit < 0:

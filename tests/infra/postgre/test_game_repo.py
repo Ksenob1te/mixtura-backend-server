@@ -1,10 +1,11 @@
 import uuid
 import pytest
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
 
 from src.infra.postgre.models import Game, Server, ServerGame, GameRoleSet, RatingSet
 from src.infra.postgre.repo import GameRepository
+from src.infra.postgre import IntegrityUnknownException, IntegrityForeignException, IntegrityUniqueException
+
 
 
 async def _create_server(session, name="Srv"):
@@ -33,7 +34,7 @@ async def test_create_game(async_session):
 async def test_create_game_unique_name(async_session):
     repo = GameRepository(async_session)
     await repo.create("UniqueGame", "i.png", "b.png")
-    with pytest.raises(IntegrityError):
+    with pytest.raises(IntegrityUniqueException):
         await repo.create("UniqueGame", "i2.png", "b2.png")
 
 
@@ -142,7 +143,7 @@ async def test_add_non_existing_game(async_session):
     repo = GameRepository(async_session)
     s = await _create_server(async_session)
     non_existing_game_id = uuid.uuid4()
-    with pytest.raises(IntegrityError):
+    with pytest.raises(IntegrityForeignException):
         await repo.add_to_server(non_existing_game_id, s.id)
 
 
@@ -151,6 +152,6 @@ async def test_add_bulk_non_existing_game(async_session):
     repo = GameRepository(async_session)
     s = await _create_server(async_session)
     non_existing_game_ids = [uuid.uuid4() for _ in range(3)]
-    with pytest.raises(IntegrityError):
+    with pytest.raises(IntegrityForeignException):
         await repo.bulk_add_to_server(s.id, non_existing_game_ids)
 

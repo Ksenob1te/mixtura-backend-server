@@ -6,7 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from src.domain.exceptions import ForbiddenException, InternalLogicException, NotFoundException
 from src.domain.service.role import RoleService
 from src.infra.postgre.models import Server, GameRoleSet, RatingSet, ServerRole
-from src.infra.postgre.repo import ServerRepository, ServerRoleRepository, MemberRepository
+from src.infra.postgre.repo import ServerRepository, ServerRoleRepository, MemberRepository, PermissionRepository
 from src.infra.postgre.static import PERMISSION
 
 
@@ -39,7 +39,8 @@ async def role_service(async_session):
     server_repo = ServerRepository(async_session)
     role_repo = ServerRoleRepository(async_session)
     member_repo = MemberRepository(async_session)
-    return RoleService(server_repo, role_repo, member_repo)
+    permission_repo = PermissionRepository(async_session)
+    return RoleService(server_repo, role_repo, member_repo, permission_repo)
 
 
 @pytest.mark.asyncio(loop_scope="session")

@@ -10,7 +10,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - ./.local/postgres:/var/lib/postgresql/data
+      - ./.local/postgres:/var/lib/postgresql
       - ./alembic/versions:/mixtura-server/alembic/versions
     healthcheck:
       test: [ "CMD", "pg_isready", "-U", "postgres" ]
