@@ -1,7 +1,5 @@
 from uuid import UUID
 
-from sqlalchemy.exc import IntegrityError
-
 from src.domain.exceptions import NotFoundException, InternalLogicException, ForbiddenException
 from src.infra.postgre.models import Custom
 from src.infra.postgre.repo import (
@@ -11,6 +9,7 @@ from src.infra.postgre.repo import (
     GameRoleRepository,
 )
 from src.infra.postgre.static import PERMISSION
+from src.infra.postgre import IntegrityUniqueException, IntegrityForeignException, IntegrityUnknownException
 
 
 class MemberCustomService:
@@ -35,13 +34,9 @@ class MemberCustomService:
             raise ForbiddenException("Unable to create custom")
         try:
             custom = await self.custom_repo.create(member_id=member_id, creator_id=creator_id)
-        except IntegrityError as exc:
-            # SQLSTATE_FK_VIOLATION - some fields do not exist
-            sql_state = getattr(exc.orig, "sqlstate", None)
-            if sql_state == "23503":
-                raise NotFoundException("Some foreign fields are not found")
-            raise InternalLogicException("Failed to create custom")
-        if custom is None:
+        except IntegrityForeignException:
+            raise NotFoundException("Some foreign fields are not found")
+        except IntegrityUnknownException:
             raise InternalLogicException("Failed to create custom")
         return custom
 
@@ -69,7 +64,6 @@ class MemberCustomService:
         custom = await self.get_custom(custom_id)
         if not custom:
             raise NotFoundException("Custom not found")
-
         if (
                 custom.creator_id != issuer_id and
                 not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_ALL_CUSTOMS)
@@ -80,14 +74,12 @@ class MemberCustomService:
         if custom_rating_field is None:
             try:
                 custom_rating_field = await self.custom_rating_repo.create(custom_id, game_role_id, rating)
-            except IntegrityError as exc:
-                # SQLSTATE_FK_VIOLATION - some fields do not exist
-                sql_state = getattr(exc.orig, "sqlstate", None)
-                if sql_state == "23503":
-                    raise NotFoundException("Some foreign fields are not found")
-                raise InternalLogicException("Failed to create custom rating")
-            if custom_rating_field is None:
-                raise InternalLogicException("Failed to create custom rating")
+            except IntegrityForeignException as exc:
+                raise NotFoundException(exc.message)
+            except IntegrityUniqueException as exc:
+                raise InternalLogicException(exc.message)
+            except IntegrityUnknownException as exc:
+                raise InternalLogicException(exc.message)
             custom.custom_ratings = custom.custom_ratings + [custom_rating_field]
         else:
             await self.custom_rating_repo.set_rating(custom_rating_field, rating)

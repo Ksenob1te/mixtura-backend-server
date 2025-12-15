@@ -1,6 +1,6 @@
 from uuid import UUID
-from sqlalchemy.exc import IntegrityError
 from fastapi import UploadFile
+from sqlalchemy import exc
 
 from src.domain.exceptions import NotFoundException, ForbiddenException, InternalLogicException
 from src.domain.models.game_roles.request import (
@@ -14,8 +14,8 @@ from src.infra.postgre.repo import (
     GameRoleRepository,
     ServerRepository,
 )
-# from src.infra.s3.repository import minio_manager
 from src.infra.postgre.static import PERMISSION
+from src.infra.postgre import IntegrityForeignException, IntegrityUnknownException
 
 
 class GameRoleService:
@@ -51,7 +51,6 @@ class GameRoleService:
         self,
         role_set_id: UUID,
         body: GameRoleItemCreateRequest,
-        icon: UploadFile | None = None,
         permission_mask: int = 0,
     ) -> GameRole:
         if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_ROLE_SET):
@@ -63,7 +62,7 @@ class GameRoleService:
         icon_url = None
         icon_id = None
         # if icon is not None:
-            # TODO: upload icon to minio
+        # TODO: upload icon to minio
 
         try:
             role = await self.role_repo.create(
@@ -75,10 +74,10 @@ class GameRoleService:
                 icon_id=icon_id,
                 hidden=body.hidden,
             )
-        except IntegrityError:
-            raise InternalLogicException("Failed to create game role due to integrity error")
-        if role is None:
-            raise InternalLogicException("Failed to create game role")
+        except IntegrityForeignException as exc:
+            raise NotFoundException(exc.message)
+        except IntegrityUnknownException as exc:
+            raise InternalLogicException(exc.message)
         return role
 
     async def update_role(

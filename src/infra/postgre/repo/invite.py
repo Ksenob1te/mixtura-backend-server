@@ -32,7 +32,7 @@ class InviteRepository:
         return raw.replace('-', '').replace('_', '')[:length]
 
     async def create(self, server_id: UUID, use_limit: int, inviter_id: UUID | None = None,
-                     key: str | None = None) -> Invite | None:
+                     key: str | None = None) -> Invite:
         values: dict[str, str | int | UUID | None] = {
             "server_id": server_id,
             "inviter_id": inviter_id,
@@ -62,7 +62,7 @@ class InviteRepository:
             result = await self.session.execute(stmt)
             invite = result.scalar_one_or_none()
 
-            if invite:
+            if invite is not None:
                 return invite
         raise IntegrityError(None, None, Exception("Could not generate unique invite key"))
 

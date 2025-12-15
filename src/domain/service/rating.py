@@ -1,7 +1,5 @@
 from uuid import UUID
 
-from sqlalchemy.exc import IntegrityError
-
 from src.domain.exceptions import NotFoundException, InternalLogicException, ForbiddenException
 from src.domain.models.rating.request import (
     RatingItemCreateRequest,
@@ -12,6 +10,7 @@ from src.infra.postgre.models import Rating, RatingSet
 from src.infra.postgre.repo import RatingRepository, RatingSetRepository, ServerRepository
 
 from src.infra.postgre.static import PERMISSION
+from src.infra.postgre import IntegrityUnknownException, IntegrityForeignException
 
 
 class RatingService:
@@ -76,13 +75,10 @@ class RatingService:
                 threshold=body.threshold,
                 rating_set_id=rating_set_id,
             )
-        except IntegrityError as exc:
-            sql_state = getattr(exc.orig, "sqlstate", None)
-            if sql_state == "23503":
-                raise NotFoundException("Some foreign fields are not found")
-            raise InternalLogicException("Failed to create rating")
-        if rating is None:
-            raise InternalLogicException("Failed to create rating")
+        except IntegrityForeignException as exc:
+            raise NotFoundException(exc.message)
+        except IntegrityUnknownException as exc:
+            raise InternalLogicException(exc.message)
         rating_set.ratings = rating_set.ratings + [rating]
         return rating
 
@@ -104,8 +100,8 @@ class RatingService:
     async def delete_rating(self, rating_id: UUID, permission_mask: int = 0) -> None:
         if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_RATING_SET):
             raise ForbiddenException("Unable to edit rating set")
-        deleted = await self.rating_repo.delete(rating_id)
-        if not deleted:
+        status = await self.rating_repo.delete(rating_id)
+        if not status:
             raise NotFoundException("Rating not found")
 
     # async def update_rating_icon(

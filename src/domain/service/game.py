@@ -5,7 +5,7 @@ from src.infra.postgre.models import Game
 from src.infra.postgre.repo import GameRepository, ServerRepository
 from src.infra.postgre.static import PERMISSION
 
-from sqlalchemy.exc import IntegrityError
+from src.infra.postgre import IntegrityForeignException, IntegrityUniqueException, IntegrityUnknownException
 
 
 class GameService:
@@ -29,21 +29,16 @@ class GameService:
         game_ids: list[UUID],
         permission_mask: int = 0,
     ) -> None:
-        server = await self.server_repo.get_by_id(server_id)
-        if not server:
-            raise NotFoundException("Server not found")
         if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_SERVER_GAME):
             raise ForbiddenException("Unable to edit server games")
         if not game_ids:
             return
         try:
             await self.game_repo.bulk_add_to_server(server_id, game_ids)
-        except IntegrityError as exc:
-            # SQLSTATE_FK_VIOLATION - some games do not exist
-            sql_state = getattr(exc.orig, "sqlstate", None)
-            if sql_state == "23503":
-                raise NotFoundException("Some games are not found")
-            raise InternalLogicException("Failed to add games to server")
+        except IntegrityForeignException as exc:
+            raise NotFoundException(exc.message)
+        except (IntegrityUniqueException, IntegrityUnknownException) as exc:
+            raise InternalLogicException(exc.message)
 
     async def remove_game_from_server(
         self,
@@ -51,10 +46,6 @@ class GameService:
         game_id: UUID,
         permission_mask: int = 0,
     ) -> None:
-        server = await self.server_repo.get_by_id(server_id)
-        if not server:
-            raise NotFoundException("Server not found")
-
         if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_SERVER_GAME):
             raise ForbiddenException("Unable to manage server games")
 

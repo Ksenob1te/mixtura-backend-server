@@ -1,11 +1,11 @@
 from uuid import UUID
-from sqlalchemy.exc import IntegrityError
 
 from src.domain.exceptions import NotFoundException, InternalLogicException, ForbiddenException
 from src.domain.models.core.request import ServerCreateRequest, ServerUpdateRequest
 from src.infra.postgre.models import Server, GameRoleSet, RatingSet, Restriction, Game
 from src.infra.postgre.repo import (MemberRepository, ServerRepository, GameRoleSetRepository, RatingSetRepository,
                                     RestrictionRepository, GameRepository)
+from src.infra.postgre import IntegrityUnknownException, IntegrityForeignException, IntegrityUniqueException
 
 from src.infra.postgre.static import PERMISSION
 
@@ -49,40 +49,25 @@ class CoreService:
 
     async def create_server(self, owner_id: UUID, body: ServerCreateRequest) -> Server:
         # TODO: here we need to create new copy of role_set and rating_set for the server from the global templates
-        role_set_field = None
-        rating_set_field = None
-
-        if body.role_set_id is not None:
-            role_set_field = await self.game_role_set_repo.get_by_id(body.role_set_id)
-        if role_set_field is None:
-            raise NotFoundException("Role set not found")
-
-        if body.rating_set_id is not None:
-            rating_set_field = await self.rating_set_repo.get_by_id(body.rating_set_id)
-        if rating_set_field is None:
-            raise NotFoundException("Rating set not found")
+        if body.role_set_id is None:
+            raise NotFoundException("Role set ID must be provided")
+        if body.rating_set_id is None:
+            raise NotFoundException("Rating set ID must be provided")
 
         try:
             server = await self.server_repo.create(
                 name=body.name,
                 owner_id=owner_id,
-                role_set_id=role_set_field.id,
-                rating_set_id=rating_set_field.id,
+                role_set_id=body.role_set_id,
+                rating_set_id=body.rating_set_id,
                 public=body.public,
                 description=body.description,
             )
-        except IntegrityError:
-            raise InternalLogicException("Failed to create server due to integrity error")
-        if server is None:
-            raise InternalLogicException("Failed to create server")
-        try:
             links = await self.game_repo.bulk_add_to_server(server.id, body.game_ids)
-        except IntegrityError as exc:
-            # SQLSTATE_FK_VIOLATION - some games do not exist
-            sql_state = getattr(exc.orig, "sqlstate", None)
-            if sql_state == "23503":
-                raise NotFoundException("Some games are not found")
-            raise InternalLogicException("Failed to add games to server")
+        except IntegrityForeignException as exc:
+            raise NotFoundException(exc.message)
+        except (IntegrityUniqueException, IntegrityUnknownException) as exc:
+            raise InternalLogicException(exc.message)
 
         server.server_games = links
         server.games = [link.game for link in links]

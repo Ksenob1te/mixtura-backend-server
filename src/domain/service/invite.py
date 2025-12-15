@@ -6,7 +6,7 @@ from src.infra.postgre.models import Invite, Member
 from src.infra.postgre.repo import InviteRepository, ServerRepository, MemberRepository
 from src.infra.postgre.static import RESTRICTION, PERMISSION
 
-from sqlalchemy.exc import IntegrityError
+from src.infra.postgre import IntegrityForeignException, IntegrityUnknownException, IntegrityUniqueException
 
 
 class InviteService:
@@ -48,11 +48,10 @@ class InviteService:
                     name=username,
                     server_role_id=None,
                 )
-            except Exception:
-                raise InternalLogicException("Failed to join server via invite")
-            if member is None:
-                raise InternalLogicException("Failed to create member via invite")
-
+            except IntegrityForeignException as exc:
+                raise NotFoundException(exc.message)
+            except IntegrityUnknownException as exc:
+                raise InternalLogicException(exc.message)
         await self.invite_repo.decrement_use_limit(invite)
         return member
 
@@ -87,15 +86,8 @@ class InviteService:
                 use_limit=use_limit,
                 inviter_id=inviter_id,
             )
-        except IntegrityError as exc:
-            # SQLSTATE_FK_VIOLATION - some fields do not exist
-            sql_state = getattr(exc.orig, "sqlstate", None)
-            if sql_state == "23503":
-                raise NotFoundException("Some foreign fields are not found")
-            raise InternalLogicException("Failed to create invite")
-        if invite is None:
-            raise InternalLogicException("Failed to create invite")
-
+        except IntegrityUniqueException as exc:
+            raise InternalLogicException(exc.message)
         return invite
 
     async def revoke_invite(self, invite_id: UUID, permission_mask: int = 0) -> None:

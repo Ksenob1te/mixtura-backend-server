@@ -4,6 +4,9 @@ from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..models import Custom
 
+from sqlalchemy.exc import IntegrityError
+from ..exceptions import IntegrityUnknownException, IntegrityUniqueException, IntegrityForeignException
+
 
 class CustomRepository:
     def __init__(self, session: AsyncSession):
@@ -18,11 +21,21 @@ class CustomRepository:
         res = await self.session.scalars(stmt)
         return res.all()
 
-    async def create(self, member_id: UUID, creator_id: UUID | None = None) -> Custom | None:
-        custom = Custom(member_id=member_id, creator_id=creator_id)
-        self.session.add(custom)
-        await self.session.flush()
-        return await self.get_by_id(custom.id)
+    async def create(self, member_id: UUID, creator_id: UUID | None = None) -> Custom:
+        try:
+            custom = Custom(member_id=member_id, creator_id=creator_id)
+            self.session.add(custom)
+            await self.session.flush()
+            custom_field = await self.get_by_id(custom.id)
+            if custom_field is None:
+                raise IntegrityUnknownException("Failed to create custom")
+            return custom_field
+        except IntegrityError as exc:
+            # SQLSTATE_FK_VIOLATION - some fields do not exist
+            sql_state = getattr(exc.orig, "sqlstate", None)
+            if sql_state == "23503":
+                raise IntegrityForeignException("Member or creator fields are not found")
+            raise IntegrityUnknownException("Failed to create custom")
 
     async def set_creator(self, custom: Custom, creator_id: UUID) -> Custom:
         if custom.creator_id == creator_id:

@@ -3,6 +3,9 @@ from typing import Sequence
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..models import ServerRole
+from sqlalchemy.exc import IntegrityError
+
+from ..exceptions import IntegrityUnknownException, IntegrityForeignException
 
 
 class ServerRoleRepository:
@@ -18,11 +21,21 @@ class ServerRoleRepository:
         res = await self.session.scalars(stmt)
         return res.all()
 
-    async def create(self, server_id: UUID, name: str, position: int) -> ServerRole | None:
+    async def create(self, server_id: UUID, name: str, position: int) -> ServerRole:
         role = ServerRole(server_id=server_id, name=name, position=position)
-        self.session.add(role)
-        await self.session.flush()
-        return await self.get_by_id(role.id)
+        try:
+            self.session.add(role)
+            await self.session.flush()
+            role_field = await self.get_by_id(role.id)
+            if role_field is None:
+                raise IntegrityUnknownException("Failed to create server role")
+            return role_field
+        except IntegrityError as exc:
+            # SQLSTATE_FK_VIOLATION - some fields do not exist
+            sql_state = getattr(exc.orig, "sqlstate", None)
+            if sql_state == "23503":
+                raise IntegrityForeignException("Server field is not found")
+            raise IntegrityUnknownException("Failed to create server role")
 
     async def set_name(self, role: ServerRole, name: str) -> ServerRole:
         if role.name == name:

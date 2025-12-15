@@ -25,6 +25,7 @@ class RatingSetRepository:
     async def create(self, name: str, min_rating: int, max_rating: int, is_global: bool = False) -> RatingSet | None:
         if min_rating > max_rating:
             min_rating = max_rating
+        # TODO: handle integrity errors
         rs = RatingSet(name=name, min_rating=min_rating, max_rating=max_rating, is_global=is_global)
         self.session.add(rs)
         await self.session.flush()

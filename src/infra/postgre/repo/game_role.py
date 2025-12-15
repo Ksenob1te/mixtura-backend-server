@@ -2,7 +2,10 @@ from uuid import UUID
 from typing import Sequence
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 from ..models import GameRole
+
+from ..exceptions import IntegrityUnknownException, IntegrityForeignException, IntegrityUniqueException
 
 
 class GameRoleRepository:
@@ -19,7 +22,7 @@ class GameRoleRepository:
         return res.all()
 
     async def create(self, name: str, role_set_id: UUID, min_in_team: int, max_in_team: int,
-                     icon_url: str | None = None, icon_id: UUID | None = None, hidden: bool = False) -> GameRole | None:
+                     icon_url: str | None = None, icon_id: UUID | None = None, hidden: bool = False) -> GameRole:
         role = GameRole(
             name=name,
             role_set_id=role_set_id,
@@ -29,9 +32,19 @@ class GameRoleRepository:
             icon_id=icon_id,
             hidden=hidden
         )
-        self.session.add(role)
-        await self.session.flush()
-        return await self.get_by_id(role.id)
+        try:
+            self.session.add(role)
+            await self.session.flush()
+            game_role_field = await self.get_by_id(role.id)
+            if game_role_field is None:
+                raise IntegrityUnknownException("Failed to create game role")
+            return game_role_field
+        except IntegrityError as exc:
+            # SQLSTATE_FK_VIOLATION - some fields do not exist
+            sql_state = getattr(exc.orig, "sqlstate", None)
+            if sql_state == "23503":
+                raise IntegrityForeignException("Role set field is not found")
+            raise IntegrityUnknownException("Failed to create game role")
 
     async def set_name(self, role: GameRole, name: str) -> GameRole:
         role.name = name
@@ -76,6 +89,7 @@ class GameRoleRepository:
 
     async def copy_role(self, template_role: GameRole, new_role_set_id: UUID) -> GameRole | None:
         # TODO: add tests for this method
+        # TODO: add error handling here as well
         role = GameRole(
             name=template_role.name,
             role_set_id=new_role_set_id,

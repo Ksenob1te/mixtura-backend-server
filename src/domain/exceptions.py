@@ -4,6 +4,7 @@ class DomainException(Exception):
         self.message = message
         super().__init__(message)
 
+
 class NotAuthorizedException(DomainException):
     def __init__(self):
         super().__init__(

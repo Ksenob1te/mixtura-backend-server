@@ -3,6 +3,8 @@ from typing import Sequence
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..models import CustomRating
+from ..exceptions import IntegrityForeignException, IntegrityUnknownException, IntegrityUniqueException
+from sqlalchemy.exc import IntegrityError
 
 
 class CustomRatingRepository:
@@ -25,11 +27,24 @@ class CustomRatingRepository:
         res = await self.session.scalars(stmt)
         return res.all()
 
-    async def create(self, custom_id: UUID, game_role_id: UUID, rating: int) -> CustomRating | None:
-        cr = CustomRating(custom_id=custom_id, game_role_id=game_role_id, rating=rating)
-        self.session.add(cr)
-        await self.session.flush()
-        return await self.get_by_id(cr.id)
+    async def create(self, custom_id: UUID, game_role_id: UUID, rating: int) -> CustomRating:
+        custom_rating_field = CustomRating(custom_id=custom_id, game_role_id=game_role_id, rating=rating)
+        try:
+            self.session.add(custom_rating_field)
+            await self.session.flush()
+            custom_rating_field = await self.get_by_id(custom_rating_field.id)
+            if custom_rating_field is None:
+                raise IntegrityUnknownException("Failed to create custom rating")
+            return custom_rating_field
+        except IntegrityError as exc:
+            # SQLSTATE_UNIQUE_VIOLATION - duplicate entry
+            sql_state = getattr(exc.orig, "sqlstate", None)
+            if sql_state == "23505":
+                raise IntegrityUniqueException("Custom rating for this custom and game role already exists")
+            # SQLSTATE_FK_VIOLATION - some fields do not exist
+            if sql_state == "23503":
+                raise IntegrityForeignException("Custom or game role fields are not found")
+            raise IntegrityUnknownException("Failed to create custom rating")
 
     async def set_rating(self, custom_rating: CustomRating, rating: int) -> CustomRating:
         custom_rating.rating = rating

@@ -1,5 +1,4 @@
 from uuid import UUID
-from sqlalchemy.exc import IntegrityError
 
 from src.domain.exceptions import NotFoundException, MigrationException, InternalLogicException, ForbiddenException
 from src.domain.models.member.request import (
@@ -8,14 +7,11 @@ from src.domain.models.member.request import (
     MigrationRequest,
     MemberRestrictionCreateRequest
 )
-from src.infra.postgre.repo.member import MemberRepository
-from src.infra.postgre.repo.member_restriction import MemberRestrictionRepository
-from src.infra.postgre.repo.server import ServerRepository
-from src.infra.postgre.repo.server_role import ServerRoleRepository
-from src.infra.postgre.repo.restriction import RestrictionRepository
+from src.infra.postgre.repo import MemberRepository, MemberRestrictionRepository, ServerRepository, \
+    ServerRoleRepository, RestrictionRepository, PermissionRepository
 from src.infra.postgre.models import Member, MemberRestriction
-
 from src.infra.postgre.static import PERMISSION, RESTRICTION
+from src.infra.postgre import IntegrityUnknownException, IntegrityForeignException
 
 
 class MemberService:
@@ -26,12 +22,14 @@ class MemberService:
             server_repo: ServerRepository,
             server_role_repo: ServerRoleRepository,
             restriction_repo: RestrictionRepository,
+            permission_repo: PermissionRepository,
     ):
         self.member_repo = member_repo
         self.member_restriction_repo = member_restriction_repo
         self.server_repo = server_repo
         self.server_role_repo = server_role_repo
         self.restriction_repo = restriction_repo
+        self.permission_repo = permission_repo
 
     async def list_members(self, server_id: UUID) -> list[Member]:
         members = await self.member_repo.list_active_for_server(server_id)
@@ -56,10 +54,10 @@ class MemberService:
                 name=name,
                 server_role_id=None
             )
-        except IntegrityError:
-            raise InternalLogicException("Failed to join server due to integrity error")
-        if member_field is None:
-            raise InternalLogicException("Failed to create member")
+        except IntegrityForeignException as exc:
+            raise NotFoundException(exc.message)
+        except IntegrityUnknownException as exc:
+            raise InternalLogicException(exc.message)
         return member_field
 
     async def create_virtual(
@@ -77,10 +75,10 @@ class MemberService:
                 name=body.name,
                 server_role_id=None
             )
-        except IntegrityError:
-            raise InternalLogicException("Failed to create virtual member due to integrity error")
-        if member_field is None:
-            raise InternalLogicException("Failed to create virtual member")
+        except IntegrityForeignException as exc:
+            raise NotFoundException(exc.message)
+        except IntegrityUnknownException as exc:
+            raise InternalLogicException(exc.message)
         return member_field
 
     async def get_member(self, member_id: UUID) -> Member:
@@ -163,9 +161,32 @@ class MemberService:
         # TODO: we need to check if user is still removed from current_member if set_user_if_none fails
         return target_member
 
+    async def get_permissions(self, member_id: UUID) -> list[str]:
+        member = await self.member_repo.get_by_id(member_id)
+        if not member:
+            raise NotFoundException(f"Member with id not found")
+        permissions = await self.permission_repo.list_for_role(member.server_role_id)
+        permission_codes = [p.code_name for p in permissions]
+        return permission_codes
+
+    async def get_permission_mask(self, member_id: UUID) -> int:
+        member = await self.member_repo.get_by_id(member_id)
+        if not member:
+            raise NotFoundException(f"Member with id not found")
+        permissions = await self.permission_repo.list_for_role(member.server_role_id)
+        permission_codes = [PERMISSION(p.code_name) for p in permissions]
+        permission_mask = PERMISSION.serialize_permission_codes(permission_codes)
+        return permission_mask
+
     async def get_restrictions(self, member_id: UUID) -> list[MemberRestriction]:
         restrictions = await self.member_restriction_repo.list_for_member(member_id)
         return list(restrictions)
+
+    async def get_restriction_mask(self, member_id: UUID) -> int:
+        restrictions = await self.member_restriction_repo.list_for_member(member_id)
+        restriction_enum = [RESTRICTION(r.restriction.code) for r in restrictions]
+        restriction_mask = RESTRICTION.serialize_restriction_codes(restriction_enum)
+        return restriction_mask
 
     async def add_restriction(self, member_id: UUID,
                               issuer_id: UUID,
@@ -175,16 +196,20 @@ class MemberService:
         if not restriction_field:
             raise NotFoundException(f"Restriction not found")
         if not PERMISSION.check_permission(permission_mask, f"restrict_{restriction_field.code}"):
+            # TODO: discuss about this dynamic permission check
             raise ForbiddenException("Unable to add restriction")
-        member_restriction_field = await self.member_restriction_repo.create(
-            member_id=member_id,
-            restriction_id=body.restriction_id,
-            reason=body.reason,
-            expiration_date=body.expiration_date,
-            creator_id=issuer_id,
-        )
-        if member_restriction_field is None:
-            raise InternalLogicException("Failed to create member restriction")
+        try:
+            member_restriction_field = await self.member_restriction_repo.create(
+                member_id=member_id,
+                restriction_id=body.restriction_id,
+                reason=body.reason,
+                expiration_date=body.expiration_date,
+                creator_id=issuer_id,
+            )
+        except IntegrityForeignException as exc:
+            raise NotFoundException(exc.message)
+        except IntegrityUnknownException as exc:
+            raise InternalLogicException(exc.message)
         return member_restriction_field
 
     async def remove_restriction(self, member_id: UUID,
@@ -198,4 +223,6 @@ class MemberService:
                 f"restrict_{member_restriction_field.restriction.code}"     # type: ignore
         ):
             raise ForbiddenException("Unable to remove restriction")
-        await self.member_restriction_repo.delete(member_restriction_id)
+        status = await self.member_restriction_repo.delete(member_restriction_id)
+        if not status:
+            raise NotFoundException(f"Member restriction not found")

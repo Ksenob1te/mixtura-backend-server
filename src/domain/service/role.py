@@ -1,11 +1,11 @@
 from uuid import UUID
 
-from sqlalchemy.exc import IntegrityError
-
 from src.domain.exceptions import ForbiddenException, InternalLogicException, NotFoundException
 from src.infra.postgre.models import ServerRole
-from src.infra.postgre.repo import ServerRepository, ServerRoleRepository, MemberRepository
+from src.infra.postgre.repo import ServerRepository, ServerRoleRepository, MemberRepository, PermissionRepository
 from src.infra.postgre.static import PERMISSION
+
+from src.infra.postgre import IntegrityUnknownException, IntegrityForeignException
 
 
 class RoleService:
@@ -14,10 +14,12 @@ class RoleService:
             server_repo: ServerRepository,
             role_repo: ServerRoleRepository,
             member_repo: MemberRepository,
+            permission_repo: PermissionRepository,
     ) -> None:
         self.server_repo = server_repo
         self.role_repo = role_repo
         self.member_repo = member_repo
+        self.permission_repo = permission_repo
 
     async def list_roles(self, server_id: UUID) -> list[ServerRole]:
         server = await self.server_repo.get_by_id(server_id)
@@ -39,14 +41,10 @@ class RoleService:
             position = 0
         try:
             role = await self.role_repo.create(server_id=server_id, name=name, position=position)
-        except IntegrityError as exc:
-            # SQLSTATE_FK_VIOLATION - server not found
-            sql_state = getattr(exc.orig, "sqlstate", None)
-            if sql_state == "23503":
-                raise NotFoundException("Server not found")
-            raise InternalLogicException("Failed to create role")
-        if role is None:
-            raise InternalLogicException("Failed to create role")
+        except IntegrityForeignException as exc:
+            raise NotFoundException(exc.message)
+        except IntegrityUnknownException as exc:
+            raise InternalLogicException(exc.message)
         return role
 
     async def update_role(
@@ -67,6 +65,41 @@ class RoleService:
             role = await self.role_repo.set_position(role, position)
         return role
 
+    async def add_permission(
+            self,
+            role_id: UUID,
+            permission_id: UUID,
+            permission_mask: int = 0,
+    ) -> ServerRole:
+        role = await self.role_repo.get_by_id(role_id)
+        if role is None:
+            raise NotFoundException("Role not found")
+        if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_SERVER_ROLES):
+            raise ForbiddenException("Unable to edit role")
+        try:
+            await self.permission_repo.assign_to_role(role_id, permission_id)
+        except IntegrityForeignException as exc:
+            raise NotFoundException(exc.message)
+        except IntegrityUnknownException as exc:
+            raise InternalLogicException(exc.message)
+        return role
+
+    async def remove_permission(
+            self,
+            role_id: UUID,
+            permission_id: UUID,
+            permission_mask: int = 0,
+    ) -> ServerRole:
+        role = await self.role_repo.get_by_id(role_id)
+        if role is None:
+            raise NotFoundException("Role not found")
+        if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_SERVER_ROLES):
+            raise ForbiddenException("Unable to edit role")
+        ok = await self.permission_repo.remove_from_role(role_id, permission_id)
+        if not ok:
+            raise NotFoundException("Permission not found in role")
+        return role
+
     async def delete_role(
             self,
             role_id: UUID,
@@ -74,9 +107,6 @@ class RoleService:
     ) -> None:
         if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_SERVER_ROLES):
             raise ForbiddenException("Unable to delete role")
-        try:
-            ok = await self.role_repo.delete(role_id)
-        except IntegrityError:
-            raise InternalLogicException("Failed to delete role")
+        ok = await self.role_repo.delete(role_id)
         if not ok:
             raise NotFoundException("Role not found")

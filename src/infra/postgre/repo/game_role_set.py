@@ -24,6 +24,7 @@ class GameRoleSetRepository:
 
     async def create(self, name: str, is_global: bool = False) -> GameRoleSet | None:
         rs = GameRoleSet(name=name, is_global=is_global)
+        # TODO: handle integrity errors
         self.session.add(rs)
         await self.session.flush()
         return await self.get_by_id(rs.id)
@@ -48,6 +49,7 @@ class GameRoleSetRepository:
 
     async def copy_global(self, global_set_id: UUID) -> GameRoleSet | None:
         # TODO: add tests for this method
+        # TODO: handle integrity errors
         global_set = await self.get_by_id(global_set_id)
         if not global_set or not global_set.is_global:
             return None

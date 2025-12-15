@@ -26,6 +26,7 @@ class RestrictionRepository:
         return res.all()
 
     async def create(self, code: str) -> Restriction | None:
+        # TODO: handle integrity errors
         rc = Restriction(code=code)
         self.session.add(rc)
         await self.session.flush()

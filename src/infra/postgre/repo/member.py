@@ -5,6 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 from ..models import Member
 
+from ..exceptions import IntegrityUnknownException, IntegrityForeignException
+
 
 class MemberRepository:
     def __init__(self, session: AsyncSession):
@@ -29,11 +31,21 @@ class MemberRepository:
         return res.all()
 
     async def create(self, server_id: UUID, user_id: UUID | None, name: str,
-                     server_role_id: UUID | None = None) -> Member | None:
-        m = Member(server_id=server_id, user_id=user_id, name=name, server_role_id=server_role_id)
-        self.session.add(m)
-        await self.session.flush()
-        return await self.get_by_id(m.id)
+                     server_role_id: UUID | None = None) -> Member:
+        member_field = Member(server_id=server_id, user_id=user_id, name=name, server_role_id=server_role_id)
+        try:
+            self.session.add(member_field)
+            await self.session.flush()
+            member_field = await self.get_by_id(member_field.id)
+            if member_field is None:
+                raise IntegrityUnknownException("Failed to create member")
+            return member_field
+        except IntegrityError as exc:
+            # SQLSTATE_FK_VIOLATION - some fields do not exist
+            sql_state = getattr(exc.orig, "sqlstate", None)
+            if sql_state == "23503":
+                raise IntegrityForeignException("Server, user or server role fields are not found")
+            raise IntegrityUnknownException("Failed to create member")
 
     async def set_role(self, member: Member, server_role_id: UUID | None) -> Member:
         if member.server_role_id == server_role_id:

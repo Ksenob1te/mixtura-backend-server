@@ -3,6 +3,9 @@ from typing import Sequence
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..models import Rating
+from sqlalchemy.exc import IntegrityError
+
+from ..exceptions import IntegrityUniqueException, IntegrityUnknownException
 
 
 class RatingRepository:
@@ -18,11 +21,21 @@ class RatingRepository:
         res = await self.session.scalars(stmt)
         return res.all()
 
-    async def create(self, icon_url: str, icon_id: UUID, threshold: int, rating_set_id: UUID) -> Rating | None:
+    async def create(self, icon_url: str, icon_id: UUID, threshold: int, rating_set_id: UUID) -> Rating:
         rating = Rating(icon_url=icon_url, icon_id=icon_id, threshold=threshold, rating_set_id=rating_set_id)
-        self.session.add(rating)
-        await self.session.flush()
-        return await self.get_by_id(rating.id)
+        try:
+            self.session.add(rating)
+            await self.session.flush()
+            rating_field = await self.get_by_id(rating.id)
+            if rating_field is None:
+                raise IntegrityUnknownException("Failed to create rating")
+            return rating_field
+        except IntegrityError as exc:
+            # SQLSTATE_UNIQUE_VIOLATION - rating with such threshold already exists in the set
+            sql_state = getattr(exc.orig, "sqlstate", None)
+            if sql_state == "23505":
+                raise IntegrityUniqueException("Rating with such threshold already exists in the set")
+            raise IntegrityUnknownException("Failed to create rating")
 
     async def set_icon(self, rating: Rating, icon_url: str, icon_id: UUID) -> Rating:
         rating.icon_url = icon_url

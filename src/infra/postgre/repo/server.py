@@ -1,9 +1,12 @@
 from uuid import UUID
 from typing import Sequence
 from sqlalchemy import select, delete
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from ..models import Server
+
+from ..exceptions import IntegrityUnknownException, IntegrityForeignException
 
 
 class ServerRepository:
@@ -36,7 +39,7 @@ class ServerRepository:
         icon_id: UUID | None = None,
         banner_url: str | None = None,
         banner_id: UUID | None = None,
-    ) -> Server | None:
+    ) -> Server:
         server = Server(
             name=name,
             owner_id=owner_id,
@@ -49,9 +52,19 @@ class ServerRepository:
             banner_url=banner_url,
             banner_id=banner_id,
         )
-        self.session.add(server)
-        await self.session.flush()
-        return await self.get_by_id(server.id)
+        try:
+            self.session.add(server)
+            await self.session.flush()
+            server_field = await self.get_by_id(server.id)
+            if server_field is None:
+                raise IntegrityUnknownException("Failed to create server")
+            return server_field
+        except IntegrityError as exc:
+            # SQLSTATE_FK_VIOLATION - some fields do not exist
+            sql_state = getattr(exc.orig, "sqlstate", None)
+            if sql_state == "23503":
+                raise IntegrityForeignException("Owner, role set or rating set fields are not found")
+            raise IntegrityUnknownException("Failed to create server")
 
     async def set_name(self, server: Server, name: str) -> Server:
         server.name = name

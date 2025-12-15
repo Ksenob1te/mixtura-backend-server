@@ -4,6 +4,9 @@ from sqlalchemy import select, delete
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..models import Game, ServerGame
+from sqlalchemy.dialects.postgresql import insert
+
+from ..exceptions import IntegrityUniqueException, IntegrityUnknownException, IntegrityForeignException
 
 
 class GameRepository:
@@ -75,17 +78,35 @@ class GameRepository:
         await self.session.flush()
         return bool(result.rowcount)    # type: ignore
 
-    async def bulk_add_to_server(self, server_id: UUID, game_ids: list[UUID]) -> list[ServerGame]:
-        stmt = select(ServerGame).where(
-            ServerGame.server_id == server_id,
-            ServerGame.game_id.in_(game_ids)
+    async def bulk_add_to_server(self, server_id: UUID, game_ids: list[UUID]) -> Sequence[ServerGame]:
+        stmt = (
+            insert(ServerGame)
+            .values(
+                [
+                    {
+                        "server_id": server_id,
+                        "game_id": gid,
+                    }
+                    for gid in game_ids
+                ]
+            )
+            .on_conflict_do_nothing(
+                index_elements=[
+                    ServerGame.server_id,
+                    ServerGame.game_id,
+                ]
+            )
+            .returning(ServerGame)
         )
-        existing = await self.session.scalars(stmt)
-        existing_ids = {eg.game_id for eg in existing.all()}
-        new_links = [
-            ServerGame(game_id=gid, server_id=server_id)
-            for gid in game_ids if gid not in existing_ids
-        ]
-        self.session.add_all(new_links)
-        await self.session.flush()
-        return new_links
+
+        try:
+            result = await self.session.execute(stmt)
+            await self.session.flush()
+            return result.scalars().all()
+        except IntegrityError as exc:
+            sql_state = getattr(exc.orig, "sqlstate", None)
+            if sql_state == "23503":
+                raise IntegrityForeignException("Some games are not found")
+            raise IntegrityUnknownException("Failed to add games to server")
+
+

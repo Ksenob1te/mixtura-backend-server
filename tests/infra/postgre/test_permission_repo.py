@@ -105,7 +105,7 @@ async def test_bulk_assign_to_role(async_session):
     perms = [await repo.create(f"perm.bulk.{i}") for i in range(3)]
     for p in perms:
         assert p is not None
-    await repo.bulk_assign_to_role(role.id, [p.id for p in perms if p is not None])
+    await repo.bulk_assign_to_role([p.id for p in perms if p is not None], role.id)
     listed = await repo.list_for_role(role.id)
     assert {p.id for p in listed} == {p.id for p in perms if p is not None}
 
