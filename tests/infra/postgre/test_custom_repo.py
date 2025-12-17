@@ -1,8 +1,8 @@
 import uuid
 import pytest
-from src.infra.postgre import IntegrityUnknownException, IntegrityForeignException, IntegrityUniqueException
+from src.infra.postgre import IntegrityForeignException
 
-from src.infra.postgre.models import Server, Member, Custom, GameRoleSet, RatingSet
+from src.infra.postgre.models import Server, Member, GameRoleSet, RatingSet
 from src.infra.postgre.repo import CustomRepository
 
 
@@ -19,7 +19,7 @@ async def _server(session, name="Srv"):
 
 
 async def _member(session, server: Server):
-    m = Member(server_id=server.id, user_id=uuid.uuid4(), name="CustomMember")
+    m = Member(server_id=server.id, user_id=uuid.uuid4(), nickname="CustomMember")
     session.add(m)
     await session.flush()
     return m

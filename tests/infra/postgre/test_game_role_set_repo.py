@@ -54,3 +54,15 @@ async def test_get_global_role_sets(async_session):
     assert rs1.id in global_ids
     assert rs2.id in global_ids
     assert rs3.id not in global_ids
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_copy_global_role_set(async_session):
+    repo = GameRoleSetRepository(async_session)
+    rs = await repo.create("OriginalGlobalSet", is_global=True)
+    assert rs is not None
+    copied_rs = await repo.copy_global(rs)
+    assert copied_rs is not None
+    assert copied_rs.id != rs.id
+    assert copied_rs.name == rs.name
+    assert copied_rs.is_global is False

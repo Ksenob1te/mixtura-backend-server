@@ -40,7 +40,6 @@ class RatingSetRepository:
 
     async def set_name(self, rating_set: RatingSet, name: str) -> RatingSet:
         rating_set.name = name
-        self.session.add(rating_set)
         await self.session.flush()
         return rating_set
 
@@ -48,7 +47,6 @@ class RatingSetRepository:
         rating_set.min_rating = min_rating
         if rating_set.max_rating < min_rating:
             rating_set.min_rating = rating_set.max_rating
-        self.session.add(rating_set)
         await self.session.flush()
         return rating_set
 
@@ -56,13 +54,11 @@ class RatingSetRepository:
         rating_set.max_rating = max_rating
         if rating_set.min_rating > max_rating:
             rating_set.max_rating = rating_set.min_rating
-        self.session.add(rating_set)
         await self.session.flush()
         return rating_set
 
     async def set_global(self, rating_set: RatingSet, is_global: bool) -> RatingSet:
         rating_set.is_global = is_global
-        self.session.add(rating_set)
         await self.session.flush()
         return rating_set
 
@@ -71,3 +67,11 @@ class RatingSetRepository:
         res = await self.session.execute(stmt)
         await self.session.flush()
         return bool(res.rowcount)  # type: ignore
+
+    async def copy_global(self, global_rating_set: RatingSet) -> RatingSet:
+        return await self.create(
+            name=global_rating_set.name,
+            min_rating=global_rating_set.min_rating,
+            max_rating=global_rating_set.max_rating,
+            is_global=False
+        )

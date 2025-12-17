@@ -18,7 +18,7 @@ async def _create_role_set(session, name="Set", is_global=False):
 async def test_create_and_get_game_role(async_session):
     repo = GameRoleRepository(async_session)
     rs = await _create_role_set(async_session)
-    role = await repo.create("Support", rs.id, 1, 3, icon_url="support.png", icon_id=uuid.uuid4(), hidden=False)
+    role = await repo.create("Support", rs.id, 1, 3, icon_id=uuid.uuid4(), hidden=False)
     assert role is not None
     assert role.name == "Support"
     by_id = await repo.get_by_id(role.id)
@@ -60,8 +60,8 @@ async def test_setters_update_fields(async_session):
     role = await repo.set_name(role, "RoleY")
     assert role.name == "RoleY"
     new_icon_id = uuid.uuid4()
-    role = await repo.set_icon(role, "iconY.png", new_icon_id)
-    assert role.icon_url == "iconY.png" and role.icon_id == new_icon_id
+    role = await repo.set_icon(role, new_icon_id)
+    assert role.icon_id == new_icon_id
     role = await repo.set_hidden(role, True)
     assert role.hidden is True
     role = await repo.set_min(role, 3)
@@ -92,3 +92,21 @@ async def test_list_for_set_empty(async_session):
     rs = await _create_role_set(async_session)
     listed = await repo.list_for_set(rs.id)
     assert listed == []
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_copy_game_role(async_session):
+    repo = GameRoleRepository(async_session)
+    rs1 = await _create_role_set(async_session, name="SourceSet")
+    rs2 = await _create_role_set(async_session, name="TargetSet")
+    role = await repo.create("OriginalRole", rs1.id, 1, 3, icon_id=uuid.uuid4(), hidden=False)
+    assert role is not None
+    copied_role = await repo.copy_role(role, rs2.id)
+    assert copied_role is not None
+    assert copied_role.id != role.id
+    assert copied_role.name == role.name
+    assert copied_role.min_in_team == role.min_in_team
+    assert copied_role.max_in_team == role.max_in_team
+    assert copied_role.icon_id == role.icon_id
+    assert copied_role.hidden == role.hidden
+    assert copied_role.role_set_id == rs2.id

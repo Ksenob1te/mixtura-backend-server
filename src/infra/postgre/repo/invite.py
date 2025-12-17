@@ -89,14 +89,12 @@ class InviteRepository:
         if use_limit < 0:
             use_limit = 0
         invite.use_limit = use_limit
-        self.session.add(invite)
         await self.session.flush()
         return invite
 
     async def decrement_use_limit(self, invite: Invite) -> Invite:
         if invite.use_limit > 0:
             invite.use_limit -= 1
-            self.session.add(invite)
             await self.session.flush()
         return invite
 

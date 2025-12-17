@@ -12,9 +12,7 @@ class PERMISSION(StrEnum):
     # overwrite permission
     ADMINISTRATOR = 'administrator'
 
-    # base permission
-    SELF_EDIT_NAME = 'self_edit_name'
-    # TODO: think if we need self_edit right if its base permission that cannot be removed and we have edit restriction
+    # base permissions
     EDIT_NAME = 'edit_name'
     EDIT_ROLES = 'edit_roles'
     CREATE_VIRTUAL = 'create_virtual'

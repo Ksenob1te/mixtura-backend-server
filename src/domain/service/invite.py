@@ -27,7 +27,7 @@ class InviteService:
             raise NotFoundException("Invite not found")
         return invite
 
-    async def use_invite(self, key: str, user_id: UUID, username: str, restriction_mask: int = 0) -> Member:
+    async def use_invite(self, key: str, user_id: UUID, nickname: str, restriction_mask: int = 0) -> Member:
         invite = await self.invite_repo.get_by_key(key)
         if not invite or invite.use_limit <= 0:
             raise NotFoundException("Invite not found")
@@ -46,7 +46,7 @@ class InviteService:
                 member = await self.member_repo.create(
                     server_id=server.id,  # type: ignore
                     user_id=user_id,
-                    name=username,
+                    nickname=nickname,
                     server_role_id=None,
                 )
             except IntegrityForeignException as exc:

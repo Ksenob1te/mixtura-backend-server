@@ -38,13 +38,11 @@ class GameRoleSetRepository:
 
     async def set_name(self, role_set: GameRoleSet, name: str) -> GameRoleSet:
         role_set.name = name
-        self.session.add(role_set)
         await self.session.flush()
         return role_set
 
     async def set_global(self, role_set: GameRoleSet, is_global: bool) -> GameRoleSet:
         role_set.is_global = is_global
-        self.session.add(role_set)
         await self.session.flush()
         return role_set
 
@@ -54,14 +52,5 @@ class GameRoleSetRepository:
         await self.session.flush()
         return bool(res.rowcount)  # type: ignore
 
-    async def copy_global(self, global_set_id: UUID) -> GameRoleSet | None:
-        # TODO: add tests for this method
-        # TODO: handle integrity errors
-        global_set = await self.get_by_id(global_set_id)
-        if not global_set or not global_set.is_global:
-            return None
-        # just use self.create here
-        new_set = GameRoleSet(name=global_set.name, is_global=False)
-        self.session.add(new_set)
-        await self.session.flush()
-        return await self.get_by_id(new_set.id)
+    async def copy_global(self, global_role_set: GameRoleSet) -> GameRoleSet:
+        return await self.create(name=global_role_set.name, is_global=False)

@@ -21,6 +21,8 @@ from src.infra.postgre.repo import (
 )
 from src.infra.postgre.models import Server, GameRoleSet, RatingSet
 
+# TODO: refactor tests into classes, setups and fixtures
+
 
 def perm_mask(*perms: PERMISSION) -> int:
     return PERMISSION.serialize_permission_codes(perms)
@@ -67,8 +69,8 @@ async def test_list_members_returns_active_members(async_session, member_service
     server = await _server(async_session)
     member_repo = member_service.member_repo
 
-    m1 = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), name="Active1")
-    m2 = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), name="Inactive1")
+    m1 = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), nickname="Active1")
+    m2 = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), nickname="Inactive1")
     assert m1 is not None and m2 is not None
     await member_repo.deactivate(m2)
 
@@ -109,7 +111,7 @@ async def test_join_server_returns_existing_member_and_reactivates(async_session
     member_repo = member_service.member_repo
     server = await _server(async_session, public=True)
     user_id = uuid.uuid4()
-    member = await member_repo.create(server_id=server.id, user_id=user_id, name="User")
+    member = await member_repo.create(server_id=server.id, user_id=user_id, nickname="User")
     assert member is not None
     await member_repo.deactivate(member)
 
@@ -119,17 +121,40 @@ async def test_join_server_returns_existing_member_and_reactivates(async_session
 
 
 @pytest.mark.asyncio(loop_scope="session")
+async def test_join_server_success_new_member(async_session, member_service):
+    server = await _server(async_session, public=True)
+    user_id = uuid.uuid4()
+
+    joined = await member_service.join_server(server.id, user_id, "NewUser")
+    assert joined is not None
+    assert joined.user_id == user_id
+    assert joined.nickname == "NewUser"
+    assert joined.active is True
+
+
+@pytest.mark.asyncio(loop_scope="session")
 async def test_create_virtual_forbidden_without_permission(async_session, member_service):
     server = await _server(async_session)
-    body = VirtualMemberCreateRequest(name="VirtualUser")
+    body = VirtualMemberCreateRequest(nickname="VirtualUser")
     with pytest.raises(ForbiddenException):
         await member_service.create_virtual(server.id, body, permission_mask=0)
 
 
 @pytest.mark.asyncio(loop_scope="session")
+async def test_create_virtual_not_found_without_server(async_session, member_service):
+    body = VirtualMemberCreateRequest(nickname="VirtualUser")
+    with pytest.raises(NotFoundException):
+        await member_service.create_virtual(
+            uuid.uuid4(),
+            body,
+            permission_mask=perm_mask(PERMISSION.CREATE_VIRTUAL),
+        )
+
+
+@pytest.mark.asyncio(loop_scope="session")
 async def test_create_virtual_success(async_session, member_service):
     server = await _server(async_session)
-    body = VirtualMemberCreateRequest(name="VirtualUser")
+    body = VirtualMemberCreateRequest(nickname="VirtualUser")
     member = await member_service.create_virtual(
         server.id,
         body,
@@ -137,14 +162,14 @@ async def test_create_virtual_success(async_session, member_service):
     )
     assert member is not None
     assert member.user_id is None
-    assert member.name == "VirtualUser"
+    assert member.nickname == "VirtualUser"
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_get_member_permission_and_not_found(async_session, member_service):
+async def test_get_member_and_not_found(async_session, member_service):
     member_repo = member_service.member_repo
     server = await _server(async_session)
-    member = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), name="User")
+    member = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), nickname="User")
     assert member is not None
 
     fetched = await member_service.get_member(member.id)
@@ -160,8 +185,8 @@ async def test_update_member_name_and_role(async_session, member_service):
     server_role_repo = member_service.server_role_repo
     server = await _server(async_session)
 
-    issuer = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), name="Issuer")
-    member = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), name="Old")
+    issuer = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), nickname="Issuer")
+    member = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), nickname="Old")
     assert issuer is not None and member is not None
 
     issuer_role = await server_role_repo.create(server_id=server.id, name="Admin", position=10)
@@ -177,23 +202,61 @@ async def test_update_member_name_and_role(async_session, member_service):
         member_id=member.id,
         body=body,
         permission_mask=perm_mask(
-            PERMISSION.SELF_EDIT_NAME,
             PERMISSION.EDIT_NAME,
             PERMISSION.EDIT_ROLES,
         ),
         restriction_mask=restr_mask(),
     )
-    assert updated.name == "New"
+    assert updated.nickname == "New"
     assert updated.server_role_id == target_role.id
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_update_member_forbidden_on_name_and_role(async_session, member_service):
+async def test_update_member_not_found(async_session, member_service):
+    body = MemberUpdateRequest(name="New")
+    with pytest.raises(NotFoundException):
+        await member_service.update_member(
+            issuer_id=uuid.uuid4(),
+            member_id=uuid.uuid4(),
+            body=body,
+            permission_mask=perm_mask(PERMISSION.EDIT_NAME),
+            restriction_mask=restr_mask(),
+        )
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_update_member_role_not_found(async_session, member_service):
+    member_repo = member_service.member_repo
+    server_role_repo = member_service.server_role_repo
+    server = await _server(async_session)
+
+    issuer = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), nickname="Issuer")
+    member = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), nickname="Target")
+
+    issuer_role = await server_role_repo.create(server_id=server.id, name="Admin", position=10)
+    issuer.server_role_id = issuer_role.id
+    issuer.server_role = issuer_role
+    await async_session.flush()
+
+    body = MemberUpdateRequest(server_role_id=uuid.uuid4())  # Random UUID
+
+    with pytest.raises(NotFoundException):
+        await member_service.update_member(
+            issuer_id=issuer.id,
+            member_id=member.id,
+            body=body,
+            permission_mask=perm_mask(PERMISSION.EDIT_ROLES),
+            restriction_mask=restr_mask(),
+        )
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_update_member_forbidden_name(async_session, member_service):
     member_repo = member_service.member_repo
     server = await _server(async_session)
 
-    issuer = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), name="Issuer")
-    member = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), name="Old")
+    issuer = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), nickname="Issuer")
+    member = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), nickname="Old")
     assert issuer is not None and member is not None
 
     body = MemberUpdateRequest(name="New", server_role_id=None)
@@ -209,13 +272,52 @@ async def test_update_member_forbidden_on_name_and_role(async_session, member_se
 
 
 @pytest.mark.asyncio(loop_scope="session")
+async def test_update_member_self_name(async_session, member_service):
+    member_repo = member_service.member_repo
+    server = await _server(async_session)
+
+    member = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), nickname="Old")
+    assert member is not None
+
+    body = MemberUpdateRequest(name="New", server_role_id=None)
+    updated = await member_service.update_member(
+        issuer_id=member.id,
+        member_id=member.id,
+        body=body,
+        permission_mask=perm_mask(),
+        restriction_mask=restr_mask(),
+    )
+    assert updated.nickname == "New"
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_update_member_forbidden_self_name(async_session, member_service):
+    member_repo = member_service.member_repo
+    server = await _server(async_session)
+
+    member = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), nickname="Old")
+    assert member is not None
+
+    body = MemberUpdateRequest(name="New", server_role_id=None)
+
+    with pytest.raises(ForbiddenException):
+        await member_service.update_member(
+            issuer_id=member.id,
+            member_id=member.id,
+            body=body,
+            permission_mask=perm_mask(),
+            restriction_mask=restr_mask(RESTRICTION.SELF_EDIT_NAME),
+        )
+
+
+@pytest.mark.asyncio(loop_scope="session")
 async def test_update_member_forbidden_assign_higher_role(async_session, member_service):
     member_repo = member_service.member_repo
     server_role_repo = member_service.server_role_repo
     server = await _server(async_session)
 
-    issuer = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), name="Issuer")
-    member = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), name="Target")
+    issuer = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), nickname="Issuer")
+    member = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), nickname="Target")
     assert issuer is not None and member is not None
 
     issuer_role = await server_role_repo.create(server_id=server.id, name="Mod", position=5)
@@ -241,7 +343,7 @@ async def test_update_member_forbidden_assign_higher_role(async_session, member_
 async def test_kick_member_flow(async_session, member_service):
     member_repo = member_service.member_repo
     server = await _server(async_session)
-    member = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), name="Kick")
+    member = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), nickname="Kick")
     assert member is not None
 
     with pytest.raises(ForbiddenException):
@@ -256,12 +358,12 @@ async def test_kick_member_flow(async_session, member_service):
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_migrate_member_forbidden_without_permission(async_session, member_service):
+async def test_migrate_member_forbidden(async_session, member_service):
     member_repo = member_service.member_repo
     server = await _server(async_session)
     user_id = uuid.uuid4()
-    current = await member_repo.create(server_id=server.id, user_id=user_id, name="Current")
-    target = await member_repo.create(server_id=server.id, user_id=None, name="Target")
+    current = await member_repo.create(server_id=server.id, user_id=user_id, nickname="Current")
+    target = await member_repo.create(server_id=server.id, user_id=None, nickname="Target")
     assert current is not None and target is not None
 
     body = MigrationRequest(target_member_id=target.id)
@@ -275,8 +377,8 @@ async def test_migrate_member_success(async_session, member_service):
     member_repo = member_service.member_repo
     server = await _server(async_session)
     user_id = uuid.uuid4()
-    current = await member_repo.create(server_id=server.id, user_id=user_id, name="Current")
-    target = await member_repo.create(server_id=server.id, user_id=None, name="Target")
+    current = await member_repo.create(server_id=server.id, user_id=user_id, nickname="Current")
+    target = await member_repo.create(server_id=server.id, user_id=None, nickname="Target")
     assert current is not None and target is not None
 
     body = MigrationRequest(target_member_id=target.id)
@@ -299,8 +401,8 @@ async def test_migrate_member_success(async_session, member_service):
 async def test_migrate_member_raises_when_current_has_no_user(async_session, member_service):
     member_repo = member_service.member_repo
     server = await _server(async_session)
-    target = await member_repo.create(server_id=server.id, user_id=None, name="Target")
-    no_user_current = await member_repo.create(server_id=server.id, user_id=None, name="NoUser")
+    target = await member_repo.create(server_id=server.id, user_id=None, nickname="Target")
+    no_user_current = await member_repo.create(server_id=server.id, user_id=None, nickname="NoUser")
     assert target is not None and no_user_current is not None
 
     with pytest.raises(MigrationException):
@@ -312,12 +414,12 @@ async def test_migrate_member_raises_when_current_has_no_user(async_session, mem
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_get_restrictions_permissions_and_empty(async_session, member_service):
+async def test_get_restrictions_empty(async_session, member_service):
     member_repo = member_service.member_repo
     restriction_repo = member_service.restriction_repo
 
     server = await _server(async_session)
-    member = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), name="Restricted")
+    member = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), nickname="Restricted")
     assert member is not None
 
     await restriction_repo.create(code=RESTRICTION.SERVER_BAN)
@@ -325,13 +427,13 @@ async def test_get_restrictions_permissions_and_empty(async_session, member_serv
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_add_restriction_permission_and_success(async_session, member_service):
+async def test_add_restriction(async_session, member_service):
     member_repo = member_service.member_repo
     restriction_repo = member_service.restriction_repo
 
     server = await _server(async_session)
-    member = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), name="Restricted")
-    issuer = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), name="Issuer")
+    member = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), nickname="Restricted")
+    issuer = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), nickname="Issuer")
     assert member is not None
     assert issuer is not None
 
@@ -364,13 +466,13 @@ async def test_add_restriction_permission_and_success(async_session, member_serv
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_remove_restriction_permission_and_success(async_session, member_service):
+async def test_remove_restriction(async_session, member_service):
     member_repo = member_service.member_repo
     restriction_repo = member_service.restriction_repo
 
     server = await _server(async_session)
-    member = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), name="Restricted")
-    issuer = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), name="Issuer")
+    member = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), nickname="Restricted")
+    issuer = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), nickname="Issuer")
     assert member is not None
     assert issuer is not None
 
@@ -388,7 +490,6 @@ async def test_remove_restriction_permission_and_success(async_session, member_s
         body=create_body,
         permission_mask=perm_mask(PERMISSION.RESTRICT_SERVER_BAN),
     )
-    assert mr is not None
 
     with pytest.raises(NotFoundException):
         await member_service.remove_restriction(
@@ -411,3 +512,95 @@ async def test_remove_restriction_permission_and_success(async_session, member_s
     )
     restrictions_after = await member_service.get_restrictions(member.id)
     assert restrictions_after == []
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_get_permissions_success(async_session, member_service):
+    member_repo = member_service.member_repo
+    server_role_repo = member_service.server_role_repo
+    permission_repo = member_service.permission_repo
+    server = await _server(async_session)
+
+    role = await server_role_repo.create(server_id=server.id, name="Role", position=1)
+    permission = await permission_repo.create(code=PERMISSION.KICK_MEMBERS)
+    await permission_repo.assign_to_role(permission.id, role.id)
+
+    member = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), nickname="User",
+                                      server_role_id=role.id)
+
+    perms = await member_service.get_permissions(member.id)
+    assert PERMISSION.KICK_MEMBERS in perms
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_get_permission_mask_success_and_admin_override(async_session, member_service):
+    member_repo = member_service.member_repo
+    server_role_repo = member_service.server_role_repo
+    permission_repo = member_service.permission_repo
+    server = await _server(async_session)
+
+    # Normal role
+    role = await server_role_repo.create(server_id=server.id, name="Role", position=1)
+    permission = await permission_repo.create(code=PERMISSION.KICK_MEMBERS)
+    await permission_repo.assign_to_role(permission.id, role.id)
+    member = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), nickname="User",
+                                      server_role_id=role.id)
+
+    mask = await member_service.get_permission_mask(member.id)
+    assert PERMISSION.check_permission(mask, PERMISSION.KICK_MEMBERS)
+    assert not PERMISSION.check_permission(mask, PERMISSION.RESTRICT_SERVER_BAN)
+
+    # Admin role
+    admin_role = await server_role_repo.create(server_id=server.id, name="Admin", position=10)
+    admin_permission = await permission_repo.create(code=PERMISSION.ADMINISTRATOR)
+    await permission_repo.assign_to_role(admin_permission.id, admin_role.id)
+    admin = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), nickname="Admin",
+                                     server_role_id=admin_role.id)
+
+    admin_mask = await member_service.get_permission_mask(admin.id)
+    # Should have everything
+    assert PERMISSION.check_permission(admin_mask, PERMISSION.RESTRICT_SERVER_BAN)
+    assert PERMISSION.check_permission(admin_mask, PERMISSION.KICK_MEMBERS)
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_get_restriction_mask_success(async_session, member_service):
+    member_repo = member_service.member_repo
+    restriction_repo = member_service.restriction_repo
+    member_restriction_repo = member_service.member_restriction_repo
+    server = await _server(async_session)
+
+    member = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), nickname="Restricted")
+    restriction = await restriction_repo.create(code=RESTRICTION.SERVER_BAN)
+
+    await member_restriction_repo.create(
+        member_id=member.id,
+        restriction_id=restriction.id,
+        reason="Test",
+        expiration_date=datetime.now(UTC) + timedelta(days=1),
+        creator_id=member.id
+    )
+
+    mask = await member_service.get_restriction_mask(member.id)
+    assert RESTRICTION.check_restriction(mask, RESTRICTION.SERVER_BAN)
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_add_restriction_not_found(async_session, member_service):
+    member_repo = member_service.member_repo
+    server = await _server(async_session)
+    member = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), nickname="User")
+
+    body = MemberRestrictionCreateRequest(
+        restriction_id=uuid.uuid4(),
+        reason="Reason",
+        expiration_date=datetime.now(UTC) + timedelta(days=1)
+    )
+
+    with pytest.raises(NotFoundException):
+        await member_service.add_restriction(
+            member.id,
+            issuer_id=member.id,
+            body=body,
+            permission_mask=perm_mask()
+        )

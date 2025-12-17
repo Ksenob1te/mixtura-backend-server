@@ -41,7 +41,6 @@ class CustomRepository:
         if custom.creator_id == creator_id:
             return custom
         custom.creator_id = creator_id
-        self.session.add(custom)
         await self.session.flush()
         return custom
 

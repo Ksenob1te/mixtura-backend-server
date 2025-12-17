@@ -7,7 +7,6 @@ from src.infra.postgre.repo import GameRepository
 from src.infra.postgre import IntegrityUnknownException, IntegrityForeignException, IntegrityUniqueException
 
 
-
 async def _create_server(session, name="Srv"):
     rs = GameRoleSet(name="RS", is_global=False)
     rts = RatingSet(name="RT", min_rating=0, max_rating=10, is_global=False)
@@ -23,25 +22,27 @@ async def _create_server(session, name="Srv"):
 @pytest.mark.asyncio(loop_scope="session")
 async def test_create_game(async_session):
     repo = GameRepository(async_session)
-    g = await repo.create(name="TestGame", icon_url="icon.png", banner_url="banner.png")
+    icon_id = uuid.uuid4()
+    banner_id = uuid.uuid4()
+    g = await repo.create(name="TestGame", icon_id=icon_id, banner_id=banner_id)
     assert g is not None
     assert g.name == "TestGame"
-    assert g.icon_url == "icon.png"
-    assert g.banner_url == "banner.png"
+    assert g.icon_id == icon_id
+    assert g.banner_id == banner_id
 
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_create_game_unique_name(async_session):
     repo = GameRepository(async_session)
-    await repo.create("UniqueGame", "i.png", "b.png")
+    await repo.create("UniqueGame", uuid.uuid4(), uuid.uuid4())
     with pytest.raises(IntegrityUniqueException):
-        await repo.create("UniqueGame", "i2.png", "b2.png")
+        await repo.create("UniqueGame", uuid.uuid4(), uuid.uuid4())
 
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_get_by_id_and_name(async_session):
     repo = GameRepository(async_session)
-    g = await repo.create("LookupGame", "i.png", "b.png")
+    g = await repo.create("LookupGame", uuid.uuid4(), uuid.uuid4())
     assert g is not None
     by_id = await repo.get_by_id(g.id)
     assert by_id is not None
@@ -56,20 +57,22 @@ async def test_get_by_id_and_name(async_session):
 @pytest.mark.asyncio(loop_scope="session")
 async def test_setters_modify_fields(async_session):
     repo = GameRepository(async_session)
-    g = await repo.create("SetterGame", "i.png", "b.png")
+    g = await repo.create("SetterGame", uuid.uuid4(), uuid.uuid4())
     assert g is not None
     g = await repo.set_name(g, "SetterGame2")
     assert g.name == "SetterGame2"
-    g = await repo.set_icon(g, "new_icon.png")
-    assert g.icon_url == "new_icon.png"
-    g = await repo.set_banner(g, "new_banner.png")
-    assert g.banner_url == "new_banner.png"
+    new_icon_id = uuid.uuid4()
+    g = await repo.set_icon(g, new_icon_id)
+    assert g.icon_id == new_icon_id
+    new_banner_id = uuid.uuid4()
+    g = await repo.set_banner(g, new_banner_id)
+    assert g.banner_id == new_banner_id
 
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_delete_game(async_session):
     repo = GameRepository(async_session)
-    g = await repo.create("DelGame", "i.png", "b.png")
+    g = await repo.create("DelGame", uuid.uuid4(), uuid.uuid4())
     assert g is not None
     ok = await repo.delete(g.id)
     assert ok is True
@@ -80,7 +83,7 @@ async def test_delete_game(async_session):
 @pytest.mark.asyncio(loop_scope="session")
 async def test_add_and_list_servers(async_session):
     repo = GameRepository(async_session)
-    g = await repo.create("LinkGame", "i.png", "b.png")
+    g = await repo.create("LinkGame", uuid.uuid4(), uuid.uuid4())
     s1 = await _create_server(async_session, "S1")
     s2 = await _create_server(async_session, "S2")
     assert g is not None
@@ -98,7 +101,7 @@ async def test_add_and_list_servers(async_session):
 @pytest.mark.asyncio(loop_scope="session")
 async def test_add_to_server_non_existing_server(async_session):
     repo = GameRepository(async_session)
-    g = await repo.create("NonExistServerGame", "i.png", "b.png")
+    g = await repo.create("NonExistServerGame", uuid.uuid4(), uuid.uuid4())
     assert g is not None
     non_existing_server_id = uuid.uuid4()
     with pytest.raises(IntegrityForeignException):
@@ -108,7 +111,7 @@ async def test_add_to_server_non_existing_server(async_session):
 @pytest.mark.asyncio(loop_scope="session")
 async def test_remove_from_server(async_session):
     repo = GameRepository(async_session)
-    g = await repo.create("RemGame", "i.png", "b.png")
+    g = await repo.create("RemGame", uuid.uuid4(), uuid.uuid4())
     assert g is not None
     s = await _create_server(async_session)
     await repo.add_to_server(g.id, s.id)
@@ -122,7 +125,7 @@ async def test_remove_from_server(async_session):
 async def test_bulk_add_to_server(async_session):
     repo = GameRepository(async_session)
     games = [
-        await repo.create(f"BulkGame{i}", "i.png", "b.png")
+        await repo.create(f"BulkGame{i}", uuid.uuid4(), uuid.uuid4())
         for i in range(3)
     ]
     assert all(g is not None for g in games)
@@ -139,8 +142,8 @@ async def test_bulk_add_to_server(async_session):
 @pytest.mark.asyncio(loop_scope="session")
 async def test_get_all_games(async_session):
     repo = GameRepository(async_session)
-    g1 = await repo.create("AllGame1", "i1.png", "b1.png")
-    g2 = await repo.create("AllGame2", "i2.png", "b2.png")
+    g1 = await repo.create("AllGame1", uuid.uuid4(), uuid.uuid4())
+    g2 = await repo.create("AllGame2", uuid.uuid4(), uuid.uuid4())
     all_games = await repo.get_all()
     all_game_ids = {g.id for g in all_games}
     assert g1 is not None and g2 is not None
@@ -164,4 +167,3 @@ async def test_add_bulk_non_existing_game(async_session):
     non_existing_game_ids = [uuid.uuid4() for _ in range(3)]
     with pytest.raises(IntegrityForeignException):
         await repo.bulk_add_to_server(s.id, non_existing_game_ids)
-

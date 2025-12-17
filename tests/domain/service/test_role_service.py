@@ -154,7 +154,6 @@ async def test_update_role_updates_name_and_position(async_session, role_service
     assert updated.position == 5
 
 
-
 @pytest.mark.asyncio(loop_scope="session")
 async def test_delete_role_forbidden_without_permission(async_session, role_service):
     s = await _server(async_session)
@@ -194,7 +193,7 @@ async def test_delete_role_assigned_to_member(async_session, role_service):
     member = await role_service.member_repo.create(
         server_id=s.id,
         user_id=uuid.uuid4(),
-        name="Name",
+        nickname="Name",
         server_role_id=r.id,
     )
 

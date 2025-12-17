@@ -3,8 +3,16 @@ from uuid import UUID
 from src.domain.exceptions import NotFoundException, InternalLogicException, ForbiddenException
 from src.domain.models.core.request import ServerCreateRequest, ServerUpdateRequest
 from src.infra.postgre.models import Server, GameRoleSet, RatingSet, Restriction, Game
-from src.infra.postgre.repo import (MemberRepository, ServerRepository, GameRoleSetRepository, RatingSetRepository,
-                                    RestrictionRepository, GameRepository)
+from src.infra.postgre.repo import (
+    MemberRepository,
+    ServerRepository,
+    GameRoleRepository,
+    GameRoleSetRepository,
+    RatingRepository,
+    RatingSetRepository,
+    RestrictionRepository,
+    GameRepository
+)
 from src.infra.postgre import IntegrityUnknownException, IntegrityForeignException, IntegrityUniqueException
 
 from src.infra.postgre.static import PERMISSION
@@ -15,14 +23,18 @@ class CoreService:
             self,
             server_repo: ServerRepository,
             game_repo: GameRepository,
+            game_role_repo: GameRoleRepository,
             game_role_set_repo: GameRoleSetRepository,
+            rating_repo: RatingRepository,
             rating_set_repo: RatingSetRepository,
             restriction_repo: RestrictionRepository,
             member_repo: MemberRepository
     ) -> None:
         self.server_repo = server_repo
         self.game_repo = game_repo
+        self.game_role_repo = game_role_repo
         self.game_role_set_repo = game_role_set_repo
+        self.rating_repo = rating_repo
         self.rating_set_repo = rating_set_repo
         self.restriction_repo = restriction_repo
         self.member_repo = member_repo
@@ -47,19 +59,42 @@ class CoreService:
         servers = await self.server_repo.list_by_owner(user_id)
         return list(servers)
 
+    async def _copy_role_set(self, global_role_set: GameRoleSet) -> GameRoleSet:
+        new_role_set = await self.game_role_set_repo.copy_global(global_role_set)
+        for role_field in global_role_set.game_roles:
+            new_role_field = await self.game_role_repo.copy_role(role_field, new_role_set.id)
+            new_role_set.game_roles.append(new_role_field)
+        return new_role_set
+
+    async def _copy_rating_set(self, global_rating_set: RatingSet) -> RatingSet:
+        new_rating_set = await self.rating_set_repo.copy_global(global_rating_set)
+        for rating_field in global_rating_set.ratings:
+            new_rating_field = await self.rating_repo.copy_rating(rating_field, new_rating_set.id)
+            new_rating_set.ratings.append(new_rating_field)
+        return new_rating_set
+
     async def create_server(self, owner_id: UUID, body: ServerCreateRequest) -> Server:
-        # TODO: here we need to create new copy of role_set and rating_set for the server from the global templates
         if body.role_set_id is None:
             raise NotFoundException("Role set ID must be provided")
         if body.rating_set_id is None:
             raise NotFoundException("Rating set ID must be provided")
 
+        global_role_set = await self.game_role_set_repo.get_by_id(body.role_set_id)
+        global_rating_set = await self.rating_set_repo.get_by_id(body.rating_set_id)
+        if not global_role_set or not global_role_set.is_global:
+            raise NotFoundException("Role set not found")
+        if not global_rating_set or not global_rating_set.is_global:
+            raise NotFoundException("Rating set not found")
+
+        rating_set = await self._copy_rating_set(global_rating_set)
+        role_set = await self._copy_role_set(global_role_set)
+
         try:
             server = await self.server_repo.create(
                 name=body.name,
                 owner_id=owner_id,
-                role_set_id=body.role_set_id,
-                rating_set_id=body.rating_set_id,
+                role_set_id=role_set.id,
+                rating_set_id=rating_set.id,
                 public=body.public,
                 description=body.description,
             )
@@ -107,4 +142,3 @@ class CoreService:
         ok = await self.server_repo.delete(server_id)
         if not ok:
             raise InternalLogicException("Failed to delete server")
-

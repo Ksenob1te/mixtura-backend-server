@@ -3,7 +3,7 @@ import pytest
 from src.infra.postgre.models import Member, Custom, GameRoleSet, GameRole, Server, RatingSet
 from src.infra.postgre.repo import CustomRatingRepository
 
-from src.infra.postgre import IntegrityUnknownException, IntegrityForeignException, IntegrityUniqueException
+from src.infra.postgre import IntegrityForeignException, IntegrityUniqueException
 
 
 async def _server(session):
@@ -12,14 +12,15 @@ async def _server(session):
     session.add(rs)
     session.add(rts)
     await session.flush()
-    s = Server(id=uuid.uuid4(), name="Server", owner_id=uuid.uuid4(), public=False, role_set_id=rs.id, rating_set_id=rts.id)
+    s = Server(id=uuid.uuid4(), name="Server", owner_id=uuid.uuid4(), public=False, role_set_id=rs.id,
+               rating_set_id=rts.id)
     session.add(s)
     await session.flush()
     return s
 
 
 async def _member(session, s: Server):
-    m = Member(server_id=s.id, user_id=uuid.uuid4(), server_role_id=None, name="CRMember")
+    m = Member(server_id=s.id, user_id=uuid.uuid4(), server_role_id=None, nickname="CRMember")
     session.add(m)
     await session.flush()
     return m

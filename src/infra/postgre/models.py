@@ -27,7 +27,6 @@ class GameRole(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(128))
     role_set_id: Mapped[UUID] = mapped_column(ForeignKey('role_set_table.id', ondelete='CASCADE'))
-    icon_url: Mapped[str | None] = mapped_column(nullable=True)
     icon_id: Mapped[UUID | None] = mapped_column(nullable=True)
     min_in_team: Mapped[int] = mapped_column()
     max_in_team: Mapped[int] = mapped_column()
@@ -57,7 +56,6 @@ class Rating(Base):
     __tablename__ = 'rating_table'
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    icon_url: Mapped[str] = mapped_column()
     icon_id: Mapped[UUID] = mapped_column()
     threshold: Mapped[int] = mapped_column()
     rating_set_id: Mapped[UUID] = mapped_column(ForeignKey('rating_set_table.id', ondelete='CASCADE'))
@@ -71,9 +69,7 @@ class Server(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(128))
     description: Mapped[str] = mapped_column(default="")
-    icon_url: Mapped[str | None] = mapped_column(nullable=True)
     icon_id: Mapped[UUID | None] = mapped_column(nullable=True)
-    banner_url: Mapped[str | None] = mapped_column(nullable=True)
     banner_id: Mapped[UUID | None] = mapped_column(nullable=True)
     owner_id: Mapped[UUID] = mapped_column()
     public: Mapped[bool] = mapped_column()
@@ -110,7 +106,7 @@ class Member(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     server_id: Mapped[UUID] = mapped_column(ForeignKey('server_table.id', ondelete='CASCADE'))
     user_id: Mapped[UUID | None] = mapped_column(nullable=True)
-    name: Mapped[str] = mapped_column(String(128)) # TODO : rename to nickname
+    nickname: Mapped[str] = mapped_column(String(128))
     server_role_id: Mapped[UUID | None] = mapped_column(ForeignKey('server_role_table.id', ondelete='SET NULL'),
                                                         nullable=True)
     joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -174,8 +170,8 @@ class Game(Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(128), unique=True)
-    icon_url: Mapped[str] = mapped_column()
-    banner_url: Mapped[str] = mapped_column()
+    icon_id: Mapped[UUID] = mapped_column()
+    banner_id: Mapped[UUID] = mapped_column()
 
     server_games: Mapped[list['ServerGame']] = relationship(back_populates='game', lazy="selectin")
 

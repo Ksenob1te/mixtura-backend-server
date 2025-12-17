@@ -91,4 +91,3 @@ async def test_list_for_server_empty(async_session):
     s = await _server(async_session)
     listed = await repo.list_for_server(s.id)
     assert listed == []
-

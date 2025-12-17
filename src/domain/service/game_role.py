@@ -70,7 +70,6 @@ class GameRoleService:
                 role_set_id=role_set_id,
                 min_in_team=body.min_in_team,
                 max_in_team=body.max_in_team,
-                icon_url=icon_url,
                 icon_id=icon_id,
                 hidden=body.hidden,
             )

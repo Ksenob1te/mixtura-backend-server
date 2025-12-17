@@ -106,7 +106,6 @@ async def test_create_rating_forbidden_without_permission(async_session, rating_
         await rating_service.create_rating(
             server.rating_set_id,
             body,
-            icon_url="icon",
             icon_id=uuid.uuid4(),
             permission_mask=perm_mask(),
         )
@@ -120,7 +119,6 @@ async def test_create_rating_not_found_rating_set(async_session, rating_service)
         await rating_service.create_rating(
             uuid.uuid4(),
             body,
-            icon_url="icon",
             icon_id=uuid.uuid4(),
             permission_mask=perm_mask(PERMISSION.EDIT_RATING_SET),
         )
@@ -134,7 +132,6 @@ async def test_create_and_update_and_delete_rating(async_session, rating_service
     created = await rating_service.create_rating(
         server.rating_set_id,
         body_create,
-        icon_url="icon",
         icon_id=uuid.uuid4(),
         permission_mask=perm_mask(PERMISSION.EDIT_RATING_SET),
     )
@@ -173,7 +170,6 @@ async def test_update_rating_forbidden_without_permission(async_session, rating_
     created = await rating_service.create_rating(
         server.rating_set_id,
         body_create,
-        icon_url="icon",
         icon_id=uuid.uuid4(),
         permission_mask=perm_mask(PERMISSION.EDIT_RATING_SET),
     )
@@ -196,7 +192,6 @@ async def test_delete_rating_forbidden_without_permission(async_session, rating_
     created = await rating_service.create_rating(
         server.rating_set_id,
         body_create,
-        icon_url="icon",
         icon_id=uuid.uuid4(),
         permission_mask=perm_mask(PERMISSION.EDIT_RATING_SET),
     )
@@ -215,4 +210,3 @@ async def test_delete_rating_not_found(async_session, rating_service):
             uuid.uuid4(),
             permission_mask=perm_mask(PERMISSION.EDIT_RATING_SET),
         )
-

@@ -25,15 +25,17 @@ async def test_create_and_get_server(async_session):
     repo = ServerRepository(async_session)
     rs = await _role_set(async_session)
     rts = await _rating_set(async_session)
+    icon_id = uuid.uuid4()
+    banner_id = uuid.uuid4()
     s = await repo.create(name="Srv1", owner_id=uuid.uuid4(), role_set_id=rs.id, rating_set_id=rts.id,
                           public=False,
-                          description="desc", icon_url="i.png", banner_url="b.png")
+                          description="desc", icon_id=icon_id, banner_id=banner_id)
     assert s is not None
     assert s.name == "Srv1"
     assert s.public is False
     assert s.description == "desc"
-    assert s.icon_url == "i.png"
-    assert s.banner_url == "b.png"
+    assert s.icon_id == icon_id
+    assert s.banner_id == banner_id
     assert s.role_set_id == rs.id
     assert s.rating_set_id == rts.id
     by_id = await repo.get_by_id(s.id)
@@ -64,11 +66,11 @@ async def test_setters_update_fields(async_session):
     s = await repo.set_public(s, True)
     assert s.public is True
     new_icon_id = uuid.uuid4()
-    s = await repo.set_icon(s, "icon2.png", new_icon_id)
-    assert s.icon_url == "icon2.png" and s.icon_id == new_icon_id
+    s = await repo.set_icon(s, new_icon_id)
+    assert s.icon_id == new_icon_id
     new_banner_id = uuid.uuid4()
-    s = await repo.set_banner(s, "banner2.png", new_banner_id)
-    assert s.banner_url == "banner2.png" and s.banner_id == new_banner_id
+    s = await repo.set_banner(s, new_banner_id)
+    assert s.banner_id == new_banner_id
 
 
 @pytest.mark.asyncio(loop_scope="session")

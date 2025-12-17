@@ -26,7 +26,7 @@ async def _server(session) -> Server:
 
 
 async def _game(session, name: str = "Game") -> Game:
-    g = Game(name=f"{name}-{uuid.uuid4()}", icon_url="icon", banner_url="banner")
+    g = Game(name=f"{name}-{uuid.uuid4()}", icon_id=uuid.uuid4(), banner_id=uuid.uuid4())
     session.add(g)
     await session.flush()
     return g

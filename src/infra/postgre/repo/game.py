@@ -26,8 +26,8 @@ class GameRepository:
         res = await self.session.scalars(stmt)
         return res.all()
 
-    async def create(self, name: str, icon_url: str, banner_url: str) -> Game:
-        game = Game(name=name, icon_url=icon_url, banner_url=banner_url)
+    async def create(self, name: str, icon_id: UUID, banner_id: UUID) -> Game:
+        game = Game(name=name, icon_id=icon_id, banner_id=banner_id)
         try:
             self.session.add(game)
             await self.session.flush()
@@ -44,19 +44,16 @@ class GameRepository:
 
     async def set_name(self, game: Game, name: str) -> Game:
         game.name = name
-        self.session.add(game)
         await self.session.flush()
         return game
 
-    async def set_icon(self, game: Game, icon_url: str) -> Game:
-        game.icon_url = icon_url
-        self.session.add(game)
+    async def set_icon(self, game: Game, icon_id: UUID) -> Game:
+        game.icon_id = icon_id
         await self.session.flush()
         return game
 
-    async def set_banner(self, game: Game, banner_url: str) -> Game:
-        game.banner_url = banner_url
-        self.session.add(game)
+    async def set_banner(self, game: Game, banner_id: UUID) -> Game:
+        game.banner_id = banner_id
         await self.session.flush()
         return game
 
@@ -137,5 +134,3 @@ class GameRepository:
             if sql_state == "23503":
                 raise IntegrityForeignException("Some games are not found")
             raise IntegrityUnknownException("Failed to add games to server")
-
-

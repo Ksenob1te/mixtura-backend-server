@@ -30,9 +30,9 @@ class MemberRepository:
         res = await self.session.scalars(stmt)
         return res.all()
 
-    async def create(self, server_id: UUID, user_id: UUID | None, name: str,
+    async def create(self, server_id: UUID, user_id: UUID | None, nickname: str,
                      server_role_id: UUID | None = None) -> Member:
-        member_field = Member(server_id=server_id, user_id=user_id, name=name, server_role_id=server_role_id)
+        member_field = Member(server_id=server_id, user_id=user_id, nickname=nickname, server_role_id=server_role_id)
         try:
             self.session.add(member_field)
             await self.session.flush()
@@ -54,15 +54,13 @@ class MemberRepository:
         if member.server_role_id == server_role_id:
             return member
         member.server_role_id = server_role_id
-        self.session.add(member)
         await self.session.flush()
         return member
 
-    async def set_name(self, member: Member, name: str) -> Member:
-        if member.name == name:
+    async def set_nickname(self, member: Member, nickname: str) -> Member:
+        if member.nickname == nickname:
             return member
-        member.name = name
-        self.session.add(member)
+        member.nickname = nickname
         await self.session.flush()
         return member
 
@@ -95,7 +93,6 @@ class MemberRepository:
         if member.user_id is None:
             return member
         member.user_id = None
-        self.session.add(member)
         await self.session.flush()
         return member
 
@@ -103,7 +100,6 @@ class MemberRepository:
         if not member.active:
             return member
         member.active = False
-        self.session.add(member)
         await self.session.flush()
         return member
 
@@ -111,7 +107,6 @@ class MemberRepository:
         if member.active:
             return member
         member.active = True
-        self.session.add(member)
         await self.session.flush()
         return member
 

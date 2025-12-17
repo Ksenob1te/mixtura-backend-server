@@ -21,8 +21,8 @@ class RatingRepository:
         res = await self.session.scalars(stmt)
         return res.all()
 
-    async def create(self, icon_url: str, icon_id: UUID, threshold: int, rating_set_id: UUID) -> Rating:
-        rating = Rating(icon_url=icon_url, icon_id=icon_id, threshold=threshold, rating_set_id=rating_set_id)
+    async def create(self, icon_id: UUID, threshold: int, rating_set_id: UUID) -> Rating:
+        rating = Rating(icon_id=icon_id, threshold=threshold, rating_set_id=rating_set_id)
         try:
             self.session.add(rating)
             await self.session.flush()
@@ -37,16 +37,13 @@ class RatingRepository:
                 raise IntegrityForeignException("Rating set field is not found") from exc
             raise IntegrityUnknownException("Failed to create rating") from exc
 
-    async def set_icon(self, rating: Rating, icon_url: str, icon_id: UUID) -> Rating:
-        rating.icon_url = icon_url
+    async def set_icon(self, rating: Rating, icon_id: UUID) -> Rating:
         rating.icon_id = icon_id
-        self.session.add(rating)
         await self.session.flush()
         return rating
 
     async def set_threshold(self, rating: Rating, threshold: int) -> Rating:
         rating.threshold = threshold
-        self.session.add(rating)
         await self.session.flush()
         return rating
 
@@ -55,3 +52,10 @@ class RatingRepository:
         res = await self.session.execute(stmt)
         await self.session.flush()
         return bool(res.rowcount)  # type: ignore
+
+    async def copy_rating(self, rating: Rating, new_rating_set_id: UUID) -> Rating:
+        return await self.create(
+            icon_id=rating.icon_id,
+            threshold=rating.threshold,
+            rating_set_id=new_rating_set_id
+        )

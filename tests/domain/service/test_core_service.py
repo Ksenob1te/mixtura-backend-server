@@ -8,10 +8,12 @@ from src.infra.postgre.static import PERMISSION
 from src.infra.postgre.repo import (
     MemberRepository,
     ServerRepository,
+    GameRoleRepository,
     GameRoleSetRepository,
+    RatingRepository,
     RatingSetRepository,
     RestrictionRepository,
-    GameRepository,
+    GameRepository
 )
 from src.infra.postgre.models import Server, GameRoleSet, RatingSet, Restriction, Game
 
@@ -33,7 +35,7 @@ async def _server(session, public: bool = False) -> Server:
     return s
 
 
-async def _global_role_set(session, is_global: bool = True) -> GameRoleSet:
+async def _role_set(session, is_global: bool = True) -> GameRoleSet:
     rs = GameRoleSet(name="GlobalRS", is_global=is_global)
     session.add(rs)
     await session.flush()
@@ -55,7 +57,7 @@ async def _restriction(session, code: str = "SOME_RESTRICTION") -> Restriction:
 
 
 async def _game(session, name: str = "Game") -> Game:
-    g = Game(name=f"{name}-{uuid.uuid4()}", icon_url="icon", banner_url="banner")
+    g = Game(name=f"{name}-{uuid.uuid4()}", icon_id=uuid.uuid4(), banner_id=uuid.uuid4())
     session.add(g)
     await session.flush()
     return g
@@ -65,25 +67,29 @@ async def _game(session, name: str = "Game") -> Game:
 async def core_service(async_session):
     server_repo = ServerRepository(async_session)
     game_repo = GameRepository(async_session)
+    game_role_repo = GameRoleRepository(async_session)
     game_role_set_repo = GameRoleSetRepository(async_session)
+    rating_repo = RatingRepository(async_session)
     rating_set_repo = RatingSetRepository(async_session)
     restriction_repo = RestrictionRepository(async_session)
     member_repo = MemberRepository(async_session)
 
     return CoreService(
-        server_repo,
-        game_repo,
-        game_role_set_repo,
-        rating_set_repo,
-        restriction_repo,
-        member_repo,
+        server_repo=server_repo,
+        game_repo=game_repo,
+        game_role_repo=game_role_repo,
+        game_role_set_repo=game_role_set_repo,
+        rating_repo=rating_repo,
+        rating_set_repo=rating_set_repo,
+        restriction_repo=restriction_repo,
+        member_repo=member_repo,
     )
 
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_get_global_role_templates(async_session, core_service):
-    await _global_role_set(async_session, is_global=True)
-    await _global_role_set(async_session, is_global=False)
+    await _role_set(async_session, is_global=True)
+    await _role_set(async_session, is_global=False)
 
     res = await core_service.get_global_role_templates()
     assert len(res) == 1
@@ -133,7 +139,7 @@ async def test_list_user_servers_filters_by_owner(async_session, core_service):
     owner_id = uuid.uuid4()
     other_owner_id = uuid.uuid4()
 
-    rs = await _global_role_set(async_session)
+    rs = await _role_set(async_session)
     rts = await _rating_set(async_session)
 
     s1 = Server(name="S1", owner_id=owner_id, public=True, role_set_id=rs.id, rating_set_id=rts.id)
@@ -164,7 +170,7 @@ async def test_create_server_raises_when_role_set_not_found(async_session, core_
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_create_server_raises_when_rating_set_not_found(async_session, core_service):
-    role_set = await _global_role_set(async_session)
+    role_set = await _role_set(async_session)
     body = ServerCreateRequest(
         name="NewServer",
         role_set_id=role_set.id,
@@ -179,17 +185,48 @@ async def test_create_server_raises_when_rating_set_not_found(async_session, cor
 
 
 @pytest.mark.asyncio(loop_scope="session")
+async def test_create_server_raises_when_template_is_not_global(async_session, core_service):
+    owner_id = uuid.uuid4()
+    global_role_set = await _role_set(async_session, is_global=True)
+    local_role_set = await _role_set(async_session, is_global=False)
+    global_rating_set = await _rating_set(async_session, is_global=True)
+    local_rating_set = await _rating_set(async_session, is_global=False)
+
+    body_bad_role = ServerCreateRequest(
+        name="BadRole",
+        role_set_id=local_role_set.id,
+        rating_set_id=global_rating_set.id,
+        public=True,
+        description="Desc",
+        game_ids=[],
+    )
+    with pytest.raises(NotFoundException):
+        await core_service.create_server(owner_id, body_bad_role)
+
+    body_bad_rating = ServerCreateRequest(
+        name="BadRating",
+        role_set_id=global_role_set.id,
+        rating_set_id=local_rating_set.id,
+        public=True,
+        description="Desc",
+        game_ids=[],
+    )
+    with pytest.raises(NotFoundException):
+        await core_service.create_server(owner_id, body_bad_rating)
+
+
+@pytest.mark.asyncio(loop_scope="session")
 async def test_create_server_success_persists_and_links_games(async_session, core_service):
     owner_id = uuid.uuid4()
-    role_set = await _global_role_set(async_session)
-    rating_set = await _rating_set(async_session)
+    global_role_set = await _role_set(async_session, is_global=True)
+    global_rating_set = await _rating_set(async_session, is_global=True)
     g1 = await _game(async_session, name="G1")
     g2 = await _game(async_session, name="G2")
 
     body = ServerCreateRequest(
         name="ServerName",
-        role_set_id=role_set.id,
-        rating_set_id=rating_set.id,
+        role_set_id=global_role_set.id,
+        rating_set_id=global_rating_set.id,
         public=True,
         description="Desc",
         game_ids=[g1.id, g2.id],
@@ -199,8 +236,17 @@ async def test_create_server_success_persists_and_links_games(async_session, cor
     assert server is not None
     assert server.name == "ServerName"
     assert server.owner_id == owner_id
-    assert server.role_set_id == role_set.id
-    assert server.rating_set_id == rating_set.id
+
+    assert server.role_set_id != global_role_set.id
+    assert server.rating_set_id != global_rating_set.id
+
+    new_role_set = await core_service.game_role_set_repo.get_by_id(server.role_set_id)
+    new_rating_set = await core_service.rating_set_repo.get_by_id(server.rating_set_id)
+
+    assert new_role_set is not None
+    assert new_role_set.is_global is False
+    assert new_rating_set is not None
+    assert new_rating_set.is_global is False
 
     repo = core_service.server_repo
     reloaded = await repo.get_by_id(server.id)

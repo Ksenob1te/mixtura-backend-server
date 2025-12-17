@@ -35,9 +35,7 @@ class ServerRepository:
         rating_set_id: UUID,
         public: bool = False,
         description: str = "",
-        icon_url: str | None = None,
         icon_id: UUID | None = None,
-        banner_url: str | None = None,
         banner_id: UUID | None = None,
     ) -> Server:
         server = Server(
@@ -47,9 +45,7 @@ class ServerRepository:
             rating_set_id=rating_set_id,
             public=public,
             description=description,
-            icon_url=icon_url,
             icon_id=icon_id,
-            banner_url=banner_url,
             banner_id=banner_id,
         )
         try:
@@ -68,33 +64,26 @@ class ServerRepository:
 
     async def set_name(self, server: Server, name: str) -> Server:
         server.name = name
-        self.session.add(server)
         await self.session.flush()
         return server
 
     async def set_description(self, server: Server, description: str) -> Server:
         server.description = description
-        self.session.add(server)
         await self.session.flush()
         return server
 
     async def set_public(self, server: Server, public: bool) -> Server:
         server.public = public
-        self.session.add(server)
         await self.session.flush()
         return server
 
-    async def set_icon(self, server: Server, icon_url: str | None, icon_id: UUID | None) -> Server:
-        server.icon_url = icon_url
+    async def set_icon(self, server: Server, icon_id: UUID | None) -> Server:
         server.icon_id = icon_id
-        self.session.add(server)
         await self.session.flush()
         return server
 
-    async def set_banner(self, server: Server, banner_url: str | None, banner_id: UUID | None) -> Server:
-        server.banner_url = banner_url
+    async def set_banner(self, server: Server, banner_id: UUID | None) -> Server:
         server.banner_id = banner_id
-        self.session.add(server)
         await self.session.flush()
         return server
 

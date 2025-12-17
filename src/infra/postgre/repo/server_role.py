@@ -44,7 +44,6 @@ class ServerRoleRepository:
         if role.name == name:
             return role
         role.name = name
-        self.session.add(role)
         await self.session.flush()
         return role
 
@@ -52,7 +51,6 @@ class ServerRoleRepository:
         if position < 0:
             position = 0
         role.position = position
-        self.session.add(role)
         await self.session.flush()
         return role
 

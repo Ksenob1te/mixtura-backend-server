@@ -57,19 +57,16 @@ class MemberRestrictionRepository:
 
     async def set_reason(self, restriction: MemberRestriction, reason: str) -> MemberRestriction:
         restriction.reason = reason
-        self.session.add(restriction)
         await self.session.flush()
         return restriction
 
     async def set_expiration(self, restriction: MemberRestriction, expiration_date: datetime) -> MemberRestriction:
         restriction.expiration_date = expiration_date
-        self.session.add(restriction)
         await self.session.flush()
         return restriction
 
     async def set_code(self, restriction: MemberRestriction, restriction_code_id: UUID) -> MemberRestriction:
         restriction.restriction_id = restriction_code_id
-        self.session.add(restriction)
         await self.session.flush()
         return restriction
 

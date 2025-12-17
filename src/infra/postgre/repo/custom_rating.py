@@ -48,7 +48,6 @@ class CustomRatingRepository:
 
     async def set_rating(self, custom_rating: CustomRating, rating: int) -> CustomRating:
         custom_rating.rating = rating
-        self.session.add(custom_rating)
         await self.session.flush()
         return custom_rating
 

@@ -58,7 +58,6 @@ class RatingService:
             self,
             rating_set_id: UUID,
             body: RatingItemCreateRequest,
-            icon_url: str,
             icon_id: UUID,
             permission_mask: int = 0
     ) -> Rating:
@@ -70,7 +69,6 @@ class RatingService:
             raise NotFoundException("Rating set not found")
         try:
             rating = await self.rating_repo.create(
-                icon_url=icon_url,
                 icon_id=icon_id,
                 threshold=body.threshold,
                 rating_set_id=rating_set_id,

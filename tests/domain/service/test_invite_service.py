@@ -127,7 +127,7 @@ async def test_use_invite_reactivates_existing_member(async_session, invite_serv
     assert inv is not None
 
     user_id = uuid.uuid4()
-    member = await member_repo.create(server_id=server.id, user_id=user_id, name="User")
+    member = await member_repo.create(server_id=server.id, user_id=user_id, nickname="User")
     assert member is not None
 
     await member_repo.deactivate(member)

@@ -22,13 +22,12 @@ class GameRoleRepository:
         return res.all()
 
     async def create(self, name: str, role_set_id: UUID, min_in_team: int, max_in_team: int,
-                     icon_url: str | None = None, icon_id: UUID | None = None, hidden: bool = False) -> GameRole:
+                     icon_id: UUID | None = None, hidden: bool = False) -> GameRole:
         role = GameRole(
             name=name,
             role_set_id=role_set_id,
             min_in_team=min_in_team,
             max_in_team=max_in_team,
-            icon_url=icon_url,
             icon_id=icon_id,
             hidden=hidden
         )
@@ -48,20 +47,16 @@ class GameRoleRepository:
 
     async def set_name(self, role: GameRole, name: str) -> GameRole:
         role.name = name
-        self.session.add(role)
         await self.session.flush()
         return role
 
-    async def set_icon(self, role: GameRole, icon_url: str | None, icon_id: UUID | None) -> GameRole:
-        role.icon_url = icon_url
+    async def set_icon(self, role: GameRole, icon_id: UUID | None) -> GameRole:
         role.icon_id = icon_id
-        self.session.add(role)
         await self.session.flush()
         return role
 
     async def set_hidden(self, role: GameRole, hidden: bool) -> GameRole:
         role.hidden = hidden
-        self.session.add(role)
         await self.session.flush()
         return role
 
@@ -69,7 +64,6 @@ class GameRoleRepository:
         role.min_in_team = min_in_team
         if role.max_in_team < min_in_team:
             role.min_in_team = role.max_in_team
-        self.session.add(role)
         await self.session.flush()
         return role
 
@@ -77,7 +71,6 @@ class GameRoleRepository:
         role.max_in_team = max_in_team
         if role.min_in_team > max_in_team:
             role.max_in_team = role.min_in_team
-        self.session.add(role)
         await self.session.flush()
         return role
 
@@ -87,19 +80,12 @@ class GameRoleRepository:
         await self.session.flush()
         return bool(res.rowcount)  # type: ignore
 
-    async def copy_role(self, template_role: GameRole, new_role_set_id: UUID) -> GameRole | None:
-        # TODO: add tests for this method
-        # TODO: add error handling here as well
-        role = GameRole(
+    async def copy_role(self, template_role: GameRole, new_role_set_id: UUID) -> GameRole:
+        return await self.create(
             name=template_role.name,
             role_set_id=new_role_set_id,
             min_in_team=template_role.min_in_team,
             max_in_team=template_role.max_in_team,
-            icon_url=template_role.icon_url,
             icon_id=template_role.icon_id,
             hidden=template_role.hidden
         )
-        self.session.add(role)
-        await self.session.flush()
-        return await self.get_by_id(role.id)
-

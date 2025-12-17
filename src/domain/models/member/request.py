@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 
 class VirtualMemberCreateRequest(BaseModel):
-    name: str
+    nickname: str
 
 
 class MemberUpdateRequest(BaseModel):
