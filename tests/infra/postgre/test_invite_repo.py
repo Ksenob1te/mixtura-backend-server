@@ -1,6 +1,6 @@
 import uuid
 import pytest
-from sqlalchemy.exc import IntegrityError
+from src.infra.postgre import IntegrityUniqueException, IntegrityForeignException, IntegrityUnknownException
 
 from src.infra.postgre.models import Server, Member, GameRoleSet, RatingSet
 from src.infra.postgre.repo import InviteRepository
@@ -41,12 +41,20 @@ async def test_create_and_get_invite(async_session):
 
 
 @pytest.mark.asyncio(loop_scope="session")
+async def test_create_invite_unreal_server(async_session):
+    repo = InviteRepository(async_session)
+    unreal_server_id = uuid.uuid4()
+    with pytest.raises(IntegrityForeignException):
+        await repo.create(server_id=unreal_server_id, use_limit=5)
+
+
+@pytest.mark.asyncio(loop_scope="session")
 async def test_create_with_custom_key_and_uniqueness(async_session):
     repo = InviteRepository(async_session)
     s = await _server(async_session)
     inv1 = await repo.create(server_id=s.id, use_limit=1, key="CUSTOMKEY")
     assert inv1 is not None and inv1.key == "CUSTOMKEY"
-    with pytest.raises(IntegrityError):
+    with pytest.raises(IntegrityUniqueException):
         await repo.create(server_id=s.id, use_limit=2, key="CUSTOMKEY")
 
 

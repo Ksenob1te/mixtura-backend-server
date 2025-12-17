@@ -1,6 +1,6 @@
 import uuid
 import pytest
-from sqlalchemy.exc import IntegrityError
+from src.infra.postgre import IntegrityUniqueException, IntegrityForeignException
 
 from src.infra.postgre.models import Server, Member, ServerRole, GameRoleSet, RatingSet
 from src.infra.postgre.repo import MemberRepository
@@ -37,12 +37,29 @@ async def test_create_and_get_member(async_session):
 
 
 @pytest.mark.asyncio(loop_scope="session")
+async def test_create_member_unreal_server(async_session):
+    repo = MemberRepository(async_session)
+    unreal_server_id = uuid.uuid4()
+    with pytest.raises(IntegrityForeignException):
+        await repo.create(server_id=unreal_server_id, user_id=uuid.uuid4(), name="Bob")
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_create_member_unreal_role(async_session):
+    repo = MemberRepository(async_session)
+    s = await _server(async_session)
+    unreal_role_id = uuid.uuid4()
+    with pytest.raises(IntegrityForeignException):
+        await repo.create(server_id=s.id, user_id=uuid.uuid4(), name="Charlie", server_role_id=unreal_role_id)
+
+
+@pytest.mark.asyncio(loop_scope="session")
 async def test_duplicate_user_membership_raises(async_session):
     repo = MemberRepository(async_session)
     s = await _server(async_session)
     user_id = uuid.uuid4()
     _ = await repo.create(server_id=s.id, user_id=user_id, name="UserOne")
-    with pytest.raises(IntegrityError):
+    with pytest.raises(IntegrityUniqueException):
         await repo.create(server_id=s.id, user_id=user_id, name="UserOneDup")
 
 

@@ -1,7 +1,7 @@
 import uuid
 import pytest
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
+from src.infra.postgre import IntegrityUniqueException, IntegrityForeignException
 
 from src.infra.postgre.models import ServerRole, ServerRolePermission, Permission, Server, GameRoleSet, RatingSet
 from src.infra.postgre.repo import PermissionRepository
@@ -27,19 +27,19 @@ async def test_create_and_get_permission(async_session):
     repo = PermissionRepository(async_session)
     p = await repo.create("perm.view")
     assert p is not None
-    assert p.code_name == "perm.view"
+    assert p.code == "perm.view"
     by_id = await repo.get_by_id(p.id)
     assert by_id is not None and by_id.id == p.id
-    by_code = await repo.get_by_code_name("perm.view")
+    by_code = await repo.get_by_code("perm.view")
     assert by_code is not None and by_code.id == p.id
-    assert await repo.get_by_code_name("missing") is None
+    assert await repo.get_by_code("missing") is None
 
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_unique_code_name_enforced(async_session):
     repo = PermissionRepository(async_session)
     await repo.create("perm.unique")
-    with pytest.raises(IntegrityError):
+    with pytest.raises(IntegrityUniqueException):
         await repo.create("perm.unique")
 
 
@@ -50,7 +50,7 @@ async def test_list_all_permissions(async_session):
     for c in codes:
         await repo.create(c)
     all_perms = await repo.list_all()
-    present_codes = {p.code_name for p in all_perms}
+    present_codes = {p.code for p in all_perms}
     for c in codes:
         assert c in present_codes
 
@@ -75,14 +75,33 @@ async def test_assign_and_list_for_role(async_session):
         assert perm is not None
         await repo.assign_to_role(perm.id, role.id)
 
-    assert perms[0] is not None
-    await repo.assign_to_role(perms[0].id, role.id)
-    listed = await repo.list_for_role(role.id)
-    assert {p.id for p in listed} == {p.id for p in perms if p is not None}
-
     stmt = select(ServerRolePermission).where(ServerRolePermission.server_role_id == role.id)
     res = await async_session.execute(stmt)
     assert len(res.scalars().all()) == 2
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_assign_to_role_twice(async_session):
+    repo = PermissionRepository(async_session)
+    role = await _create_role(async_session, name="R2")
+    perm = await repo.create("perm.role.twice")
+    assert perm is not None
+    await repo.assign_to_role(perm.id, role.id)
+    # Assigning again should not raise an error or create duplicate entries
+    await repo.assign_to_role(perm.id, role.id)
+    listed = await repo.list_for_role(role.id)
+    assert len(listed) == 1
+    assert listed[0].id == perm.id
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_assign_to_role_non_existing_role(async_session):
+    repo = PermissionRepository(async_session)
+    perm = await repo.create("perm.nonexist.role")
+    assert perm is not None
+    non_existing_role_id = uuid.uuid4()
+    with pytest.raises(IntegrityForeignException):
+        await repo.assign_to_role(perm.id, non_existing_role_id)
 
 
 @pytest.mark.asyncio(loop_scope="session")

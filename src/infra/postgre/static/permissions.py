@@ -76,8 +76,8 @@ class PERMISSION(StrEnum):
 async def init_permissions(session: AsyncSession) -> None:
     repo = PermissionRepository(session)
     created_codes: list[str] = []
-    existing_perms = await repo.get_by_code_name_bulk([p for p in PERMISSION])
-    existing_codes = {p.code_name for p in existing_perms}
+    existing_perms = await repo.get_by_code_bulk([p for p in PERMISSION])
+    existing_codes = {p.code for p in existing_perms}
     for perm in PERMISSION:
         if perm not in existing_codes:
             await repo.create(perm)

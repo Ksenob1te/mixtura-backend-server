@@ -1,11 +1,12 @@
-# Deprecated: replaced by restriction_code.py and member_restriction.py
-
 from uuid import UUID
 from datetime import datetime
 from typing import Sequence
 from sqlalchemy import select, delete
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..models import Restriction
+
+from ..exceptions import IntegrityUnknownException, IntegrityUniqueException
 
 
 class RestrictionRepository:
@@ -25,12 +26,21 @@ class RestrictionRepository:
         res = await self.session.scalars(stmt)
         return res.all()
 
-    async def create(self, code: str) -> Restriction | None:
-        # TODO: handle integrity errors
-        rc = Restriction(code=code)
-        self.session.add(rc)
-        await self.session.flush()
-        return await self.get_by_id(rc.id)
+    async def create(self, code: str) -> Restriction:
+        restriction_field = Restriction(code=code)
+        try:
+            self.session.add(restriction_field)
+            await self.session.flush()
+            restriction_field = await self.get_by_id(restriction_field.id)
+            if restriction_field is None:
+                raise IntegrityUnknownException("Failed to create restriction")
+            return restriction_field
+        except IntegrityError as exc:
+            # SQLSTATE_UNIQUE_VIOLATION - restriction with this code already exists
+            sql_state = getattr(exc.orig, "sqlstate", None)
+            if sql_state == "23505":
+                raise IntegrityUniqueException("Restriction with this code already exists") from exc
+            raise IntegrityUnknownException("Failed to create restriction") from exc
 
     async def delete(self, code_id: UUID) -> bool:
         stmt = delete(Restriction).where(Restriction.id == code_id)

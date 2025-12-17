@@ -166,7 +166,7 @@ class MemberService:
         if not member:
             raise NotFoundException(f"Member with id not found")
         permissions = await self.permission_repo.list_for_role(member.server_role_id)
-        permission_codes = [p.code_name for p in permissions]
+        permission_codes = [p.code for p in permissions]
         return permission_codes
 
     async def get_permission_mask(self, member_id: UUID) -> int:
@@ -174,7 +174,7 @@ class MemberService:
         if not member:
             raise NotFoundException(f"Member with id not found")
         permissions = await self.permission_repo.list_for_role(member.server_role_id)
-        permission_codes = [PERMISSION(p.code_name) for p in permissions]
+        permission_codes = [PERMISSION(p.code) for p in permissions]
         permission_mask = PERMISSION.serialize_permission_codes(permission_codes)
         return permission_mask
 

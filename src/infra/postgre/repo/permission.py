@@ -17,12 +17,12 @@ class PermissionRepository:
         stmt = select(Permission).where(Permission.id == permission_id).limit(1)
         return await self.session.scalar(stmt)
 
-    async def get_by_code_name(self, code_name: str) -> Permission | None:
-        stmt = select(Permission).where(Permission.code_name == code_name).limit(1)
+    async def get_by_code(self, code: str) -> Permission | None:
+        stmt = select(Permission).where(Permission.code == code).limit(1)
         return await self.session.scalar(stmt)
 
-    async def get_by_code_name_bulk(self, code_names: list[str]) -> Sequence[Permission]:
-        stmt = select(Permission).where(Permission.code_name.in_(code_names))
+    async def get_by_code_bulk(self, code_names: list[str]) -> Sequence[Permission]:
+        stmt = select(Permission).where(Permission.code.in_(code_names))
         res = await self.session.scalars(stmt)
         return res.all()
 
@@ -38,12 +38,21 @@ class PermissionRepository:
         res = await self.session.scalars(stmt)
         return res.all()
 
-    async def create(self, code_name: str) -> Permission | None:
-        perm = Permission(code_name=code_name)
-        # TODO: handle integrity errors
-        self.session.add(perm)
-        await self.session.flush()
-        return await self.get_by_id(perm.id)
+    async def create(self, code: str) -> Permission:
+        permission_field = Permission(code=code)
+        try:
+            self.session.add(permission_field)
+            await self.session.flush()
+            permission_field = await self.get_by_id(permission_field.id)
+            if permission_field is None:
+                raise IntegrityUnknownException("Failed to create permission")
+            return permission_field
+        except IntegrityError as exc:
+            # SQLSTATE_UNIQUE_VIOLATION - permission with this code already exists
+            sql_state = getattr(exc.orig, "sqlstate", None)
+            if sql_state == "23505":
+                raise IntegrityUniqueException("Permission with this code already exists") from exc
+            raise IntegrityUnknownException("Failed to create permission") from exc
 
     async def delete(self, permission_id: UUID) -> bool:
         stmt = delete(Permission).where(Permission.id == permission_id)
@@ -52,18 +61,21 @@ class PermissionRepository:
         return bool(res.rowcount)  # type: ignore
 
     async def assign_to_role(self, permission_id: UUID, server_role_id: UUID) -> None:
-        link = ServerRolePermission(permission_id=permission_id, server_role_id=server_role_id)
+        stmt = (
+            insert(ServerRolePermission)
+            .values(permission_id=permission_id, server_role_id=server_role_id)
+            .on_conflict_do_nothing(
+                index_elements=[ServerRolePermission.server_role_id, ServerRolePermission.permission_id]
+            )
+        )
         try:
-            self.session.add(link)
+            await self.session.execute(stmt)
             await self.session.flush()
         except IntegrityError as exc:
-            # SQLSTATE_FK_VIOLATION - some fields do not exist
             sql_state = getattr(exc.orig, "sqlstate", None)
+            # SQLSTATE_FK_VIOLATION - some fields do not exist
             if sql_state == "23503":
-                raise IntegrityForeignException("Permission or server role fields are not found")
-            # SQLSTATE_UNIQUE_VIOLATION - duplicate entry
-            elif sql_state == "23505":
-                raise IntegrityUniqueException("Permission is already assigned to server role")
+                raise IntegrityForeignException("Permission or server role fields are not found") from exc
             raise IntegrityUnknownException("Failed to assign permission to server role")
 
     async def remove_from_role(self, permission_id: UUID, server_role_id: UUID) -> bool:

@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..models import ServerRole
 from sqlalchemy.exc import IntegrityError
 
-from ..exceptions import IntegrityUnknownException, IntegrityForeignException
+from ..exceptions import IntegrityUnknownException, IntegrityForeignException, IntegrityUniqueException
 
 
 class ServerRoleRepository:
@@ -35,6 +35,9 @@ class ServerRoleRepository:
             sql_state = getattr(exc.orig, "sqlstate", None)
             if sql_state == "23503":
                 raise IntegrityForeignException("Server field is not found")
+            # SQLSTATE_UNIQUE_VIOLATION - duplicate name in the same server
+            if sql_state == "23505":
+                raise IntegrityUniqueException("Server role with this name already exists in the server") from exc
             raise IntegrityUnknownException("Failed to create server role")
 
     async def set_name(self, role: ServerRole, name: str) -> ServerRole:

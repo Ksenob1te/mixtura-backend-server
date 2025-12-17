@@ -256,7 +256,7 @@ class Permission(Base):
     __tablename__ = 'permission_table'
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    code_name: Mapped[str] = mapped_column(unique=True)
+    code: Mapped[str] = mapped_column(unique=True)
     roles: Mapped[list['ServerRole']] = relationship(
         'ServerRole',
         secondary='server_role_permission',

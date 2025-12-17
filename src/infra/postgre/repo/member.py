@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 from ..models import Member
 
-from ..exceptions import IntegrityUnknownException, IntegrityForeignException
+from ..exceptions import IntegrityUniqueException, IntegrityUnknownException, IntegrityForeignException
 
 
 class MemberRepository:
@@ -44,8 +44,11 @@ class MemberRepository:
             # SQLSTATE_FK_VIOLATION - some fields do not exist
             sql_state = getattr(exc.orig, "sqlstate", None)
             if sql_state == "23503":
-                raise IntegrityForeignException("Server, user or server role fields are not found")
-            raise IntegrityUnknownException("Failed to create member")
+                raise IntegrityForeignException("Server, user or server role fields are not found") from exc
+            # SQLSTATE_UNIQUE_VIOLATION - user is already a member of this server
+            if sql_state == "23505":
+                raise IntegrityUniqueException("User is already a member of this server") from exc
+            raise IntegrityUnknownException("Failed to create member") from exc
 
     async def set_role(self, member: Member, server_role_id: UUID | None) -> Member:
         if member.server_role_id == server_role_id:

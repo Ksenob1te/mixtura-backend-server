@@ -1,8 +1,8 @@
 import uuid
 import pytest
-from sqlalchemy.exc import IntegrityError
 
 from src.infra.postgre.repo import RestrictionRepository
+from src.infra.postgre import IntegrityUniqueException
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -19,7 +19,7 @@ async def test_create_and_get_code(async_session):
 async def test_unique_code_constraint(async_session):
     repo = RestrictionRepository(async_session)
     _ = await repo.create("MUTE")
-    with pytest.raises(IntegrityError):
+    with pytest.raises(IntegrityUniqueException):
         await repo.create("MUTE")
 
 

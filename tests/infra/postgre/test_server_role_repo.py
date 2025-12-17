@@ -1,9 +1,9 @@
 import uuid
 import pytest
-from sqlalchemy.exc import IntegrityError
 
 from src.infra.postgre.models import Server, GameRoleSet, RatingSet, ServerRole
 from src.infra.postgre.repo import ServerRoleRepository
+from src.infra.postgre import IntegrityUniqueException, IntegrityForeignException
 
 
 async def _server(session, name="Srv"):
@@ -30,11 +30,19 @@ async def test_create_and_get_server_role(async_session):
 
 
 @pytest.mark.asyncio(loop_scope="session")
+async def test_create_server_role_unreal_server(async_session):
+    repo = ServerRoleRepository(async_session)
+    unreal_server_id = uuid.uuid4()
+    with pytest.raises(IntegrityForeignException):
+        await repo.create(unreal_server_id, "RoleX", position=0)
+
+
+@pytest.mark.asyncio(loop_scope="session")
 async def test_unique_name_per_server(async_session):
     repo = ServerRoleRepository(async_session)
     s = await _server(async_session)
     _ = await repo.create(s.id, "Dup", 0)
-    with pytest.raises(IntegrityError):
+    with pytest.raises(IntegrityUniqueException):
         await repo.create(s.id, "Dup", 1)
 
 

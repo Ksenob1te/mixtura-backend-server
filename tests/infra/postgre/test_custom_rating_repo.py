@@ -63,6 +63,27 @@ async def test_create_get_and_list(async_session):
 
 
 @pytest.mark.asyncio(loop_scope="session")
+async def test_create_unreal_custom(async_session):
+    repo = CustomRatingRepository(async_session)
+    s = await _server(async_session)
+    r = await _role(async_session)
+
+    unreal_custom_id = uuid.uuid4()
+    with pytest.raises(IntegrityForeignException):
+        await repo.create(unreal_custom_id, r.id, 5)
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_create_unreal_role(async_session):
+    repo = CustomRatingRepository(async_session)
+    s = await _server(async_session)
+    c = await _custom(async_session, s)
+    unreal_role_id = uuid.uuid4()
+    with pytest.raises(IntegrityForeignException):
+        await repo.create(c.id, unreal_role_id, 5)
+
+
+@pytest.mark.asyncio(loop_scope="session")
 async def test_unique_pair_constraint(async_session):
     repo = CustomRatingRepository(async_session)
     s = await _server(async_session)

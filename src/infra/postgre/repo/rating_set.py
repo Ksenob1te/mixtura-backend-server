@@ -3,6 +3,8 @@ from typing import Sequence
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..models import RatingSet
+from sqlalchemy.exc import IntegrityError
+from ..exceptions import IntegrityUnknownException, IntegrityUniqueException, IntegrityForeignException
 
 
 class RatingSetRepository:
@@ -22,14 +24,19 @@ class RatingSetRepository:
         res = await self.session.scalars(stmt)
         return res.all()
 
-    async def create(self, name: str, min_rating: int, max_rating: int, is_global: bool = False) -> RatingSet | None:
+    async def create(self, name: str, min_rating: int, max_rating: int, is_global: bool = False) -> RatingSet:
         if min_rating > max_rating:
             min_rating = max_rating
-        # TODO: handle integrity errors
-        rs = RatingSet(name=name, min_rating=min_rating, max_rating=max_rating, is_global=is_global)
-        self.session.add(rs)
-        await self.session.flush()
-        return await self.get_by_id(rs.id)
+        rating_set_field = RatingSet(name=name, min_rating=min_rating, max_rating=max_rating, is_global=is_global)
+        try:
+            self.session.add(rating_set_field)
+            await self.session.flush()
+            rating_set_field = await self.get_by_id(rating_set_field.id)
+            if rating_set_field is None:
+                raise IntegrityUnknownException("Failed to create rating set")
+            return rating_set_field
+        except IntegrityError as exc:
+            raise IntegrityUnknownException("Failed to create rating set") from exc
 
     async def set_name(self, rating_set: RatingSet, name: str) -> RatingSet:
         rating_set.name = name

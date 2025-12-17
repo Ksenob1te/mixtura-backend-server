@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..models import Rating
 from sqlalchemy.exc import IntegrityError
 
-from ..exceptions import IntegrityUniqueException, IntegrityUnknownException
+from ..exceptions import IntegrityForeignException, IntegrityUnknownException
 
 
 class RatingRepository:
@@ -31,11 +31,11 @@ class RatingRepository:
                 raise IntegrityUnknownException("Failed to create rating")
             return rating_field
         except IntegrityError as exc:
-            # SQLSTATE_UNIQUE_VIOLATION - rating with such threshold already exists in the set
             sql_state = getattr(exc.orig, "sqlstate", None)
-            if sql_state == "23505":
-                raise IntegrityUniqueException("Rating with such threshold already exists in the set")
-            raise IntegrityUnknownException("Failed to create rating")
+            # SQLSTATE_FK_VIOLATION - some fields do not exist
+            if sql_state == "23503":
+                raise IntegrityForeignException("Rating set field is not found") from exc
+            raise IntegrityUnknownException("Failed to create rating") from exc
 
     async def set_icon(self, rating: Rating, icon_url: str, icon_id: UUID) -> Rating:
         rating.icon_url = icon_url

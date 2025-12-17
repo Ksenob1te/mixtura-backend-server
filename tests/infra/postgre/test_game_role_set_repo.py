@@ -21,15 +21,6 @@ async def test_create_and_get_role_set(async_session):
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_create_role_set_unique_name(async_session):
-    repo = GameRoleSetRepository(async_session)
-    rs1 = await repo.create("UniqueSet", is_global=False)
-    assert rs1 is not None
-    with pytest.raises(IntegrityUniqueException):
-        await repo.create("UniqueSet", is_global=True)
-
-
-@pytest.mark.asyncio(loop_scope="session")
 async def test_setters_update_fields(async_session):
     repo = GameRoleSetRepository(async_session)
     rs = await repo.create("MutSet", is_global=False)

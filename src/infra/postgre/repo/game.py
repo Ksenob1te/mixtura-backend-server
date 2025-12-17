@@ -67,26 +67,36 @@ class GameRepository:
         return bool(result.rowcount)    # type: ignore
 
     async def add_to_server(self, game_id: UUID, server_id: UUID) -> ServerGame:
-        link = ServerGame(game_id=game_id, server_id=server_id)
         try:
-            self.session.add(link)
-            await self.session.flush()
-            return link
+            stmt = (
+                insert(ServerGame)
+                .values(game_id=game_id, server_id=server_id)
+                .on_conflict_do_nothing(
+                    index_elements=[ServerGame.game_id, ServerGame.server_id]
+                )
+                .returning(ServerGame)
+            )
+
+            result = await self.session.execute(stmt)
+            row = result.scalar_one_or_none()
+
+            if row is not None:
+                return row
+
+            stmt = select(ServerGame).where(
+                ServerGame.game_id == game_id,
+                ServerGame.server_id == server_id
+            ).limit(1)
+            existing = await self.session.scalar(stmt)
+            if existing is not None:
+                return existing
+
         except IntegrityError as exc:
-            # SQLSTATE_FK_VIOLATION - some fields do not exist
             sql_state = getattr(exc.orig, "sqlstate", None)
+            # SQLSTATE_FK_VIOLATION - some fields do not exist
             if sql_state == "23503":
                 raise IntegrityForeignException("Game or server fields are not found")
-            # SQLSTATE_UNIQUE_VIOLATION - link already exists
-            elif sql_state == "23505":
-                stmt = select(ServerGame).where(
-                    ServerGame.game_id == game_id,
-                    ServerGame.server_id == server_id
-                ).limit(1)
-                existing = await self.session.scalar(stmt)
-                if existing is not None:
-                    return existing
-            raise IntegrityUnknownException("Failed to add game to server")
+        raise IntegrityUnknownException("Failed to add game to server")
 
     async def remove_from_server(self, game_id: UUID, server_id: UUID) -> bool:
         stmt = delete(ServerGame).where(

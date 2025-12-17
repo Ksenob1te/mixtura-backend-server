@@ -3,6 +3,7 @@ import pytest
 
 from src.infra.postgre.repo import ServerRepository, GameRoleSetRepository, RatingSetRepository
 from src.infra.postgre.models import GameRoleSet, RatingSet
+from src.infra.postgre import IntegrityForeignException
 
 
 async def _role_set(session, name="RS"):
@@ -37,6 +38,16 @@ async def test_create_and_get_server(async_session):
     assert s.rating_set_id == rts.id
     by_id = await repo.get_by_id(s.id)
     assert by_id is not None and by_id.id == s.id
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_create_server_unreal_role_set(async_session):
+    repo = ServerRepository(async_session)
+    rts = await _rating_set(async_session)
+    unreal_role_set_id = uuid.uuid4()
+    with pytest.raises(IntegrityForeignException):
+        await repo.create(name="Srv-UnrealRS", owner_id=uuid.uuid4(), role_set_id=unreal_role_set_id,
+                          rating_set_id=rts.id)
 
 
 @pytest.mark.asyncio(loop_scope="session")

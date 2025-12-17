@@ -26,7 +26,6 @@ async def test_create_and_get_game_role(async_session):
     assert await repo.get_by_id(uuid.uuid4()) is None
 
 
-# test creating with invalid role_set_id
 @pytest.mark.asyncio(loop_scope="session")
 async def test_create_game_role_invalid_role_set(async_session):
     repo = GameRoleRepository(async_session)

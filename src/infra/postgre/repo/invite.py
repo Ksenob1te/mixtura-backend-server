@@ -55,11 +55,11 @@ class InviteRepository:
                 # SQLSTATE_UNIQUE_VIOLATION - key is not unique
                 sql_state = getattr(exc.orig, "sqlstate", None)
                 if sql_state == "23505":
-                    raise IntegrityUniqueException("Invite key is not unique")
+                    raise IntegrityUniqueException("Invite key is not unique") from exc
                 # SQLSTATE_FK_VIOLATION - some fields do not exist
                 if sql_state == "23503":
-                    raise IntegrityForeignException("Server or inviter fields are not found")
-                raise IntegrityUnknownException("Could not create invite")
+                    raise IntegrityForeignException("Server or inviter fields are not found") from exc
+                raise IntegrityUnknownException("Could not create invite") from exc
 
         for _ in range(5):
             candidate = await self._generate_key()
@@ -78,8 +78,8 @@ class InviteRepository:
                 sql_state = getattr(exc.orig, "sqlstate", None)
                 # SQLSTATE_FK_VIOLATION - some fields do not exist
                 if sql_state == "23503":
-                    raise IntegrityForeignException("Server or inviter fields are not found")
-                raise IntegrityUnknownException("Could not create invite")
+                    raise IntegrityForeignException("Server or inviter fields are not found") from exc
+                raise IntegrityUnknownException("Could not create invite") from exc
 
             if invite is not None:
                 return invite

@@ -4,6 +4,8 @@ import pytest
 from src.infra.postgre.models import RatingSet, Rating
 from src.infra.postgre.repo import RatingRepository
 
+from src.infra.postgre import IntegrityUniqueException, IntegrityForeignException
+
 
 async def _create_rating_set(session, name="Set", min_rating=0, max_rating=500, is_global=False):
     rs = RatingSet(
@@ -28,6 +30,14 @@ async def test_create_and_get_rating(async_session):
     by_id = await repo.get_by_id(r.id)
     assert by_id is not None and by_id.id == r.id
     assert await repo.get_by_id(uuid.uuid4()) is None
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_create_rating_unreal_set(async_session):
+    repo = RatingRepository(async_session)
+    unreal_set_id = uuid.uuid4()
+    with pytest.raises(IntegrityForeignException):
+        await repo.create("icon.png", uuid.uuid4(), 100, unreal_set_id)
 
 
 @pytest.mark.asyncio(loop_scope="session")

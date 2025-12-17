@@ -4,6 +4,7 @@ import pytest
 
 from src.infra.postgre.models import Server, Member, GameRoleSet, RatingSet
 from src.infra.postgre.repo import RestrictionRepository, MemberRestrictionRepository
+from src.infra.postgre import IntegrityForeignException
 
 
 async def _server(session, name="Srv"):
@@ -42,6 +43,20 @@ async def test_create_and_get_member_restriction(async_session):
     fetched = await mr_repo.get_by_id(mr.id)
     assert fetched is not None and fetched.id == mr.id
     assert fetched.creator_id == creator.id
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_create_member_restriction_unreal_member(async_session):
+    code_repo = RestrictionRepository(async_session)
+    mr_repo = MemberRestrictionRepository(async_session)
+    code = await code_repo.create("SUSPEND")
+    assert code is not None and code.code == "SUSPEND"
+    unreal_member_id = uuid.uuid4()
+    creator = await _member(async_session, await _server(async_session), name="CreatorUnreal")
+    with pytest.raises(IntegrityForeignException):
+        await mr_repo.create(unreal_member_id,
+                             code.id, "No such member", datetime.now(timezone.utc) + timedelta(minutes=10),
+                             creator_id=creator.id)
 
 
 @pytest.mark.asyncio(loop_scope="session")

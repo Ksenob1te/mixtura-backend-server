@@ -96,6 +96,16 @@ async def test_add_and_list_servers(async_session):
 
 
 @pytest.mark.asyncio(loop_scope="session")
+async def test_add_to_server_non_existing_server(async_session):
+    repo = GameRepository(async_session)
+    g = await repo.create("NonExistServerGame", "i.png", "b.png")
+    assert g is not None
+    non_existing_server_id = uuid.uuid4()
+    with pytest.raises(IntegrityForeignException):
+        await repo.add_to_server(g.id, non_existing_server_id)
+
+
+@pytest.mark.asyncio(loop_scope="session")
 async def test_remove_from_server(async_session):
     repo = GameRepository(async_session)
     g = await repo.create("RemGame", "i.png", "b.png")

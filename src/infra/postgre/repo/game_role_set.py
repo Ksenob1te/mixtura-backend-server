@@ -34,11 +34,7 @@ class GameRoleSetRepository:
                 raise IntegrityUnknownException("Failed to create game role set")
             return role_set_field
         except IntegrityError as exc:
-            # SQLSTATE_UNIQUE_VIOLATION - role set with this name already exists
-            sql_state = getattr(exc.orig, "sqlstate", None)
-            if sql_state == "23505":
-                raise IntegrityUniqueException("Game role set with this name already exists")
-            raise IntegrityUnknownException("Failed to create game role set")
+            raise IntegrityUnknownException("Failed to create game role set") from exc
 
     async def set_name(self, role_set: GameRoleSet, name: str) -> GameRoleSet:
         role_set.name = name
