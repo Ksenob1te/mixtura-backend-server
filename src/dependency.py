@@ -102,16 +102,22 @@ async def get_game_service(
 async def get_core_service(
         server_repo: Annotated[ServerRepository, Depends(get_server_repository)],
         game_repo: Annotated[GameRepository, Depends(get_game_repository)],
+        game_role_repo: Annotated[GameRoleRepository, Depends(get_game_role_repository)],
         game_role_set_repo: Annotated[GameRoleSetRepository, Depends(get_game_role_set_repository)],
+        rating_repo: Annotated[RatingRepository, Depends(get_rating_repository)],
         rating_set_repo: Annotated[RatingSetRepository, Depends(get_rating_set_repository)],
+        permission_repo: Annotated[PermissionRepository, Depends(get_permission_repository)],
         restriction_repo: Annotated[RestrictionRepository, Depends(get_restriction_repository)],
         member_repo: Annotated[MemberRepository, Depends(get_member_repository)],
 ) -> CoreService:
     return CoreService(
         server_repo=server_repo,
         game_repo=game_repo,
+        game_role_repo=game_role_repo,
         game_role_set_repo=game_role_set_repo,
+        rating_repo=rating_repo,
         rating_set_repo=rating_set_repo,
+        permission_repo=permission_repo,
         restriction_repo=restriction_repo,
         member_repo=member_repo
     )
@@ -151,3 +157,4 @@ async def get_rating_service(
         rating_set_repo=rating_set_repo,
         server_repo=server_repo
     )
+# TODO: all services and repositories into dependency injection functions

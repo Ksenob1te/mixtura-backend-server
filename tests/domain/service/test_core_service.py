@@ -12,10 +12,11 @@ from src.infra.postgre.repo import (
     GameRoleSetRepository,
     RatingRepository,
     RatingSetRepository,
+    PermissionRepository,
     RestrictionRepository,
     GameRepository
 )
-from src.infra.postgre.models import Server, GameRoleSet, RatingSet, Restriction, Game
+from src.infra.postgre.models import Server, GameRoleSet, RatingSet, Restriction, Game, Permission
 
 
 def perm_mask(*perms: PERMISSION) -> int:
@@ -49,6 +50,12 @@ async def _rating_set(session, is_global: bool = True) -> RatingSet:
     return rts
 
 
+async def _permission(session, code: str = "SOME_PERMISSION") -> None:
+    p = Permission(code=code)
+    session.add(p)
+    await session.flush()
+
+
 async def _restriction(session, code: str = "SOME_RESTRICTION") -> Restriction:
     r = Restriction(code=code)
     session.add(r)
@@ -71,6 +78,7 @@ async def core_service(async_session):
     game_role_set_repo = GameRoleSetRepository(async_session)
     rating_repo = RatingRepository(async_session)
     rating_set_repo = RatingSetRepository(async_session)
+    permission_repo = PermissionRepository(async_session)
     restriction_repo = RestrictionRepository(async_session)
     member_repo = MemberRepository(async_session)
 
@@ -81,6 +89,7 @@ async def core_service(async_session):
         game_role_set_repo=game_role_set_repo,
         rating_repo=rating_repo,
         rating_set_repo=rating_set_repo,
+        permission_repo=permission_repo,
         restriction_repo=restriction_repo,
         member_repo=member_repo,
     )
@@ -104,6 +113,15 @@ async def test_get_global_rating_templates(async_session, core_service):
     res = await core_service.get_global_rating_templates()
     assert len(res) == 1
     assert all(rts.is_global for rts in res)
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_get_global_permissions(async_session, core_service):
+    await _permission(async_session, code="P1")
+    await _permission(async_session, code="P2")
+
+    res = await core_service.get_global_permissions()
+    assert {r.code for r in res} == {"P1", "P2"}
 
 
 @pytest.mark.asyncio(loop_scope="session")

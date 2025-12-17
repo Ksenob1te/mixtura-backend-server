@@ -2,7 +2,7 @@ from uuid import UUID
 
 from src.domain.exceptions import NotFoundException, InternalLogicException, ForbiddenException
 from src.domain.models.core.request import ServerCreateRequest, ServerUpdateRequest
-from src.infra.postgre.models import Server, GameRoleSet, RatingSet, Restriction, Game
+from src.infra.postgre.models import Permission, Server, GameRoleSet, RatingSet, Restriction, Game
 from src.infra.postgre.repo import (
     MemberRepository,
     ServerRepository,
@@ -10,6 +10,7 @@ from src.infra.postgre.repo import (
     GameRoleSetRepository,
     RatingRepository,
     RatingSetRepository,
+    PermissionRepository,
     RestrictionRepository,
     GameRepository
 )
@@ -27,6 +28,7 @@ class CoreService:
             game_role_set_repo: GameRoleSetRepository,
             rating_repo: RatingRepository,
             rating_set_repo: RatingSetRepository,
+            permission_repo: PermissionRepository,
             restriction_repo: RestrictionRepository,
             member_repo: MemberRepository
     ) -> None:
@@ -36,6 +38,7 @@ class CoreService:
         self.game_role_set_repo = game_role_set_repo
         self.rating_repo = rating_repo
         self.rating_set_repo = rating_set_repo
+        self.permission_repo = permission_repo
         self.restriction_repo = restriction_repo
         self.member_repo = member_repo
 
@@ -44,6 +47,9 @@ class CoreService:
 
     async def get_global_rating_templates(self) -> list[RatingSet]:
         return list(await self.rating_set_repo.get_global())
+
+    async def get_global_permissions(self) -> list[Permission]:
+        return list(await self.permission_repo.list_all())
 
     async def get_global_restrictions(self) -> list[Restriction]:
         return list(await self.restriction_repo.list_all())
