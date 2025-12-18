@@ -1,17 +1,17 @@
 from uuid import UUID
 
-from src.domain.exceptions import NotFoundException, MigrationException, InternalLogicException, ForbiddenException
-from src.domain.models.member.request import (
-    VirtualMemberCreateRequest,
-    MemberUpdateRequest,
-    MigrationRequest,
-    MemberRestrictionCreateRequest
+from src.domain.exceptions import NotFoundException, InternalLogicException, ForbiddenException
+from src.domain.models.member.request import MemberRestrictionCreateRequest
+from src.infra.postgre.repo import (
+    MemberRepository,
+    MemberRestrictionRepository,
+    ServerRepository,
+    RestrictionRepository,
+    PermissionRepository
 )
-from src.infra.postgre.repo import MemberRepository, MemberRestrictionRepository, ServerRepository, \
-    ServerRoleRepository, RestrictionRepository, PermissionRepository
 from src.infra.postgre.models import Member, MemberRestriction, Permission
 from src.infra.postgre.static import PERMISSION, RESTRICTION
-from src.infra.postgre import IntegrityUnknownException, IntegrityForeignException, IntegrityUniqueException
+from src.infra.postgre import IntegrityUnknownException, IntegrityForeignException
 
 
 class AccessControlService:
@@ -20,22 +20,31 @@ class AccessControlService:
             member_repo: MemberRepository,
             member_restriction_repo: MemberRestrictionRepository,
             server_repo: ServerRepository,
-            server_role_repo: ServerRoleRepository,
             restriction_repo: RestrictionRepository,
             permission_repo: PermissionRepository,
     ):
         self.member_repo = member_repo
         self.member_restriction_repo = member_restriction_repo
         self.server_repo = server_repo
-        self.server_role_repo = server_role_repo
         self.restriction_repo = restriction_repo
         self.permission_repo = permission_repo
 
-    # TODO: form whole service
-    async def get_permissions(self, member_id: UUID) -> list[str]:
-        member = await self.member_repo.get_by_id(member_id)
-        if not member:
-            raise NotFoundException(f"Member with id not found")
+    async def _get_member(self, server_id: UUID, user_id: UUID) -> Member | None:
+        member = await self.member_repo.get_by_user_in_server(server_id, user_id)
+        server = await self.server_repo.get_by_id(server_id)
+        if server is None:
+            raise NotFoundException(f"Server not found")
+        if member is None:
+            if server.public:
+                return None
+            else:
+                raise NotFoundException(f"Server not found")
+        return member
+
+    async def get_permissions(self, server_id: UUID, user_id: UUID) -> list[str]:
+        member = await self._get_member(server_id, user_id)
+        if member is None:
+            return []
         permissions = await self.permission_repo.list_for_role(member.server_role_id)
         permission_codes = [p.code for p in permissions]
         return permission_codes
@@ -52,20 +61,26 @@ class AccessControlService:
             return (1 << len(PERMISSION)) - 1
         return permission_mask
 
-    async def get_permission_mask(self, member_id: UUID) -> int:
-        member = await self.member_repo.get_by_id(member_id)
-        if not member:
-            raise NotFoundException(f"Member with id not found")
+    async def get_permission_mask(self, server_id: UUID, user_id: UUID) -> int:
+        member = await self._get_member(server_id, user_id)
+        if member is None:
+            return 0
         permissions = await self.permission_repo.list_for_role(member.server_role_id)
         permission_codes = await self._compute_base_permissions(list(permissions))
         return await self._compute_overwrites(permission_codes)
 
-    async def get_restrictions(self, member_id: UUID) -> list[MemberRestriction]:
-        restrictions = await self.member_restriction_repo.list_for_member(member_id)
+    async def get_restrictions(self, server_id: UUID, user_id: UUID) -> list[MemberRestriction]:
+        member = await self._get_member(server_id, user_id)
+        if member is None:
+            return []
+        restrictions = await self.member_restriction_repo.list_for_member(member.id)
         return list(restrictions)
 
-    async def get_restriction_mask(self, member_id: UUID) -> int:
-        restrictions = await self.member_restriction_repo.list_for_member(member_id)
+    async def get_restriction_mask(self, server_id: UUID, user_id: UUID) -> int:
+        member = await self._get_member(server_id, user_id)
+        if member is None:
+            return 0
+        restrictions = await self.member_restriction_repo.list_for_member(member.id)
         restriction_enum = [RESTRICTION(r.restriction.code) for r in restrictions]
         restriction_mask = RESTRICTION.serialize_restriction_codes(restriction_enum)
         return restriction_mask
