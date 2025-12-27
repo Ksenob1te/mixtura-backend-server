@@ -31,8 +31,9 @@ class RatingService:
         return server.rating_set
 
     async def update_rating_set(
-            self, rating_set_id: UUID, body: RatingSetUpdateRequest, permission_mask: int = 0
+            self, rating_set_id: UUID, body: RatingSetUpdateRequest, permission_mask: int = 0 # TODO: replace body
     ) -> RatingSet:
+        # TODO: check if belongs to issuer member server
         if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_RATING_SET):
             raise ForbiddenException("Unable to edit rating set")
         rating_set = await self.rating_set_repo.get_by_id(rating_set_id)
@@ -57,10 +58,11 @@ class RatingService:
     async def create_rating(
             self,
             rating_set_id: UUID,
-            body: RatingItemCreateRequest,
+            body: RatingItemCreateRequest, # TODO: replace body
             icon_id: UUID,
             permission_mask: int = 0
     ) -> Rating:
+        # TODO: check if belongs to issuer member server
         if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_RATING_SET):
             raise ForbiddenException("Unable to edit rating set")
 
@@ -83,9 +85,10 @@ class RatingService:
     async def update_rating(
             self,
             rating_id: UUID,
-            body: RatingItemUpdateRequest,
+            body: RatingItemUpdateRequest, # TODO: replace body
             permission_mask: int = 0
     ) -> Rating:
+        # TODO: check if belongs to issuer member server
         if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_RATING_SET):
             raise ForbiddenException("Unable to edit rating set")
         rating = await self.rating_repo.get_by_id(rating_id)
@@ -96,6 +99,7 @@ class RatingService:
         return rating
 
     async def delete_rating(self, rating_id: UUID, permission_mask: int = 0) -> None:
+        # TODO: check if belongs to issuer member server
         if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_RATING_SET):
             raise ForbiddenException("Unable to edit rating set")
         status = await self.rating_repo.delete(rating_id)

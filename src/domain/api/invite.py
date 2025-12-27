@@ -1,36 +1,33 @@
-from uuid import UUID
-from fastapi_controllers import Controller, get, post, delete
+import logging
+from faststream.rabbit import RabbitRouter
 
-from src.domain.models.invites.request import InviteCreateRequest
-from src.domain.models.invites.response import InviteAdminResponse, InviteKeyResponse
-from src.domain.models.member.response import MemberResponse
-from src.domain.models.response import StatusResponse
+from ..models.invites.response import InviteAdminResponse, InviteKeyResponse
+
+from ..models.invites.request import GetInviteByKeyRequest, GetInviteListRequest, InviteCreateRequest, RevokeInviteRequest, UseInviteRequest
+
+from ..models.response import ResponseMessage, StatusResponse
 
 
-class ServerInviteController(Controller):
-    prefix = ""
-    tags = ["Server invite"]
 
-    @get("/invites/{key}", response_model=InviteKeyResponse)
-    def get_invite_info(self, key: str):  # TODO : User id depend
-        pass
+router = RabbitRouter()
+logger = logging.getLogger(__name__)
 
-    @post("/invites/{key}", response_model=MemberResponse)
-    def use_invite(self, key: str):  # TODO : User id depend
-        pass
+@router.subscriber(queue="invite.get_by_key")
+async def get_invite_info(data: GetInviteByKeyRequest) -> ResponseMessage[InviteKeyResponse]:
+    ...
 
-    @get("/{server_id}/invites", response_model=list[InviteAdminResponse])
-    def list_invites(self, server_id: UUID):  # TODO : User id depend
-        # TODO : Member get depend
-        pass
+@router.subscriber(queue="invite.use")
+async def use_invite(data: UseInviteRequest) -> ResponseMessage[StatusResponse]:
+    ...
 
-    @post("/{server_id}/invites", response_model=StatusResponse)
-    def create_invite(self, server_id: UUID, body: InviteCreateRequest):  # TODO : User id depend
-        # TODO : Member get depend
-        pass
+@router.subscriber(queue="invite.list")
+async def list_invites(data: GetInviteListRequest) -> ResponseMessage[list[InviteAdminResponse]]:
+    ...
 
-    @delete("/{server_id}/invites/{invite_id}", response_model=StatusResponse)
-    def revoke_invite(self, server_id: UUID, invite_id: UUID):  # TODO : User id depend
-        # TODO : Member get depend
-        pass
+@router.subscriber(queue="invite.create")
+async def create_invite(data: InviteCreateRequest) -> ResponseMessage[InviteAdminResponse]:
+    ...
 
+@router.subscriber(queue="invite.revoke")
+async def revoke_invite(data: RevokeInviteRequest) -> ResponseMessage[StatusResponse]:
+    ...

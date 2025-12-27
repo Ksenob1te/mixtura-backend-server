@@ -1,62 +1,57 @@
-from uuid import UUID
-from fastapi_controllers import Controller, get, patch, post, delete
+import logging
+from faststream.rabbit import RabbitRouter
 
-from src.domain.models.member.request import MemberRestrictionCreateRequest, MemberUpdateRequest, MigrationRequest, \
-    VirtualMemberCreateRequest
-from src.domain.models.member.response import MemberResponse, MemberRestrictionResponse
-from src.domain.models.response import StatusResponse
+from ..models.response import ResponseMessage, StatusResponse
+
+from ..models.member.request import GetMemberByUserRequest, GetMemberListRequest, GetMemberRestrictionsRequest, JoinServerRequest, KickMemberRequest, MemberGetInfoRequest, AddMemberRestrictionRequest, MemberUpdateRequest, MemberMigrationRequest, RemoveMemberRestrictionRequest, VirtualMemberCreateRequest
+
+from ..models.member.response import AccessResponse, MemberResponse, MemberRestrictionResponse
 
 
-class MemberController(Controller):
-    prefix = "/{server_id}/members"
-    tags = ['Member']
+router = RabbitRouter()
+logger = logging.getLogger(__name__)
 
-    @get("/", response_model=list[MemberResponse])
-    def list_members(self, server_id: UUID):  # TODO : User id depend
-        # TODO : Issuer Member get depend
-        pass
 
-    @post("/", response_model=StatusResponse)
-    def join_server(self, server_id: UUID):  # Only for public servers  # TODO : User id depend
-        pass
+@router.subscriber(queue="member.by_user")
+async def get_member_by_user(data: GetMemberByUserRequest) -> ResponseMessage[AccessResponse]:
+    ...
 
-    @post("/virtual", response_model=StatusResponse)
-    def create_virtual(self, server_id: UUID, body: VirtualMemberCreateRequest):  # TODO : User id depend
-        # TODO : Issuer Member get depend
-        pass
+@router.subscriber(queue="member.list")
+async def list_members(data: GetMemberListRequest) -> ResponseMessage[list[MemberResponse]]:
+    ...
 
-    @get("/{member_id}", response_model=MemberResponse)
-    def get_member(self, server_id: UUID, member_id: UUID):  # TODO : User id depend
-        # TODO : Issuer Member get depend
-        pass
+@router.subscriber(queue="member.join")
+async def join_server(data: JoinServerRequest) -> ResponseMessage[MemberResponse]:
+    ...
 
-    @patch("/{member_id}", response_model=MemberResponse)
-    def update_member(self, server_id: UUID, member_id: UUID, body: MemberUpdateRequest):  # TODO : User id depend
-        pass
+@router.subscriber(queue="member.virtual.create")
+async def create_virtual(data: VirtualMemberCreateRequest) -> ResponseMessage[MemberResponse]:
+    ...
 
-    @delete("/{member_id}", response_model=StatusResponse)
-    def kick_member(self, server_id: UUID, member_id: UUID):  # TODO : User id depend
-        # TODO : Issuer Member get depend
-        pass
+@router.subscriber(queue="member.get")
+async def get_member(data: MemberGetInfoRequest) -> ResponseMessage[MemberResponse]:
+    ...
 
-    @post("/{member_id}/migrate", response_model=MemberResponse)
-    def migrate_member(self, server_id: UUID, member_id: UUID, body: MigrationRequest):  # TODO : User id depend
-        # TODO : Issuer Member get depend
-        pass
+@router.subscriber(queue="member.update")
+async def update_member(data: MemberUpdateRequest) -> ResponseMessage[MemberResponse]:
+    ...
 
-    @get("/{member_id}/restrictions", response_model=list[MemberRestrictionResponse])
-    def get_restrictions(self, server_id: UUID, member_id: UUID):  # TODO : User id depend
-        # TODO : Issuer Member get depend
-        pass
+@router.subscriber(queue="member.kick")
+async def delete_member(data: KickMemberRequest) -> ResponseMessage[StatusResponse]:
+    ...
 
-    @post("/{member_id}/restrictions", response_model=MemberRestrictionResponse)
-    def add_restriction(self, server_id: UUID, member_id: UUID,
-                        body: MemberRestrictionCreateRequest):  # TODO : User id depend
-        # TODO : Issuer Member get depend
-        pass
+@router.subscriber(queue="member.virtual.migrate")
+async def migrate_member(data: MemberMigrationRequest) -> ResponseMessage[MemberResponse]:
+    ...
 
-    @delete("/{member_id}/restrictions/{member_restriction_id}", response_model=StatusResponse)
-    def remove_restriction(self, server_id: UUID, member_id: UUID,
-                           member_restriction_id: UUID):  # TODO : User id depend
-        # TODO : Issuer Member get depend
-        pass
+@router.subscriber(queue="member.restriction.list")
+async def list_restrictions(data: GetMemberRestrictionsRequest) -> ResponseMessage[list[MemberRestrictionResponse]]:
+    ...
+
+@router.subscriber(queue="member.restriction.add")
+async def add_restriction(data: AddMemberRestrictionRequest) -> ResponseMessage[MemberRestrictionResponse]:
+    ...
+
+@router.subscriber(queue="member.restriction.remove")
+async def remove_restriction(data: RemoveMemberRestrictionRequest) -> ResponseMessage[StatusResponse]:
+    ...

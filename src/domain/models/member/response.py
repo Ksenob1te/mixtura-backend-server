@@ -2,6 +2,8 @@ from datetime import datetime
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict
 
+from ..roles.response import ServerRoleResponse
+
 
 # class ServerPermissionResponse(BaseModel):
 #     model_config = ConfigDict(from_attributes=True)
@@ -10,12 +12,6 @@ from pydantic import BaseModel, ConfigDict
 #     code_name: str
 
 
-class ServerRoleResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    name: str
-    position: int
-    permission_mask: int
 
 
 class MemberResponse(BaseModel):
@@ -26,6 +22,11 @@ class MemberResponse(BaseModel):
     joined_at: datetime
     server_role: ServerRoleResponse | None
 
+class AccessResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    member: MemberResponse
+    permission_mask: int
 
 class RestrictionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)

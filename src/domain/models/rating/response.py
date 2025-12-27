@@ -6,7 +6,7 @@ class RatingItemResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
-    icon_url: str
+    icon_id: UUID
     threshold: int
 
 class RatingSetResponse(BaseModel):

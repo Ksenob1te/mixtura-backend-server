@@ -1,67 +1,50 @@
-from uuid import UUID
-from fastapi import UploadFile
-from fastapi_controllers import Controller, get, post, put, patch, delete
+import logging
+from faststream.rabbit import RabbitRouter
 
-from src.domain.models.rating.request import (
+from ..models.rating.request import (
+    GetServerRatingSetsRequest,
     RatingItemCreateRequest,
+    RatingItemDeleteRequest,
     RatingItemUpdateRequest,
     RatingSetUpdateRequest,
 )
-from src.domain.models.rating.response import RatingItemResponse, RatingSetResponse
-from src.domain.models.response import StatusResponse
+
+from ..models.response import ResponseMessage, StatusResponse
+
+from ..models.rating.response import RatingItemResponse, RatingSetResponse
 
 
-class ServerRatingController(Controller):
-    prefix = "/{server_id}/rating-set"
-    tags = ["Server rating"]
+router = RabbitRouter()
+logger = logging.getLogger(__name__)
 
-    @get("/", response_model=list[RatingSetResponse])
-    def get_rating_set(self, server_id: UUID):  # TODO : User id depend
-        # TODO : Member get depend
-        pass
 
-    @patch("/{rating_set_id}", response_model=RatingSetResponse)
-    def update_rating_set(
-        self, server_id: UUID, rating_set_id: UUID, body: RatingSetUpdateRequest
-    ):  # TODO : User id depend
-        # TODO : Member get depend
-        pass
+@router.subscriber(queue="rating_set.get_global")
+async def get_global_role_templates() -> ResponseMessage[list[RatingSetResponse]]: ...
 
-    @post("/{rating_set_id}/ratings", response_model=RatingItemResponse)
-    def create_rating(
-        self,
-        server_id: UUID,
-        rating_set_id: UUID,
-        body: RatingItemCreateRequest,
-        icon: UploadFile,
-    ):  # TODO : User id depend
-        # TODO : Member get depend
-        pass
 
-    @patch("/{rating_set_id}/ratings/{rating_id}", response_model=RatingItemResponse)
-    def update_rating(
-        self,
-        server_id: UUID,
-        rating_set_id: UUID,
-        rating_id: UUID,
-        body: RatingItemUpdateRequest,
-    ):  # TODO : User id depend
-        # TODO : Member get depend
-        pass
+@router.subscriber("rating_set.get_by_server")
+def get_role_set(
+    data: GetServerRatingSetsRequest,
+) -> ResponseMessage[RatingSetResponse]: ...
 
-    @delete("/{rating_set_id}/ratings/{rating_id}", response_model=StatusResponse)
-    def delete_rating(
-        self, server_id: UUID, rating_set_id: UUID, rating_id: UUID
-    ):  # TODO : User id depend
-        # TODO : Member get depend
-        pass
 
-    @put(
-        "/{rating_set_id}/ratings/{rating_id}/icon", response_model=RatingItemResponse
-    )
-    def update_rating_icon(
-        self, server_id: UUID, rating_set_id: UUID, rating_id: UUID, icon: UploadFile
-    ):  # TODO : User id depend
-        # TODO : Member get depend
-        pass
+@router.subscriber("rating_set.update")
+def update_role_set(
+    data: RatingSetUpdateRequest,
+) -> ResponseMessage[RatingSetResponse]: ...
 
+
+@router.subscriber("rating_set.rating.create")
+def create_role(
+    data: RatingItemCreateRequest,
+) -> ResponseMessage[RatingItemResponse]: ...
+
+
+@router.subscriber("rating_set.rating.update")
+def update_role(
+    data: RatingItemUpdateRequest,
+) -> ResponseMessage[RatingItemResponse]: ...
+
+
+@router.subscriber("rating_set.rating.delete")
+def delete_role(data: RatingItemDeleteRequest) -> ResponseMessage[StatusResponse]: ...

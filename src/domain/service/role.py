@@ -54,6 +54,7 @@ class RoleService:
             position: int | None = None,
             permission_mask: int = 0,
     ) -> ServerRole:
+        # TODO: check if belongs to issuer member server
         if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_SERVER_ROLES):
             raise ForbiddenException("Unable to edit role")
         role = await self.role_repo.get_by_id(role_id)
@@ -71,6 +72,7 @@ class RoleService:
             permission_id: UUID,
             permission_mask: int = 0,
     ) -> ServerRole:
+        # TODO: check if belongs to issuer member server
         role = await self.role_repo.get_by_id(role_id)
         if role is None:
             raise NotFoundException("Role not found")
@@ -90,6 +92,7 @@ class RoleService:
             permission_id: UUID,
             permission_mask: int = 0,
     ) -> ServerRole:
+        # TODO: check if belongs to issuer member server
         role = await self.role_repo.get_by_id(role_id)
         if role is None:
             raise NotFoundException("Role not found")
@@ -100,11 +103,22 @@ class RoleService:
             raise NotFoundException("Permission not found in role")
         return role
 
+    # TODO: Add bulk 
+    async def set_permissions(
+        self,
+        role_id: UUID,
+        issuer_permission_mask: int = 0,
+        target_permission_mask: int = 0
+    )-> ServerRole:
+        # TODO: check if belongs to issuer member server
+        ...
+
     async def delete_role(
             self,
             role_id: UUID,
             permission_mask: int = 0,
     ) -> None:
+        # TODO: check if belongs to issuer member server
         if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_SERVER_ROLES):
             raise ForbiddenException("Unable to delete role")
         ok = await self.role_repo.delete(role_id)

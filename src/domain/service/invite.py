@@ -70,7 +70,7 @@ class InviteService:
     async def create_invite(
             self,
             server_id: UUID,
-            body: InviteCreateRequest,
+            body: InviteCreateRequest, # TODO : Replace body
             inviter_id: UUID | None,
             permission_mask: int = 0,
     ) -> Invite:
@@ -94,6 +94,7 @@ class InviteService:
         return invite
 
     async def revoke_invite(self, invite_id: UUID, permission_mask: int = 0) -> None:
+        # TODO: check if belongs to issuer member server
         if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_INVITES):
             raise ForbiddenException("Unable to revoke invite")
 

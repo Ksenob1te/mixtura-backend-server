@@ -1,25 +1,39 @@
-from uuid import UUID
+import logging
+from faststream.rabbit import RabbitRouter
 
-from src.domain.models.games.request import GameAddRequest
-from src.domain.models.games.response import GameResponse
-from src.domain.models.response import StatusResponse
+from ..models.games.request import (
+    GameAddRequest,
+    GameRemoveRequest,
+    GameSetRequest,
+    GetServerGameListRequest,
+)
+
+from ..models.response import ResponseMessage
+
+from ..models.games.response import GameResponse
 
 
-class ServerGameController(Controller):
-    prefix = "/{server_id}/games"
-    tags = ["Server game"]
+router = RabbitRouter()
+logger = logging.getLogger(__name__)
 
-    @get("/", response_model=list[GameResponse])
-    def list_server_games(self, server_id: UUID):  # TODO : User id depend
-        pass
 
-    @post("/", response_model=StatusResponse)
-    def add_game_to_server(self, server_id: UUID, body: GameAddRequest):  # TODO : User id depend
-        # TODO : Member get depend
-        pass
+@router.subscriber(queue="server.global.games")
+async def get_global_games() -> ResponseMessage[list[GameResponse]]: ...
 
-    @delete("/{game_id}", response_model=StatusResponse)
-    def remove_game_from_server(self, server_id: UUID, game_id: UUID):  # TODO : User id depend
-        # TODO : Member get depend
-        pass
 
+@router.subscriber("game.server.add")
+def add_game(data: GameAddRequest) -> ResponseMessage[list[GameResponse]]: ...
+
+
+@router.subscriber("game.server.remove")
+def remove_game(data: GameRemoveRequest) -> ResponseMessage[list[GameResponse]]: ...
+
+
+@router.subscriber("game.server.set")
+def set_game(data: GameSetRequest) -> ResponseMessage[list[GameResponse]]: ...
+
+
+@router.subscriber("game.server.list")
+def list_server_games(
+    data: GetServerGameListRequest,
+) -> ResponseMessage[list[GameResponse]]: ...

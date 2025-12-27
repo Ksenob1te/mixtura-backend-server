@@ -1,41 +1,26 @@
-from uuid import UUID
+import logging
+from faststream.rabbit import RabbitRouter
 
-from fastapi_controllers import Controller, get, post, patch, delete
-
-from src.domain.models.member.response import ServerRoleResponse
-from src.domain.models.response import StatusResponse
-from src.domain.models.roles.request import (
-    ServerRoleCreateRequest,
-    ServerRoleUpdateRequest,
-)
+from src.domain.models.response import ResponseMessage, StatusResponse
+from ..models.roles.request import CreateServerRoleRequest, DeleteServerRoleRequest, ListServerRolesRequest, UpdateServerRoleRequest
+from ..models.roles.response import ServerRoleResponse
 
 
-class ServerRoleController(Controller):
-    prefix = "/{server_id}/roles"
-    tags = ["Server roles"]
+router = RabbitRouter()
+logger = logging.getLogger(__name__)
 
-    @get("/", response_model=list[ServerRoleResponse])
-    def list_roles(self, server_id: UUID):  # TODO : User id depend
-        # TODO : Issuer Member get depend
-        pass
+@router.subscriber(queue="server.role.list")
+def list_roles(data: ListServerRolesRequest) -> ResponseMessage[list[ServerRoleResponse]]:
+    ...
 
-    @post("/", response_model=StatusResponse)
-    def create_role(self, server_id: UUID, body: ServerRoleCreateRequest):  # TODO : User id depend
-        # TODO : Issuer Member get depend
-        pass
+@router.subscriber(queue="server.role.create")
+def create_role(data: CreateServerRoleRequest) -> ResponseMessage[ServerRoleResponse]:
+    ...
 
-    @patch("/{role_id}", response_model=ServerRoleResponse)
-    def update_role(
-        self,
-        server_id: UUID,
-        role_id: UUID,
-        body: ServerRoleUpdateRequest,
-    ):  # TODO : User id depend
-        # TODO : Issuer Member get depend
-        pass
+@router.subscriber(queue="server.role.update")
+def update_role(data: UpdateServerRoleRequest) -> ResponseMessage[ServerRoleResponse]:
+    ...
 
-    @delete("/{role_id}", response_model=StatusResponse)
-    def delete_role(self, server_id: UUID, role_id: UUID):  # TODO : User id depend
-        # TODO : Issuer Member get depend
-        pass
-
+@router.subscriber(queue="server.role.delete")
+def delete_role(data: DeleteServerRoleRequest) -> ResponseMessage[StatusResponse]:
+    ...

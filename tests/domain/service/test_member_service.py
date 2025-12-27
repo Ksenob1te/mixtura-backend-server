@@ -7,8 +7,8 @@ from src.domain.exceptions import NotFoundException, ForbiddenException, Migrati
 from src.domain.models.member.request import (
     VirtualMemberCreateRequest,
     MemberUpdateRequest,
-    MigrationRequest,
-    MemberRestrictionCreateRequest,
+    MemberMigrationRequest,
+    AddMemberRestrictionRequest,
 )
 from src.infra.postgre.static import PERMISSION, RESTRICTION
 from src.infra.postgre.repo import (
@@ -357,7 +357,7 @@ async def test_migrate_member_forbidden(async_session, member_service):
     target = await member_repo.create(server_id=server.id, user_id=None, nickname="Target")
     assert current is not None and target is not None
 
-    body = MigrationRequest(target_member_id=target.id)
+    body = MemberMigrationRequest(target_member_id=target.id)
 
     with pytest.raises(ForbiddenException):
         await member_service.migrate_member(current.id, body, permission_mask=perm_mask())
@@ -372,7 +372,7 @@ async def test_migrate_member_success(async_session, member_service):
     target = await member_repo.create(server_id=server.id, user_id=None, nickname="Target")
     assert current is not None and target is not None
 
-    body = MigrationRequest(target_member_id=target.id)
+    body = MemberMigrationRequest(target_member_id=target.id)
 
     migrated = await member_service.migrate_member(
         current.id,
@@ -399,6 +399,6 @@ async def test_migrate_member_raises_when_current_has_no_user(async_session, mem
     with pytest.raises(MigrationException):
         await member_service.migrate_member(
             no_user_current.id,
-            MigrationRequest(target_member_id=target.id),
+            MemberMigrationRequest(target_member_id=target.id),
             permission_mask=perm_mask(PERMISSION.MIGRATE_MEMBERS),
         )

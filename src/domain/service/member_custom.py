@@ -26,10 +26,12 @@ class MemberCustomService:
         self.game_role_repo = game_role_repo
 
     async def list_customs(self, member_id: UUID) -> list[Custom]:
+        # TODO: check if belongs to issuer member server
         customs = await self.custom_repo.list_for_member(member_id)
         return list(customs)
 
     async def create_custom(self, member_id: UUID, creator_id: UUID | None, permission_mask: int = 0) -> Custom:
+        # TODO: check if belongs to issuer member server
         if not PERMISSION.check_permission(permission_mask, PERMISSION.CREATE_CUSTOM):
             raise ForbiddenException("Unable to create custom")
         try:
@@ -41,6 +43,8 @@ class MemberCustomService:
         return custom
 
     async def get_custom(self, custom_id: UUID) -> Custom:
+        # TODO: check permission
+        # TODO: check if belongs to issuer member server
         custom = await self.custom_repo.get_by_id(custom_id)
         if not custom:
             raise NotFoundException("Custom not found")
@@ -61,6 +65,7 @@ class MemberCustomService:
             rating: int,
             permission_mask: int = 0,
     ) -> Custom:
+        # TODO: check if belongs to issuer member server
         custom = await self.get_custom(custom_id)
         if not custom:
             raise NotFoundException("Custom not found")

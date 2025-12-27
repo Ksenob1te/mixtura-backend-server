@@ -7,11 +7,10 @@ class GameRoleItemResponse(BaseModel):
 
     id: UUID
     name: str
-    icon_url: str | None = None
+    icon_id: UUID | None = None
     min_in_team: int
     max_in_team: int
     hidden: bool
-
 
 class GameRoleSetResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)

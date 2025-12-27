@@ -14,8 +14,8 @@ class ServerListResponse(BaseModel):
     id: UUID
     name: str
     description: str
-    icon_url: None | str = None
-    banner_url: None | str = None
+    icon_id: None | UUID = None
+    banner_id: None | UUID = None
     owner_id: UUID
     public: bool
     created_at: datetime

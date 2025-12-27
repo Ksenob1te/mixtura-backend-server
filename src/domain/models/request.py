@@ -1,10 +1,8 @@
 from uuid import UUID
 from pydantic import BaseModel
 
-
-class UserIncludedRequest(BaseModel):
-    user_id: UUID
-
-class MemberIncludedRequest(BaseModel):
+class AccessDataRequest(BaseModel):
     member_id: UUID
-    permissions: int
+    server_id: UUID
+    permission_mask: int
+    restriction_mask: int

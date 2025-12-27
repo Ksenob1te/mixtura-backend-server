@@ -1,6 +1,4 @@
 from uuid import UUID
-from fastapi import UploadFile
-from sqlalchemy import exc
 
 from src.domain.exceptions import NotFoundException, ForbiddenException, InternalLogicException
 from src.domain.models.game_roles.request import (
@@ -36,8 +34,9 @@ class GameRoleService:
         return server.role_set
 
     async def update_role_set(
-        self, role_set_id: UUID, body: GameRoleSetUpdateRequest, permission_mask: int = 0
+        self, role_set_id: UUID, body: GameRoleSetUpdateRequest, permission_mask: int = 0 # TODO : Replace body
     ) -> GameRoleSet:
+        # TODO: check if belongs to issuer member server
         if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_ROLE_SET):
             raise ForbiddenException("Unable to edit role set")
         role_set_field = await self.role_set_repo.get_by_id(role_set_id)
@@ -50,9 +49,10 @@ class GameRoleService:
     async def create_role(
         self,
         role_set_id: UUID,
-        body: GameRoleItemCreateRequest,
+        body: GameRoleItemCreateRequest, # TODO : Replace body
         permission_mask: int = 0,
     ) -> GameRole:
+        # TODO: check if belongs to issuer member server
         if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_ROLE_SET):
             raise ForbiddenException("Unable to edit role set")
         role_set_field = await self.role_set_repo.get_by_id(role_set_id)
@@ -82,9 +82,10 @@ class GameRoleService:
     async def update_role(
         self,
         role_id: UUID,
-        body: GameRoleItemUpdateRequest,
+        body: GameRoleItemUpdateRequest, # TODO : Replace body
         permission_mask: int = 0,
     ) -> GameRole:
+        # TODO: check if belongs to issuer member server
         if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_ROLE_SET):
             raise ForbiddenException("Unable to edit role set")
         role = await self.role_repo.get_by_id(role_id)
@@ -102,6 +103,7 @@ class GameRoleService:
         return role
 
     async def delete_role(self, role_id: UUID, permission_mask: int = 0) -> None:
+        # TODO: check if belongs to issuer member server
         if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_ROLE_SET):
             raise ForbiddenException("Unable to delete role")
         deleted = await self.role_repo.delete(role_id)

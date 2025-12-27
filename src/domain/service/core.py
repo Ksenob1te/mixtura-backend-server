@@ -79,7 +79,7 @@ class CoreService:
             new_rating_set.ratings.append(new_rating_field)
         return new_rating_set
 
-    async def create_server(self, owner_id: UUID, body: ServerCreateRequest) -> Server:
+    async def create_server(self, owner_id: UUID, body: ServerCreateRequest) -> Server: # TODO: replace body
         if body.role_set_id is None:
             raise NotFoundException("Role set ID must be provided")
         if body.rating_set_id is None:
@@ -120,7 +120,7 @@ class CoreService:
             raise NotFoundException("Server not found")
         return server
 
-    async def update_server(self, server_id: UUID, body: ServerUpdateRequest,
+    async def update_server(self, server_id: UUID, body: ServerUpdateRequest, # TODO: replace body
                             permission_mask: int = 0) -> Server:
         server = await self.server_repo.get_by_id(server_id)
         if not server:

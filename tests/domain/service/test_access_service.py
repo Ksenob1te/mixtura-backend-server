@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, UTC
 
 from src.domain.service import AccessControlService
 from src.domain.exceptions import NotFoundException, ForbiddenException, MigrationException
-from src.domain.models.member.request import MemberRestrictionCreateRequest
+from src.domain.models.member.request import AddMemberRestrictionRequest
 from src.infra.postgre.static import PERMISSION, RESTRICTION
 from src.infra.postgre.repo import (
     MemberRepository,
@@ -84,7 +84,7 @@ async def test_add_restriction(async_session, access_control_service):
 
     restriction = await restriction_repo.create(code=RESTRICTION.SERVER_BAN)
 
-    create_body = MemberRestrictionCreateRequest(
+    create_body = AddMemberRestrictionRequest(
         restriction_id=restriction.id,  # type: ignore
         reason="Bad behavior",
         expiration_date=datetime.now(UTC) + timedelta(days=1),
@@ -124,7 +124,7 @@ async def test_remove_restriction(async_session, access_control_service):
 
     restriction = await restriction_repo.create(code=RESTRICTION.SERVER_BAN)
 
-    create_body = MemberRestrictionCreateRequest(
+    create_body = AddMemberRestrictionRequest(
         restriction_id=restriction.id,  # type: ignore
         reason="Bad behavior",
         expiration_date=datetime.now(UTC) + timedelta(days=1),
@@ -241,7 +241,7 @@ async def test_add_restriction_not_found(async_session, access_control_service):
     server = await _server(async_session)
     member = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), nickname="User")
 
-    body = MemberRestrictionCreateRequest(
+    body = AddMemberRestrictionRequest(
         restriction_id=uuid.uuid4(),
         reason="Reason",
         expiration_date=datetime.now(UTC) + timedelta(days=1)

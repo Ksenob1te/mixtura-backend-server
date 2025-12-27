@@ -1,56 +1,46 @@
-from uuid import UUID
+import logging
+from faststream.rabbit import RabbitRouter
 
-from src.domain.models.game_roles.request import (
+from ..models.game_roles.response import GameRoleItemResponse, GameRoleSetResponse
+
+from ..models.game_roles.request import (
     GameRoleItemCreateRequest,
+    GameRoleItemDeleteRequest,
     GameRoleItemUpdateRequest,
     GameRoleSetUpdateRequest,
+    GetServerGameRoleSetsRequest,
 )
-from src.domain.models.game_roles.response import (
-    GameRoleItemResponse,
-    GameRoleSetResponse,
-)
-from src.domain.models.response import StatusResponse
+
+from src.domain.models.response import ResponseMessage, StatusResponse
 
 
-class ServerGameRoleController(Controller):
-    prefix = "/{server_id}/role-set"
-    tags = ["Server game role"]
+router = RabbitRouter()
+logger = logging.getLogger(__name__)
 
-    @get("/", response_model=list[GameRoleSetResponse])
-    def get_role_set(self, server_id: UUID): # TODO : User id depend
-        # TODO : Member get depend
-        pass
 
-    @patch("/{role_set_id}", response_model=GameRoleSetResponse)
-    def update_role_set(
-        self, server_id: UUID, role_set_id: UUID, body: GameRoleSetUpdateRequest
-    ): # TODO : User id depend
-        # TODO : Member get depend
-        pass
+@router.subscriber(queue="role_set.get_global")
+async def get_global_role_templates() -> ResponseMessage[list[GameRoleSetResponse]]: ...
 
-    @post("/{role_set_id}/role", response_model=StatusResponse)
-    def create_role(self, server_id: UUID, role_set_id: UUID, body: GameRoleItemCreateRequest, icon: UploadFile): # TODO : User id depend
-        # TODO : Member get depend
-        pass
 
-    @patch("/{role_set_id}/role/{role_id}", response_model=GameRoleItemResponse)
-    def update_role(
-        self,
-        server_id: UUID,
-        role_set_id: UUID,
-        role_id: UUID,
-        body: GameRoleItemUpdateRequest,
-    ): # TODO : User id depend
-        # TODO : Member get depend
-        pass
+@router.subscriber("role_set.get_by_server")
+def get_role_set(
+    data: GetServerGameRoleSetsRequest,
+) -> ResponseMessage[GameRoleSetResponse]: ...
 
-    @delete("/{role_set_id}/roles/{role_id}", response_model=StatusResponse)
-    def delete_role(self, server_id: UUID, role_set_id: UUID, role_id: UUID): # TODO : User id depend
-        pass
 
-    @put("/{role_set_id}/roles/{role_id}/icon", response_model=GameRoleItemResponse)
-    def update_role_icon(
-        self, server_id: UUID, role_id: UUID, role_set_id: UUID, icon: UploadFile
-    ): # TODO : User id depend
-        # TODO : Member get depend
-        pass
+@router.subscriber("role_set.update")
+def update_role_set(
+    data: GameRoleSetUpdateRequest,
+) -> ResponseMessage[GameRoleSetResponse]: ...
+
+
+@router.subscriber("role_set.role.create")
+def create_role(data: GameRoleItemCreateRequest) -> ResponseMessage[GameRoleItemResponse]: ...
+
+
+@router.subscriber("role_set.role.update")
+def update_role(data: GameRoleItemUpdateRequest) -> ResponseMessage[GameRoleItemResponse]: ...
+
+
+@router.subscriber("role_set.role.delete")
+def delete_role(data: GameRoleItemDeleteRequest) -> ResponseMessage[StatusResponse]: ...

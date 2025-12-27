@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from src.domain.exceptions import NotFoundException, InternalLogicException, ForbiddenException
-from src.domain.models.member.request import MemberRestrictionCreateRequest
+from src.domain.models.member.request import AddMemberRestrictionRequest
 from src.infra.postgre.repo import (
     MemberRepository,
     MemberRestrictionRepository,
@@ -43,6 +43,7 @@ class AccessControlService:
 
     async def get_permissions(self, server_id: UUID, user_id: UUID) -> list[str]:
         member = await self._get_member(server_id, user_id)
+        # TODO: for server owner get all permissions
         if member is None:
             return []
         permissions = await self.permission_repo.list_for_role(member.server_role_id)
@@ -87,14 +88,16 @@ class AccessControlService:
 
     async def add_restriction(self, member_id: UUID,
                               issuer_id: UUID,
-                              body: MemberRestrictionCreateRequest,
+                              body: AddMemberRestrictionRequest, # TODO: replacy body
                               permission_mask: int = 0) -> MemberRestriction:
+       # TODO: check if belongs to issuer member server
         restriction_field = await self.restriction_repo.get_by_id(body.restriction_id)
         if not restriction_field:
             raise NotFoundException(f"Restriction not found")
         if not PERMISSION.check_permission(permission_mask, f"restrict_{restriction_field.code}"):
             # TODO: discuss about this dynamic permission check
             raise ForbiddenException("Unable to add restriction")
+        # TODO: compare issuer with target
         try:
             member_restriction_field = await self.member_restriction_repo.create(
                 member_id=member_id,
@@ -112,6 +115,7 @@ class AccessControlService:
     async def remove_restriction(self, member_id: UUID,
                                  member_restriction_id: UUID,
                                  permission_mask: int = 0) -> None:
+        # TODO: check if belongs to issuer member server
         member_restriction_field = await self.member_restriction_repo.get_by_id(member_restriction_id)
         if not member_restriction_field or member_restriction_field.member_id != member_id:
             raise NotFoundException(f"Member restriction not found")

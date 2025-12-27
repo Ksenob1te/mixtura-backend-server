@@ -52,3 +52,5 @@ class GameService:
         removed = await self.game_repo.remove_from_server(game_id, server_id)
         if not removed:
             raise NotFoundException("Game not found on server")
+
+    # TODO: add bulk change method
