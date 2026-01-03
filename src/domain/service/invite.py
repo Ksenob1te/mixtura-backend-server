@@ -70,14 +70,14 @@ class InviteService:
     async def create_invite(
             self,
             server_id: UUID,
-            body: InviteCreateRequest, # TODO : Replace body
+            use_limit: int | None,
             inviter_id: UUID | None,
             permission_mask: int = 0,
     ) -> Invite:
         if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_INVITES):
             raise ForbiddenException("Unable to create invite")
 
-        use_limit = body.use_limit if body.use_limit is not None else 0
+        use_limit = use_limit if use_limit is not None else 0
         if use_limit < 0:
             use_limit = 0
 
@@ -93,8 +93,10 @@ class InviteService:
             raise InternalLogicException(exc.message)
         return invite
 
-    async def revoke_invite(self, invite_id: UUID, permission_mask: int = 0) -> None:
-        # TODO: check if belongs to issuer member server
+    async def revoke_invite(self, server_id: UUID, invite_id: UUID, permission_mask: int = 0) -> None:
+        invite_field = await self.invite_repo.get_by_id(invite_id)
+        if not invite_field or invite_field.server_id != server_id:
+            raise NotFoundException("Invite not found")
         if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_INVITES):
             raise ForbiddenException("Unable to revoke invite")
 

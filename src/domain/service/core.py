@@ -169,5 +169,19 @@ class CoreService:
         if not ok:
             raise InternalLogicException("Failed to delete server")
 
-    # TODO: delete banner
-    # TODO: delete icon
+    async def delete_server_banner(self, server_id: UUID, permission_mask: int = 0) -> Server:
+        server = await self.server_repo.get_by_id(server_id)
+        if not server:
+            raise NotFoundException("Server not found")
+        if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_SERVER_BANNER):
+            raise ForbiddenException("Unable to edit server")
+        return await self.server_repo.set_banner(server, None)
+
+    async def delete_server_icon(self, server_id: UUID, permission_mask: int = 0) -> Server:
+        server = await self.server_repo.get_by_id(server_id)
+        if not server:
+            raise NotFoundException("Server not found")
+        if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_SERVER_ICON):
+            raise ForbiddenException("Unable to edit server")
+        return await self.server_repo.set_icon(server, None)
+

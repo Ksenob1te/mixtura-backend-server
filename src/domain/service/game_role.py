@@ -78,6 +78,15 @@ class GameRoleService:
             raise InternalLogicException(exc.message)
         return role
 
+    async def _check_role_belongs_to_server(self, role_id: UUID, server_id: UUID) -> GameRole:
+        server_field = await self.server_repo.get_by_id(server_id)
+        role_field = await self.role_repo.get_by_id(role_id)
+        if server_field is None:
+            raise NotFoundException("Server not found for server")
+        if not role_field or server_field.role_set_id != role_field.role_set_id:
+            raise NotFoundException("Role not found for server")
+        return role_field
+
     async def update_role(
             self,
             role_id: UUID,
@@ -85,40 +94,36 @@ class GameRoleService:
             name: str | None = None,
             min_in_team: int | None = None,
             max_in_team: int | None = None,
-            icon_id: UUID | None = None, # TODO : Add icon change
+            icon_id: UUID | None = None,
             hidden: bool | None = None,
             permission_mask: int = 0,
     ) -> GameRole:
         if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_ROLE_SET):
             raise ForbiddenException("Unable to edit role set")
-        server_field = await self.server_repo.get_by_id(server_id)
-        if server_field is None:
-            raise NotFoundException("Server not found")
-        role = await self.role_repo.get_by_id(role_id)
-        if not role or server_field.role_set_id != role.role_set_id:
-            raise NotFoundException("Role not found for server")
-
-        if name is not None and name != role.name:
-            role = await self.role_repo.set_name(role, name)
-        if hidden is not None and hidden != role.hidden:
-            role = await self.role_repo.set_hidden(role, hidden)
+        role_field = await self._check_role_belongs_to_server(role_id, server_id)
+        if name is not None and name != role_field.name:
+            role_field = await self.role_repo.set_name(role_field, name)
+        if hidden is not None and hidden != role_field.hidden:
+            role_field = await self.role_repo.set_hidden(role_field, hidden)
         if min_in_team is not None:
-            role = await self.role_repo.set_min(role, min_in_team)
+            role_field = await self.role_repo.set_min(role_field, min_in_team)
         if max_in_team is not None:
-            role = await self.role_repo.set_max(role, max_in_team)
-        return role
+            role_field = await self.role_repo.set_max(role_field, max_in_team)
+        if icon_id is not None:
+            role_field = await self.role_repo.set_icon(role_field, icon_id)
+        return role_field
 
     async def delete_role(self, role_id: UUID, server_id: UUID, permission_mask: int = 0) -> None:
         if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_ROLE_SET):
             raise ForbiddenException("Unable to delete role")
-        server_field = await self.server_repo.get_by_id(server_id)
-        role = await self.role_repo.get_by_id(role_id)
-        if server_field is None:
-            raise NotFoundException("Server not found for server")
-        if not role or server_field.role_set_id != role.role_set_id:
-            raise NotFoundException("Role not found for server")
+        await self._check_role_belongs_to_server(role_id, server_id)
         deleted = await self.role_repo.delete(role_id)
         if not deleted:
             raise NotFoundException("Role not found")
 
-    # TODO : Add icon delete method
+    async def delete_role_icon(self, role_id: UUID, server_id: UUID, permission_mask: int = 0) -> GameRole:
+        if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_ROLE_SET):
+            raise ForbiddenException("Unable to edit role set")
+        role_field = await self._check_role_belongs_to_server(role_id, server_id)
+        role_field = await self.role_repo.set_icon(role_field, None)
+        return role_field

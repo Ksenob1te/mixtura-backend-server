@@ -220,12 +220,14 @@ async def test_update_role_success(async_session, game_role_service):
     rs = await _role_set(async_session)
     server = await _server(async_session, rs)
     r = await _role(async_session, role_set=rs)
+    new_icon = uuid.uuid4()
     updated = await game_role_service.update_role(
         r.id,
         server.id,
         name="NewName",
         min_in_team=2,
         max_in_team=4,
+        icon_id=new_icon,
         hidden=True,
         permission_mask=perm_mask(PERMISSION.EDIT_ROLE_SET),
     )
@@ -233,6 +235,7 @@ async def test_update_role_success(async_session, game_role_service):
     assert updated.hidden is True
     assert updated.min_in_team == 2
     assert updated.max_in_team == 4
+    assert updated.icon_id == new_icon
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -268,3 +271,52 @@ async def test_delete_role_success(async_session, game_role_service):
     )
     repo = game_role_service.role_repo
     assert await repo.get_by_id(r.id) is None
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_delete_role_icon_success(async_session, game_role_service):
+    rs = await _role_set(async_session)
+    server = await _server(async_session, rs)
+    r = await _role(async_session, role_set=rs)
+
+    # Set an icon first
+    r.icon_id = uuid.uuid4()
+    async_session.add(r)
+    await async_session.flush()
+
+    updated = await game_role_service.delete_role_icon(
+        r.id,
+        server.id,
+        permission_mask=perm_mask(PERMISSION.EDIT_ROLE_SET),
+    )
+    assert updated.icon_id is None
+
+    reloaded = await game_role_service.role_repo.get_by_id(r.id)
+    assert reloaded.icon_id is None
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_delete_role_icon_forbidden(async_session, game_role_service):
+    rs = await _role_set(async_session)
+    server = await _server(async_session, rs)
+    r = await _role(async_session, role_set=rs)
+
+    with pytest.raises(ForbiddenException):
+        await game_role_service.delete_role_icon(
+            r.id,
+            server.id,
+            permission_mask=0,
+        )
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_delete_role_icon_not_found(async_session, game_role_service):
+    rs = await _role_set(async_session)
+    server = await _server(async_session, rs)
+
+    with pytest.raises(NotFoundException):
+        await game_role_service.delete_role_icon(
+            uuid.uuid4(),
+            server.id,
+            permission_mask=perm_mask(PERMISSION.EDIT_ROLE_SET),
+        )

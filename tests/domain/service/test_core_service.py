@@ -360,3 +360,58 @@ async def test_delete_server_permission_and_flow(async_session, core_service):
     await core_service.delete_server(server.id, permission_mask=perm_mask(PERMISSION.DELETE_SERVER))
     repo = core_service.server_repo
     assert await repo.get_by_id(server.id) is None
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_delete_server_banner(async_session, core_service):
+    server = await _server(async_session)
+    server.banner_id = uuid.uuid4()
+    async_session.add(server)
+    await async_session.flush()
+
+    with pytest.raises(ForbiddenException):
+        await core_service.delete_server_banner(server.id, permission_mask=0)
+
+    updated = await core_service.delete_server_banner(
+        server.id,
+        permission_mask=perm_mask(PERMISSION.EDIT_SERVER_BANNER)
+    )
+    assert updated.banner_id is None
+
+    reloaded = await core_service.server_repo.get_by_id(server.id)
+    assert reloaded.banner_id is None
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_delete_server_icon(async_session, core_service):
+    server = await _server(async_session)
+    server.icon_id = uuid.uuid4()
+    async_session.add(server)
+    await async_session.flush()
+
+    with pytest.raises(ForbiddenException):
+        await core_service.delete_server_icon(server.id, permission_mask=0)
+
+    updated = await core_service.delete_server_icon(
+        server.id,
+        permission_mask=perm_mask(PERMISSION.EDIT_SERVER_ICON)
+    )
+    assert updated.icon_id is None
+
+    reloaded = await core_service.server_repo.get_by_id(server.id)
+    assert reloaded.icon_id is None
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_delete_server_assets_not_found(async_session, core_service):
+    with pytest.raises(NotFoundException):
+        await core_service.delete_server_banner(
+            uuid.uuid4(),
+            permission_mask=perm_mask(PERMISSION.EDIT_SERVER_BANNER)
+        )
+
+    with pytest.raises(NotFoundException):
+        await core_service.delete_server_icon(
+            uuid.uuid4(),
+            permission_mask=perm_mask(PERMISSION.EDIT_SERVER_ICON)
+        )

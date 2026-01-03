@@ -167,10 +167,9 @@ async def test_list_invites_server_not_found(invite_service):
 async def test_create_invite(async_session, invite_service):
     server = await _server(async_session)
 
-    body = InviteCreateRequest(use_limit=5)
     invite = await invite_service.create_invite(
         server.id,
-        body,
+        5,
         inviter_id=None,
         permission_mask=perm_mask(PERMISSION.EDIT_INVITES),
     )
@@ -182,19 +181,17 @@ async def test_create_invite(async_session, invite_service):
 async def test_create_invite_zero_and_negative(async_session, invite_service):
     server = await _server(async_session)
 
-    body_none = InviteCreateRequest(use_limit=None)
     inv_none = await invite_service.create_invite(
         server.id,
-        body_none,
+        None,
         inviter_id=None,
         permission_mask=perm_mask(PERMISSION.EDIT_INVITES),
     )
     assert inv_none.use_limit == 0
 
-    body_negative = InviteCreateRequest(use_limit=-10)
     inv_negative = await invite_service.create_invite(
         server.id,
-        body_negative,
+        -10,
         inviter_id=None,
         permission_mask=perm_mask(PERMISSION.EDIT_INVITES),
     )
@@ -206,7 +203,7 @@ async def test_create_invite_not_found(async_session, invite_service):
     with pytest.raises(NotFoundException):
         await invite_service.create_invite(
             uuid.uuid4(),
-            InviteCreateRequest(use_limit=1),
+            1,
             inviter_id=None,
             permission_mask=perm_mask(PERMISSION.EDIT_INVITES),
         )
@@ -218,7 +215,7 @@ async def test_create_invite_forbidden(async_session, invite_service):
     with pytest.raises(ForbiddenException):
         await invite_service.create_invite(
             server.id,
-            InviteCreateRequest(use_limit=1),
+            1,
             inviter_id=None,
             permission_mask=perm_mask()
         )
@@ -231,7 +228,7 @@ async def test_create_invite_inviter_not_found(async_session, invite_service):
     with pytest.raises(NotFoundException):
         await invite_service.create_invite(
             server.id,
-            InviteCreateRequest(use_limit=1),
+            1,
             inviter_id=uuid.uuid4(),
             permission_mask=perm_mask(PERMISSION.EDIT_INVITES),
         )
@@ -246,9 +243,10 @@ async def test_revoke_invite(async_session, invite_service):
     assert inv is not None
 
     with pytest.raises(ForbiddenException):
-        await invite_service.revoke_invite(inv.id, permission_mask=perm_mask())
+        await invite_service.revoke_invite(server.id, inv.id, permission_mask=perm_mask())
 
     await invite_service.revoke_invite(
+        server.id,
         inv.id,
         permission_mask=perm_mask(PERMISSION.EDIT_INVITES),
     )
@@ -260,5 +258,22 @@ async def test_revoke_invite_server_not_found(invite_service):
     with pytest.raises(NotFoundException):
         await invite_service.revoke_invite(
             uuid.uuid4(),
+            uuid.uuid4(),
+            permission_mask=perm_mask(PERMISSION.EDIT_INVITES),
+        )
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_revoke_invite_wrong_server(async_session, invite_service):
+    server1 = await _server(async_session)
+    server2 = await _server(async_session)
+    invite_repo: InviteRepository = invite_service.invite_repo
+
+    inv = await invite_repo.create(server_id=server1.id, use_limit=1, inviter_id=None)
+
+    with pytest.raises(NotFoundException):
+        await invite_service.revoke_invite(
+            server2.id,
+            inv.id,
             permission_mask=perm_mask(PERMISSION.EDIT_INVITES),
         )
