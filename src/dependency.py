@@ -158,3 +158,9 @@ async def get_rating_service(
         server_repo=server_repo
     )
 # TODO: all services and repositories into dependency injection functions
+
+CoreServiceDependency = Annotated[CoreService, Depends(get_core_service)]
+GameServiceDependency = Annotated[GameService, Depends(get_game_service)]
+GameRoleServiceDependency = Annotated[GameRoleService, Depends(get_game_role_service)]
+InviteServiceDependency = Annotated[InviteService, Depends(get_invite_service)]
+RatingServiceDependency = Annotated[RatingService, Depends(get_rating_service)]

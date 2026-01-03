@@ -168,3 +168,6 @@ class CoreService:
         ok = await self.server_repo.delete(server_id)
         if not ok:
             raise InternalLogicException("Failed to delete server")
+
+    # TODO: delete banner
+    # TODO: delete icon

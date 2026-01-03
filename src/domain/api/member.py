@@ -5,7 +5,7 @@ from ..models.response import ResponseMessage, StatusResponse
 
 from ..models.member.request import GetMemberByUserRequest, GetMemberListRequest, GetMemberRestrictionsRequest, JoinServerRequest, KickMemberRequest, MemberGetInfoRequest, AddMemberRestrictionRequest, MemberUpdateRequest, MemberMigrationRequest, RemoveMemberRestrictionRequest, VirtualMemberCreateRequest
 
-from ..models.member.response import AccessResponse, MemberResponse, MemberRestrictionResponse
+from ..models.member.response import AccessResponse, MemberResponse, MemberRestrictionResponse, RestrictionResponse
 
 
 router = RabbitRouter()
@@ -43,6 +43,10 @@ async def delete_member(data: KickMemberRequest) -> ResponseMessage[StatusRespon
 @router.subscriber(queue="member.virtual.migrate")
 async def migrate_member(data: MemberMigrationRequest) -> ResponseMessage[MemberResponse]:
     ...
+
+@router.subscriber(queue="server.global.restrictions")
+async def get_global_restrictions() -> ResponseMessage[list[RestrictionResponse]]: ...
+
 
 @router.subscriber(queue="member.restriction.list")
 async def list_restrictions(data: GetMemberRestrictionsRequest) -> ResponseMessage[list[MemberRestrictionResponse]]:

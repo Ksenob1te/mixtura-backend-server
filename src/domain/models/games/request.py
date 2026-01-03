@@ -14,7 +14,7 @@ class GameAddRequest(BaseModel):
 class GameRemoveRequest(BaseModel):
     access_data: AccessDataRequest
 
-    game_ids: list[UUID]
+    game_id: UUID
 
 
 class GameSetRequest(BaseModel):

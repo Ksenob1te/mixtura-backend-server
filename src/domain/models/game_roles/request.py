@@ -11,11 +11,14 @@ class GetServerGameRoleSetsRequest(BaseModel):
 class GameRoleSetUpdateRequest(BaseModel):
     access_data: AccessDataRequest
 
+    role_set_id: UUID
     name: str | None = Field(None, max_length=32)
 
 
 class GameRoleItemCreateRequest(BaseModel):
     access_data: AccessDataRequest
+
+    role_set_id: UUID
 
     role_id: UUID
     name: str = Field(max_length=32)
@@ -27,6 +30,7 @@ class GameRoleItemCreateRequest(BaseModel):
 
 class GameRoleItemUpdateRequest(BaseModel):
     access_data: AccessDataRequest
+
     role_id: UUID
     name: str | None = Field(None, max_length=32)
     min_in_team: int | None = None

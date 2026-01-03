@@ -18,33 +18,34 @@ router = RabbitRouter()
 logger = logging.getLogger(__name__)
 
 
+
 @router.subscriber(queue="rating_set.get_global")
-async def get_global_role_templates() -> ResponseMessage[list[RatingSetResponse]]: ...
+async def get_global_rating_templates() -> ResponseMessage[list[RatingSetResponse]]: ...
 
 
 @router.subscriber("rating_set.get_by_server")
-def get_role_set(
+def get_rating_set(
     data: GetServerRatingSetsRequest,
 ) -> ResponseMessage[RatingSetResponse]: ...
 
 
 @router.subscriber("rating_set.update")
-def update_role_set(
+def update_rating_set(
     data: RatingSetUpdateRequest,
 ) -> ResponseMessage[RatingSetResponse]: ...
 
 
 @router.subscriber("rating_set.rating.create")
-def create_role(
+def create_rating(
     data: RatingItemCreateRequest,
 ) -> ResponseMessage[RatingItemResponse]: ...
 
 
 @router.subscriber("rating_set.rating.update")
-def update_role(
+def update_rating(
     data: RatingItemUpdateRequest,
 ) -> ResponseMessage[RatingItemResponse]: ...
 
 
 @router.subscriber("rating_set.rating.delete")
-def delete_role(data: RatingItemDeleteRequest) -> ResponseMessage[StatusResponse]: ...
+def delete_rating(data: RatingItemDeleteRequest) -> ResponseMessage[StatusResponse]: ...

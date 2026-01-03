@@ -85,6 +85,7 @@ class GameRoleService:
             name: str | None = None,
             min_in_team: int | None = None,
             max_in_team: int | None = None,
+            icon_id: UUID | None = None, # TODO : Add icon change
             hidden: bool | None = None,
             permission_mask: int = 0,
     ) -> GameRole:
@@ -119,3 +120,5 @@ class GameRoleService:
         deleted = await self.role_repo.delete(role_id)
         if not deleted:
             raise NotFoundException("Role not found")
+
+    # TODO : Add icon delete method
