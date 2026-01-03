@@ -27,6 +27,8 @@ class PERMISSION(StrEnum):
     EDIT_SERVER_PUBLIC = 'edit_server_public'
     EDIT_SERVER_NAME = 'edit_server_name'
     EDIT_SERVER_DESCRIPTION = 'edit_server_description'
+    EDIT_SERVER_BANNER = 'edit_server_banner'
+    EDIT_SERVER_ICON = 'edit_server_icon'
     EDIT_SERVER_GAME = 'edit_server_game'
     DELETE_SERVER = 'delete_server'
     EDIT_ROLE_SET = 'edit_role_set'

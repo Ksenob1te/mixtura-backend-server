@@ -134,3 +134,24 @@ class GameRepository:
             if sql_state == "23503":
                 raise IntegrityForeignException("Some games are not found")
             raise IntegrityUnknownException("Failed to add games to server")
+
+    async def bulk_remove_from_server(self, server_id: UUID, game_ids: list[UUID]) -> int:
+        stmt = delete(ServerGame).where(
+            ServerGame.server_id == server_id,
+            ServerGame.game_id.in_(game_ids)
+        )
+        result = await self.session.execute(stmt)
+        await self.session.flush()
+        return result.rowcount or 0    # type: ignore
+
+    async def set_server_games(self, server_id: UUID, game_ids: list[UUID]) -> None:
+        stmt = select(ServerGame).where(ServerGame.server_id == server_id)
+        res = await self.session.scalars(stmt)
+        current_game_ids = {sg.game_id for sg in res.all()}
+        to_remove_game_ids = current_game_ids - set(game_ids)
+        to_add_game_ids = set(game_ids) - current_game_ids
+        if to_add_game_ids:
+            await self.bulk_add_to_server(server_id, list(to_add_game_ids))
+        if to_remove_game_ids:
+            await self.bulk_remove_from_server(server_id, list(to_remove_game_ids))
+

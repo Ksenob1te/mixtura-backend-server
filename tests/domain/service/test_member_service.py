@@ -19,6 +19,7 @@ from src.infra.postgre.repo import (
 from src.infra.postgre.models import Server, GameRoleSet, RatingSet
 
 # TODO: refactor tests into classes, setups and fixtures
+# TODO: check coverage after all scheme changes
 
 
 def perm_mask(*perms: PERMISSION) -> int:

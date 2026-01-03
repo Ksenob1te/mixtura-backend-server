@@ -3,7 +3,6 @@ import pytest
 
 from src.domain.service.core import CoreService
 from src.domain.exceptions import NotFoundException, InternalLogicException, ForbiddenException
-from src.domain.models.core.request import ServerCreateRequest, ServerUpdateRequest
 from src.infra.postgre.static import PERMISSION
 from src.infra.postgre.repo import (
     MemberRepository,
@@ -173,33 +172,31 @@ async def test_list_user_servers_filters_by_owner(async_session, core_service):
 @pytest.mark.asyncio(loop_scope="session")
 async def test_create_server_raises_when_role_set_not_found(async_session, core_service):
     rating = await _rating_set(async_session)
-    body = ServerCreateRequest(
-        name="NewServer",
-        role_set_id=uuid.uuid4(),
-        rating_set_id=rating.id,
-        public=True,
-        description="Desc",
-        game_ids=[],
-    )
 
     with pytest.raises(NotFoundException):
-        await core_service.create_server(uuid.uuid4(), body)
+        await core_service.create_server(
+            owner_id=uuid.uuid4(),
+            name="NewServer",
+            description="Desc",
+            public=True,
+            role_set_id=uuid.uuid4(),
+            rating_set_id=rating.id
+        )
 
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_create_server_raises_when_rating_set_not_found(async_session, core_service):
     role_set = await _role_set(async_session)
-    body = ServerCreateRequest(
-        name="NewServer",
-        role_set_id=role_set.id,
-        rating_set_id=uuid.uuid4(),
-        public=True,
-        description="Desc",
-        game_ids=[],
-    )
 
     with pytest.raises(NotFoundException):
-        await core_service.create_server(uuid.uuid4(), body)
+        await core_service.create_server(
+            owner_id=uuid.uuid4(),
+            name="NewServer",
+            description="Desc",
+            public=True,
+            role_set_id=role_set.id,
+            rating_set_id=uuid.uuid4()
+        )
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -210,47 +207,41 @@ async def test_create_server_raises_when_template_is_not_global(async_session, c
     global_rating_set = await _rating_set(async_session, is_global=True)
     local_rating_set = await _rating_set(async_session, is_global=False)
 
-    body_bad_role = ServerCreateRequest(
-        name="BadRole",
-        role_set_id=local_role_set.id,
-        rating_set_id=global_rating_set.id,
-        public=True,
-        description="Desc",
-        game_ids=[],
-    )
     with pytest.raises(NotFoundException):
-        await core_service.create_server(owner_id, body_bad_role)
+        await core_service.create_server(
+            owner_id=owner_id,
+            name="BadRole",
+            description="Desc",
+            public=True,
+            role_set_id=local_role_set.id,
+            rating_set_id=global_rating_set.id
+        )
 
-    body_bad_rating = ServerCreateRequest(
-        name="BadRating",
-        role_set_id=global_role_set.id,
-        rating_set_id=local_rating_set.id,
-        public=True,
-        description="Desc",
-        game_ids=[],
-    )
     with pytest.raises(NotFoundException):
-        await core_service.create_server(owner_id, body_bad_rating)
+        await core_service.create_server(
+            owner_id=owner_id,
+            name="BadRating",
+            description="Desc",
+            public=True,
+            role_set_id=global_role_set.id,
+            rating_set_id=local_rating_set.id
+        )
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_create_server_success_persists_and_links_games(async_session, core_service):
+async def test_create_server_success_persists(async_session, core_service):
     owner_id = uuid.uuid4()
     global_role_set = await _role_set(async_session, is_global=True)
     global_rating_set = await _rating_set(async_session, is_global=True)
-    g1 = await _game(async_session, name="G1")
-    g2 = await _game(async_session, name="G2")
 
-    body = ServerCreateRequest(
+    server = await core_service.create_server(
+        owner_id=owner_id,
         name="ServerName",
-        role_set_id=global_role_set.id,
-        rating_set_id=global_rating_set.id,
-        public=True,
         description="Desc",
-        game_ids=[g1.id, g2.id],
+        public=True,
+        role_set_id=global_role_set.id,
+        rating_set_id=global_rating_set.id
     )
-
-    server = await core_service.create_server(owner_id, body)
     assert server is not None
     assert server.name == "ServerName"
     assert server.owner_id == owner_id
@@ -269,7 +260,6 @@ async def test_create_server_success_persists_and_links_games(async_session, cor
     repo = core_service.server_repo
     reloaded = await repo.get_by_id(server.id)
     assert reloaded is not None
-    assert {g.id for g in reloaded.games} == {g1.id, g2.id}
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -292,24 +282,19 @@ async def test_get_server_not_found(async_session, core_service):
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_update_server_not_found(async_session, core_service):
-    body = ServerUpdateRequest(name="NewName", description=None, public=None)
     with pytest.raises(NotFoundException):
-        await core_service.update_server(uuid.uuid4(), body, permission_mask=0)
+        await core_service.update_server(uuid.uuid4(), name="NewName", permission_mask=0)
 
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_update_server_updates_fields_with_permissions(async_session, core_service):
     server = await _server(async_session, public=False)
 
-    body = ServerUpdateRequest(
+    updated = await core_service.update_server(
+        server.id,
         name="NewName",
         description="NewDesc",
         public=True,
-    )
-
-    updated = await core_service.update_server(
-        server.id,
-        body,
         permission_mask=perm_mask(
             PERMISSION.EDIT_SERVER_NAME,
             PERMISSION.EDIT_SERVER_DESCRIPTION,
@@ -326,23 +311,21 @@ async def test_update_server_updates_fields_with_permissions(async_session, core
 async def test_update_server_without_permissions(async_session, core_service):
     server = await _server(async_session, public=False)
 
-    body = ServerUpdateRequest(
-        name="AnotherName",
-        description="AnotherDesc",
-        public=True,
-    )
-
     with pytest.raises(ForbiddenException):
         await core_service.update_server(
             server.id,
-            body,
+            name="AnotherName",
+            description="AnotherDesc",
+            public=True,
             permission_mask=perm_mask(),
         )
 
     with pytest.raises(NotFoundException):
         await core_service.update_server(
             uuid.uuid4(),
-            body,
+            name="AnotherName",
+            description="AnotherDesc",
+            public=True,
             permission_mask=perm_mask(
                 PERMISSION.EDIT_SERVER_NAME,
                 PERMISSION.EDIT_SERVER_DESCRIPTION,
@@ -353,7 +336,9 @@ async def test_update_server_without_permissions(async_session, core_service):
     with pytest.raises(NotFoundException):
         await core_service.update_server(
             uuid.uuid4(),
-            body,
+            name="AnotherName",
+            description="AnotherDesc",
+            public=True,
             permission_mask=perm_mask(
                 PERMISSION.EDIT_SERVER_NAME,
                 PERMISSION.EDIT_SERVER_DESCRIPTION,

@@ -140,6 +140,55 @@ async def test_bulk_add_to_server(async_session):
 
 
 @pytest.mark.asyncio(loop_scope="session")
+async def test_bulk_remove_from_server(async_session):
+    repo = GameRepository(async_session)
+    games = [
+        await repo.create(f"BulkRemGame{i}", uuid.uuid4(), uuid.uuid4())
+        for i in range(3)
+    ]
+    s = await _create_server(async_session)
+    await repo.bulk_add_to_server(s.id, [g.id for g in games])
+
+    # Remove first two
+    count = await repo.bulk_remove_from_server(s.id, [games[0].id, games[1].id])
+    assert count == 2
+
+    res = await async_session.execute(
+        select(ServerGame.game_id).where(ServerGame.server_id == s.id)
+    )
+    remaining = res.scalars().all()
+    assert len(remaining) == 1
+    assert remaining[0] == games[2].id
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_set_server_games(async_session):
+    repo = GameRepository(async_session)
+    g1 = await repo.create("SetGame1", uuid.uuid4(), uuid.uuid4())
+    g2 = await repo.create("SetGame2", uuid.uuid4(), uuid.uuid4())
+    g3 = await repo.create("SetGame3", uuid.uuid4(), uuid.uuid4())
+    s = await _create_server(async_session)
+
+    # Initial set: g1, g2
+    await repo.set_server_games(s.id, [g1.id, g2.id])
+
+    res = await async_session.execute(
+        select(ServerGame.game_id).where(ServerGame.server_id == s.id)
+    )
+    current = set(res.scalars().all())
+    assert current == {g1.id, g2.id}
+
+    # Update set: g2, g3 (g1 removed, g3 added, g2 kept)
+    await repo.set_server_games(s.id, [g2.id, g3.id])
+
+    res = await async_session.execute(
+        select(ServerGame.game_id).where(ServerGame.server_id == s.id)
+    )
+    current = set(res.scalars().all())
+    assert current == {g2.id, g3.id}
+
+
+@pytest.mark.asyncio(loop_scope="session")
 async def test_get_all_games(async_session):
     repo = GameRepository(async_session)
     g1 = await repo.create("AllGame1", uuid.uuid4(), uuid.uuid4())

@@ -3,11 +3,6 @@ import pytest
 
 from src.domain.service.game_role import GameRoleService
 from src.domain.exceptions import NotFoundException, ForbiddenException
-from src.domain.models.game_roles.request import (
-    GameRoleItemCreateRequest,
-    GameRoleItemUpdateRequest,
-    GameRoleSetUpdateRequest,
-)
 from src.infra.postgre.static import PERMISSION
 from src.infra.postgre.repo import (
     GameRoleSetRepository,
@@ -77,18 +72,21 @@ async def test_get_role_set_for_server_success(async_session, game_role_service)
 @pytest.mark.asyncio(loop_scope="session")
 async def test_update_role_set_forbidden_without_permission(async_session, game_role_service):
     rs = await _role_set(async_session)
-    body = GameRoleSetUpdateRequest(name="NewName")
+    server = await _server(async_session, rs)
     with pytest.raises(ForbiddenException):
-        await game_role_service.update_role_set(rs.id, body, permission_mask=0)
+        await game_role_service.update_role_set(rs.id, server.id, name="NewName", permission_mask=0)
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_update_role_set_not_found(async_session, game_role_service):
-    body = GameRoleSetUpdateRequest(name="NewName")
+async def test_update_role_set_mismatch_raises_not_found(async_session, game_role_service):
+    # Renamed from test_update_role_set_not_found because implementation raises Forbidden for mismatch
+    rs = await _role_set(async_session)
+    server = await _server(async_session, rs)
     with pytest.raises(NotFoundException):
         await game_role_service.update_role_set(
             uuid.uuid4(),
-            body,
+            server.id,
+            name="NewName",
             permission_mask=perm_mask(PERMISSION.EDIT_ROLE_SET),
         )
 
@@ -96,10 +94,11 @@ async def test_update_role_set_not_found(async_session, game_role_service):
 @pytest.mark.asyncio(loop_scope="session")
 async def test_update_role_set_success(async_session, game_role_service):
     rs = await _role_set(async_session, name="Old")
-    body = GameRoleSetUpdateRequest(name="New")
+    server = await _server(async_session, rs)
     updated = await game_role_service.update_role_set(
         rs.id,
-        body,
+        server.id,
+        name="New",
         permission_mask=perm_mask(PERMISSION.EDIT_ROLE_SET),
     )
     assert updated.name == "New"
@@ -108,18 +107,50 @@ async def test_update_role_set_success(async_session, game_role_service):
 @pytest.mark.asyncio(loop_scope="session")
 async def test_create_role_forbidden_without_permission(async_session, game_role_service):
     rs = await _role_set(async_session)
-    body = GameRoleItemCreateRequest(name="R", min_in_team=1, max_in_team=2, hidden=False)
+    server = await _server(async_session, rs)
     with pytest.raises(ForbiddenException):
-        await game_role_service.create_role(rs.id, body, permission_mask=0)
+        await game_role_service.create_role(
+            rs.id,
+            server.id,
+            name="R",
+            min_in_team=1,
+            max_in_team=2,
+            hidden=False,
+            permission_mask=0
+        )
 
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_create_role_role_set_not_found(async_session, game_role_service):
-    body = GameRoleItemCreateRequest(name="R", min_in_team=1, max_in_team=2, hidden=False)
+    rs = await _role_set(async_session)
+    server = await _server(async_session, rs)
     with pytest.raises(NotFoundException):
         await game_role_service.create_role(
             uuid.uuid4(),
-            body,
+            server.id,
+            name="R",
+            min_in_team=1,
+            max_in_team=2,
+            hidden=False,
+            permission_mask=perm_mask(PERMISSION.EDIT_ROLE_SET),
+        )
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_create_role_wrong_server(async_session, game_role_service):
+    rs1 = await _role_set(async_session)
+    s1 = await _server(async_session, rs1)
+    rs2 = await _role_set(async_session)
+    s2 = await _server(async_session, rs2)
+
+    with pytest.raises(NotFoundException):
+        await game_role_service.create_role(
+            rs1.id,
+            s2.id,  # Wrong server
+            name="R",
+            min_in_team=1,
+            max_in_team=2,
+            hidden=False,
             permission_mask=perm_mask(PERMISSION.EDIT_ROLE_SET),
         )
 
@@ -127,10 +158,14 @@ async def test_create_role_role_set_not_found(async_session, game_role_service):
 @pytest.mark.asyncio(loop_scope="session")
 async def test_create_role_success(async_session, game_role_service):
     rs = await _role_set(async_session)
-    body = GameRoleItemCreateRequest(name="Support", min_in_team=1, max_in_team=3, hidden=False)
+    server = await _server(async_session, rs)
     role = await game_role_service.create_role(
         rs.id,
-        body,
+        server.id,
+        name="Support",
+        min_in_team=1,
+        max_in_team=3,
+        hidden=False,
         permission_mask=perm_mask(PERMISSION.EDIT_ROLE_SET),
     )
     assert role is not None
@@ -142,30 +177,56 @@ async def test_create_role_success(async_session, game_role_service):
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_update_role_forbidden_without_permission(async_session, game_role_service):
-    r = await _role(async_session)
-    body = GameRoleItemUpdateRequest(name="NewName")
+    rs = await _role_set(async_session)
+    server = await _server(async_session, rs)
+    r = await _role(async_session, role_set=rs)
     with pytest.raises(ForbiddenException):
-        await game_role_service.update_role(r.id, body, permission_mask=0)
+        await game_role_service.update_role(r.id, server.id, name="NewName", permission_mask=0)
 
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_update_role_not_found(async_session, game_role_service):
-    body = GameRoleItemUpdateRequest(name="NewName")
+    rs = await _role_set(async_session)
+    server = await _server(async_session, rs)
     with pytest.raises(NotFoundException):
         await game_role_service.update_role(
             uuid.uuid4(),
-            body,
+            server.id,
+            name="NewName",
+            permission_mask=perm_mask(PERMISSION.EDIT_ROLE_SET),
+        )
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_update_role_wrong_server(async_session, game_role_service):
+    rs1 = await _role_set(async_session)
+    s1 = await _server(async_session, rs1)
+    r1 = await _role(async_session, role_set=rs1)
+
+    rs2 = await _role_set(async_session)
+    s2 = await _server(async_session, rs2)
+
+    with pytest.raises(NotFoundException):
+        await game_role_service.update_role(
+            r1.id,
+            s2.id,  # Wrong server
+            name="NewName",
             permission_mask=perm_mask(PERMISSION.EDIT_ROLE_SET),
         )
 
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_update_role_success(async_session, game_role_service):
-    r = await _role(async_session)
-    body = GameRoleItemUpdateRequest(name="NewName", min_in_team=2, max_in_team=4, hidden=True)
+    rs = await _role_set(async_session)
+    server = await _server(async_session, rs)
+    r = await _role(async_session, role_set=rs)
     updated = await game_role_service.update_role(
         r.id,
-        body,
+        server.id,
+        name="NewName",
+        min_in_team=2,
+        max_in_team=4,
+        hidden=True,
         permission_mask=perm_mask(PERMISSION.EDIT_ROLE_SET),
     )
     assert updated.name == "NewName"
@@ -176,25 +237,33 @@ async def test_update_role_success(async_session, game_role_service):
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_delete_role_not_found(async_session, game_role_service):
+    rs = await _role_set(async_session)
+    server = await _server(async_session, rs)
     with pytest.raises(NotFoundException):
         await game_role_service.delete_role(
             uuid.uuid4(),
+            server.id,
             permission_mask=perm_mask(PERMISSION.EDIT_ROLE_SET),
         )
 
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_delete_role_forbidden_without_permission(async_session, game_role_service):
-    r = await _role(async_session)
+    rs = await _role_set(async_session)
+    server = await _server(async_session, rs)
+    r = await _role(async_session, role_set=rs)
     with pytest.raises(ForbiddenException):
-        await game_role_service.delete_role(r.id, permission_mask=0)
+        await game_role_service.delete_role(r.id, server.id, permission_mask=0)
 
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_delete_role_success(async_session, game_role_service):
-    r = await _role(async_session)
+    rs = await _role_set(async_session)
+    server = await _server(async_session, rs)
+    r = await _role(async_session, role_set=rs)
     await game_role_service.delete_role(
         r.id,
+        server.id,
         permission_mask=perm_mask(PERMISSION.EDIT_ROLE_SET),
     )
     repo = game_role_service.role_repo

@@ -53,4 +53,12 @@ class GameService:
         if not removed:
             raise NotFoundException("Game not found on server")
 
-    # TODO: add bulk change method
+    async def set_server_games(
+            self,
+            server_id: UUID,
+            game_ids: list[UUID],
+            permission_mask: int = 0,
+    ) -> None:
+        if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_SERVER_GAME):
+            raise ForbiddenException("Unable to edit server games")
+        await self.game_repo.set_server_games(server_id, game_ids)

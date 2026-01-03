@@ -181,3 +181,39 @@ async def test_remove_game_from_server_non_linked_raises_not_found(async_session
             g1.id,
             permission_mask=perm_mask(PERMISSION.EDIT_SERVER_GAME),
         )
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_set_server_games_forbidden(async_session, game_service):
+    server = await _server(async_session)
+    g1 = await _game(async_session)
+
+    with pytest.raises(ForbiddenException):
+        await game_service.set_server_games(
+            server.id,
+            [g1.id],
+            permission_mask=perm_mask()
+        )
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_set_server_games_success(async_session, game_service):
+    server = await _server(async_session)
+    g1 = await _game(async_session, name="G1")
+    g2 = await _game(async_session, name="G2")
+    g3 = await _game(async_session, name="G3")
+
+    # Pre-populate with G1 and G2
+    await game_service.game_repo.bulk_add_to_server(server.id, [g1.id, g2.id])
+
+    # Set to G2 and G3 (should remove G1, keep G2, add G3)
+    await game_service.set_server_games(
+        server.id,
+        [g2.id, g3.id],
+        permission_mask=perm_mask(PERMISSION.EDIT_SERVER_GAME)
+    )
+
+    await async_session.refresh(server)
+    current_ids = {g.id for g in server.games}
+    assert current_ids == {g2.id, g3.id}
+

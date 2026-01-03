@@ -79,14 +79,21 @@ class CoreService:
             new_rating_set.ratings.append(new_rating_field)
         return new_rating_set
 
-    async def create_server(self, owner_id: UUID, body: ServerCreateRequest) -> Server: # TODO: replace body
-        if body.role_set_id is None:
+    async def create_server(
+            self, owner_id: UUID,
+            name: str,
+            description: str,
+            public: bool,
+            rating_set_id: UUID | None = None,
+            role_set_id: UUID | None = None
+    ) -> Server:
+        if role_set_id is None:
             raise NotFoundException("Role set ID must be provided")
-        if body.rating_set_id is None:
+        if rating_set_id is None:
             raise NotFoundException("Rating set ID must be provided")
 
-        global_role_set = await self.game_role_set_repo.get_by_id(body.role_set_id)
-        global_rating_set = await self.rating_set_repo.get_by_id(body.rating_set_id)
+        global_role_set = await self.game_role_set_repo.get_by_id(role_set_id)
+        global_rating_set = await self.rating_set_repo.get_by_id(rating_set_id)
         if not global_role_set or not global_role_set.is_global:
             raise NotFoundException("Role set not found")
         if not global_rating_set or not global_rating_set.is_global:
@@ -97,21 +104,21 @@ class CoreService:
 
         try:
             server = await self.server_repo.create(
-                name=body.name,
+                name=name,
                 owner_id=owner_id,
                 role_set_id=role_set.id,
                 rating_set_id=rating_set.id,
-                public=body.public,
-                description=body.description,
+                public=public,
+                description=description,
             )
-            links = await self.game_repo.bulk_add_to_server(server.id, body.game_ids)
+            # links = await self.game_repo.bulk_add_to_server(server.id, body.game_ids)
         except IntegrityForeignException as exc:
             raise NotFoundException(exc.message)
         except (IntegrityUniqueException, IntegrityUnknownException) as exc:
             raise InternalLogicException(exc.message)
 
-        server.server_games = links
-        server.games = [link.game for link in links]
+        # server.server_games = links
+        # server.games = [link.game for link in links]
         return server
 
     async def get_server(self, server_id: UUID) -> Server:
@@ -120,23 +127,36 @@ class CoreService:
             raise NotFoundException("Server not found")
         return server
 
-    async def update_server(self, server_id: UUID, body: ServerUpdateRequest, # TODO: replace body
+    async def update_server(self, server_id: UUID,
+                            name: str | None = None,
+                            description: str | None = None,
+                            public: bool | None = None,
+                            banner_id: UUID | None = None,
+                            icon_id: UUID | None = None,
                             permission_mask: int = 0) -> Server:
         server = await self.server_repo.get_by_id(server_id)
         if not server:
             raise NotFoundException("Server not found")
-        if body.name is not None and body.name != server.name:
+        if name is not None and name != server.name:
             if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_SERVER_NAME):
                 raise ForbiddenException("Unable to edit server")
-            server = await self.server_repo.set_name(server, body.name)
-        if body.description is not None and body.description != server.description:
+            server = await self.server_repo.set_name(server, name)
+        if description is not None and description != server.description:
             if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_SERVER_DESCRIPTION):
                 raise ForbiddenException("Unable to edit server")
-            server = await self.server_repo.set_description(server, body.description)
-        if body.public is not None and body.public != server.public:
+            server = await self.server_repo.set_description(server, description)
+        if public is not None and public != server.public:
             if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_SERVER_PUBLIC):
                 raise ForbiddenException("Unable to edit server")
-            server = await self.server_repo.set_public(server, body.public)
+            server = await self.server_repo.set_public(server, public)
+        if icon_id is not None and icon_id != server.icon_id:
+            if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_SERVER_ICON):
+                raise ForbiddenException("Unable to edit server")
+            server = await self.server_repo.set_icon(server, icon_id)
+        if banner_id is not None and banner_id != server.banner_id:
+            if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_SERVER_BANNER):
+                raise ForbiddenException("Unable to edit server")
+            server = await self.server_repo.set_banner(server, banner_id)
         return server
 
     async def delete_server(self, server_id: UUID, permission_mask: int = 0) -> None:

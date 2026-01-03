@@ -3,7 +3,7 @@ import pytest
 from datetime import datetime, timedelta, UTC
 
 from src.domain.service import AccessControlService
-from src.domain.exceptions import NotFoundException, ForbiddenException, MigrationException
+from src.domain.exceptions import NotFoundException, ForbiddenException, MigrationException, InternalLogicException
 from src.domain.models.member.request import AddMemberRestrictionRequest
 from src.infra.postgre.static import PERMISSION, RESTRICTION
 from src.infra.postgre.repo import (
@@ -74,35 +74,41 @@ async def test_get_restrictions_empty(async_session, access_control_service):
 async def test_add_restriction(async_session, access_control_service):
     member_repo = access_control_service.member_repo
     restriction_repo = access_control_service.restriction_repo
+    server_role_repo = ServerRoleRepository(async_session)
 
     server = await _server(async_session)
+
+    # Setup roles for hierarchy check
+    role_issuer = await server_role_repo.create(server_id=server.id, name="Admin", position=100)
+    role_member = await server_role_repo.create(server_id=server.id, name="User", position=1)
+
     user_id = uuid.uuid4()
-    member = await member_repo.create(server_id=server.id, user_id=user_id, nickname="Restricted")
-    issuer = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), nickname="Issuer")
+    member = await member_repo.create(server_id=server.id, user_id=user_id, nickname="Restricted", server_role_id=role_member.id)
+    issuer = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), nickname="Issuer", server_role_id=role_issuer.id)
     assert member is not None
     assert issuer is not None
 
     restriction = await restriction_repo.create(code=RESTRICTION.SERVER_BAN)
 
-    create_body = AddMemberRestrictionRequest(
-        restriction_id=restriction.id,  # type: ignore
-        reason="Bad behavior",
-        expiration_date=datetime.now(UTC) + timedelta(days=1),
-    )
-
     with pytest.raises(ForbiddenException):
         await access_control_service.add_restriction(
-            member.id,
+            member_id=member.id,
             issuer_id=issuer.id,
-            body=create_body,
+            server_id=server.id,
             permission_mask=perm_mask(),
+            reason="Bad behavior",
+            expiration_date=datetime.now(UTC) + timedelta(days=1),
+            restriction_id=restriction.id
         )
 
     mr = await access_control_service.add_restriction(
-        member.id,
+        member_id=member.id,
         issuer_id=issuer.id,
-        body=create_body,
+        server_id=server.id,
         permission_mask=perm_mask(PERMISSION.RESTRICT_SERVER_BAN),
+        reason="Bad behavior",
+        expiration_date=datetime.now(UTC) + timedelta(days=1),
+        restriction_id=restriction.id
     )
     assert mr is not None and mr.member_id == member.id
 
@@ -111,53 +117,125 @@ async def test_add_restriction(async_session, access_control_service):
 
 
 @pytest.mark.asyncio(loop_scope="session")
+async def test_add_restriction_hierarchy_fail(async_session, access_control_service):
+    member_repo = access_control_service.member_repo
+    restriction_repo = access_control_service.restriction_repo
+    server_role_repo = ServerRoleRepository(async_session)
+
+    server = await _server(async_session)
+
+    # Equal positions
+    role_1 = await server_role_repo.create(server_id=server.id, name="Role1", position=10)
+    role_2 = await server_role_repo.create(server_id=server.id, name="Role2", position=10)
+
+    member = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), nickname="Target", server_role_id=role_1.id)
+    issuer = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), nickname="Issuer", server_role_id=role_2.id)
+
+    restriction = await restriction_repo.create(code=RESTRICTION.SERVER_BAN)
+
+    with pytest.raises(ForbiddenException, match="Unable to add restriction to this member"):
+        await access_control_service.add_restriction(
+            member_id=member.id,
+            issuer_id=issuer.id,
+            server_id=server.id,
+            permission_mask=perm_mask(PERMISSION.RESTRICT_SERVER_BAN),
+            reason="Bad behavior",
+            expiration_date=datetime.now(UTC) + timedelta(days=1),
+            restriction_id=restriction.id
+        )
+
+
+@pytest.mark.asyncio(loop_scope="session")
 async def test_remove_restriction(async_session, access_control_service):
     member_repo = access_control_service.member_repo
     restriction_repo = access_control_service.restriction_repo
+    server_role_repo = ServerRoleRepository(async_session)
 
     server = await _server(async_session)
+    role_issuer = await server_role_repo.create(server_id=server.id, name="Admin", position=100)
+
     user_id = uuid.uuid4()
     member = await member_repo.create(server_id=server.id, user_id=user_id, nickname="Restricted")
-    issuer = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), nickname="Issuer")
+    issuer = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), nickname="Issuer", server_role_id=role_issuer.id)
     assert member is not None
     assert issuer is not None
 
     restriction = await restriction_repo.create(code=RESTRICTION.SERVER_BAN)
 
-    create_body = AddMemberRestrictionRequest(
-        restriction_id=restriction.id,  # type: ignore
+    mr = await access_control_service.add_restriction(
+        member_id=member.id,
+        issuer_id=issuer.id,
+        server_id=server.id,
+        permission_mask=perm_mask(PERMISSION.RESTRICT_SERVER_BAN),
         reason="Bad behavior",
         expiration_date=datetime.now(UTC) + timedelta(days=1),
-    )
-
-    mr = await access_control_service.add_restriction(
-        member.id,
-        issuer_id=issuer.id,
-        body=create_body,
-        permission_mask=perm_mask(PERMISSION.RESTRICT_SERVER_BAN),
+        restriction_id=restriction.id
     )
 
     with pytest.raises(NotFoundException):
         await access_control_service.remove_restriction(
-            uuid.uuid4(),
+            member_id=uuid.uuid4(),
+            issuer_id=issuer.id,
+            server_id=server.id,
             member_restriction_id=mr.id,
             permission_mask=perm_mask(PERMISSION.RESTRICT_SERVER_BAN),
         )
 
     with pytest.raises(ForbiddenException):
         await access_control_service.remove_restriction(
-            member.id,
+            member_id=member.id,
+            issuer_id=issuer.id,
+            server_id=server.id,
             member_restriction_id=mr.id,
             permission_mask=perm_mask(),
         )
 
     await access_control_service.remove_restriction(
-        member.id,
+        member_id=member.id,
+        issuer_id=issuer.id,
+        server_id=server.id,
         member_restriction_id=mr.id,
         permission_mask=perm_mask(PERMISSION.RESTRICT_SERVER_BAN),
     )
     restrictions_after = await access_control_service.get_restrictions(server.id, user_id)
     assert restrictions_after == []
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_remove_restriction_hierarchy_fail(async_session, access_control_service):
+    member_repo = access_control_service.member_repo
+    restriction_repo = access_control_service.restriction_repo
+    server_role_repo = ServerRoleRepository(async_session)
+    member_restriction_repo = access_control_service.member_restriction_repo
+
+    server = await _server(async_session)
+
+    # Equal positions
+    role_1 = await server_role_repo.create(server_id=server.id, name="Role1", position=10)
+    role_2 = await server_role_repo.create(server_id=server.id, name="Role2", position=10)
+
+    member = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), nickname="Target", server_role_id=role_1.id)
+    issuer = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), nickname="Issuer", server_role_id=role_2.id)
+
+    restriction = await restriction_repo.create(code=RESTRICTION.SERVER_BAN)
+
+    # Manually create restriction to bypass add check
+    mr = await member_restriction_repo.create(
+        member_id=member.id,
+        restriction_id=restriction.id,
+        reason="Test",
+        expiration_date=datetime.now(UTC) + timedelta(days=1),
+        creator_id=issuer.id
+    )
+
+    with pytest.raises(ForbiddenException, match="Unable to remove restriction from this member"):
+        await access_control_service.remove_restriction(
+            member_id=member.id,
+            issuer_id=issuer.id,
+            server_id=server.id,
+            member_restriction_id=mr.id,
+            permission_mask=perm_mask(PERMISSION.RESTRICT_SERVER_BAN),
+        )
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -241,16 +319,13 @@ async def test_add_restriction_not_found(async_session, access_control_service):
     server = await _server(async_session)
     member = await member_repo.create(server_id=server.id, user_id=uuid.uuid4(), nickname="User")
 
-    body = AddMemberRestrictionRequest(
-        restriction_id=uuid.uuid4(),
-        reason="Reason",
-        expiration_date=datetime.now(UTC) + timedelta(days=1)
-    )
-
     with pytest.raises(NotFoundException):
         await access_control_service.add_restriction(
-            member.id,
+            member_id=member.id,
             issuer_id=member.id,
-            body=body,
-            permission_mask=perm_mask()
+            server_id=server.id,
+            permission_mask=perm_mask(),
+            reason="Reason",
+            expiration_date=datetime.now(UTC) + timedelta(days=1),
+            restriction_id=uuid.uuid4()
         )
