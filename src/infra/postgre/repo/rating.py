@@ -21,7 +21,7 @@ class RatingRepository:
         res = await self.session.scalars(stmt)
         return res.all()
 
-    async def create(self, icon_id: UUID, threshold: int, rating_set_id: UUID) -> Rating:
+    async def create(self, icon_id: UUID | None, threshold: int, rating_set_id: UUID) -> Rating:
         rating = Rating(icon_id=icon_id, threshold=threshold, rating_set_id=rating_set_id)
         try:
             self.session.add(rating)

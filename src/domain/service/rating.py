@@ -67,7 +67,7 @@ class RatingService:
             server_id: UUID,
             rating_set_id: UUID,
             threshold: int,
-            icon_id: UUID,
+            icon_id: UUID | None = None,
             permission_mask: int = 0
     ) -> Rating:
         if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_RATING_SET):
