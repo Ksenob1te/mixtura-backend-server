@@ -103,10 +103,73 @@ class TestPermissionRepository:
         listed = await repo.list_for_role(role.id)
         assert {p.id for p in listed} == {p.id for p in perms if p is not None}
 
+    async def test_bulk_assign_foreign_key_error(self, async_session, factory):
+        repo = PermissionRepository(async_session)
+        s = await factory.create_server()
+        role = await factory.create_server_role(s.id)
+
+        p1 = await repo.create("p.valid")
+        bad_id = uuid.uuid4()
+
+        with pytest.raises(IntegrityForeignException):
+            await repo.bulk_assign_to_role([p1.id, bad_id], role.id)
+
+    async def test_get_by_code_bulk(self, async_session):
+        repo = PermissionRepository(async_session)
+        codes = ["perm.bulk.1", "perm.bulk.2", "perm.bulk.3"]
+        for c in codes:
+            await repo.create(c)
+
+        found = await repo.get_by_code_bulk(["perm.bulk.1", "perm.bulk.3", "perm.missing"])
+        assert len(found) == 2
+        found_codes = {p.code for p in found}
+        assert "perm.bulk.1" in found_codes
+        assert "perm.bulk.3" in found_codes
+
+    async def test_bulk_remove_from_role(self, async_session, factory):
+        repo = PermissionRepository(async_session)
+        s = await factory.create_server()
+        role = await factory.create_server_role(s.id)
+        perms = [await repo.create(f"perm.rem.{i}") for i in range(3)]
+        perm_ids = [p.id for p in perms if p]
+
+        await repo.bulk_assign_to_role(perm_ids, role.id)
+
+        count = await repo.bulk_remove_from_role(perm_ids[:2], role.id)
+        assert count == 2
+
+        remaining = await repo.list_for_role(role.id)
+        assert len(remaining) == 1
+        assert remaining[0].id == perm_ids[2]
+
+    async def test_bulk_set_for_role(self, async_session, factory):
+        repo = PermissionRepository(async_session)
+        s = await factory.create_server()
+        role = await factory.create_server_role(s.id)
+
+        p1 = await repo.create("p1")
+        p2 = await repo.create("p2")
+        p3 = await repo.create("p3")
+
+        await repo.assign_to_role(p1.id, role.id)
+
+        # Set state: p2, p3 (should remove p1, add p2, p3)
+        await repo.bulk_set_for_role([p2.id, p3.id], role.id)
+
+        current = await repo.list_for_role(role.id)
+        current_ids = {p.id for p in current}
+        assert p1.id not in current_ids
+        assert p2.id in current_ids
+        assert p3.id in current_ids
+
+        # Set state: empty (should remove all)
+        await repo.bulk_set_for_role([], role.id)
+        current = await repo.list_for_role(role.id)
+        assert len(current) == 0
+
     async def test_list_for_role_empty_when_none_assigned(self, async_session, factory):
         repo = PermissionRepository(async_session)
         s = await factory.create_server()
         role = await factory.create_server_role(s.id)
         listed = await repo.list_for_role(role.id)
         assert listed == []
-

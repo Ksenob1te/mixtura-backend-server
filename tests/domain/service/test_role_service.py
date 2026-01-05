@@ -86,12 +86,26 @@ class TestRoleService:
         r = await factory.create_server_role(s.id)
 
         with pytest.raises(ForbiddenException):
-            await role_service.update_role(r.id, name="New", permission_mask=0)
+            await role_service.update_role(s.id, r.id, name="New", permission_mask=0)
 
     async def test_update_role_not_found(self, role_service, helpers):
         with pytest.raises(NotFoundException):
             await role_service.update_role(
                 uuid.uuid4(),
+                uuid.uuid4(),
+                name="New",
+                permission_mask=helpers.perm_mask(PERMISSION.EDIT_SERVER_ROLES),
+            )
+
+    async def test_update_role_wrong_server(self, role_service, factory, helpers):
+        s1 = await factory.create_server()
+        s2 = await factory.create_server()
+        r = await factory.create_server_role(s1.id)
+
+        with pytest.raises(NotFoundException):
+            await role_service.update_role(
+                s2.id,
+                r.id,
                 name="New",
                 permission_mask=helpers.perm_mask(PERMISSION.EDIT_SERVER_ROLES),
             )
@@ -101,6 +115,7 @@ class TestRoleService:
         r = await factory.create_server_role(s.id, name="Old", position=1)
 
         updated = await role_service.update_role(
+            s.id,
             r.id,
             name="New",
             position=5,
@@ -115,13 +130,14 @@ class TestRoleService:
         r = await factory.create_server_role(s.id)
 
         with pytest.raises(ForbiddenException):
-            await role_service.delete_role(r.id, permission_mask=0)
+            await role_service.delete_role(s.id, r.id, permission_mask=0)
 
     async def test_delete_role_success(self, role_service, factory, helpers):
         s = await factory.create_server()
         r = await factory.create_server_role(s.id)
 
         await role_service.delete_role(
+            s.id,
             r.id,
             permission_mask=helpers.perm_mask(PERMISSION.EDIT_SERVER_ROLES),
         )
@@ -132,6 +148,19 @@ class TestRoleService:
         with pytest.raises(NotFoundException):
             await role_service.delete_role(
                 uuid.uuid4(),
+                uuid.uuid4(),
+                permission_mask=helpers.perm_mask(PERMISSION.EDIT_SERVER_ROLES),
+            )
+
+    async def test_delete_role_wrong_server(self, role_service, factory, helpers):
+        s1 = await factory.create_server()
+        s2 = await factory.create_server()
+        r = await factory.create_server_role(s1.id)
+
+        with pytest.raises(NotFoundException):
+            await role_service.delete_role(
+                s2.id,
+                r.id,
                 permission_mask=helpers.perm_mask(PERMISSION.EDIT_SERVER_ROLES),
             )
 
@@ -141,6 +170,7 @@ class TestRoleService:
         member = await factory.create_member(s.id, role_id=r.id)
 
         await role_service.delete_role(
+            s.id,
             r.id,
             permission_mask=helpers.perm_mask(PERMISSION.EDIT_SERVER_ROLES),
         )
@@ -150,3 +180,99 @@ class TestRoleService:
         await role_service.member_repo.session.refresh(updated_member)
         assert updated_member is not None
         assert updated_member.server_role_id is None
+
+    async def test_add_permission_success(self, role_service, factory, helpers):
+        s = await factory.create_server()
+        r = await factory.create_server_role(s.id)
+        p = await role_service.permission_repo.create("perm.test")
+
+        await role_service.add_permission(
+            s.id, r.id, p.id,
+            permission_mask=helpers.perm_mask(PERMISSION.EDIT_SERVER_ROLES)
+        )
+
+        perms = await role_service.permission_repo.list_for_role(r.id)
+        assert p.id in {perm.id for perm in perms}
+
+    async def test_add_permission_forbidden(self, role_service, factory, helpers):
+        s = await factory.create_server()
+        r = await factory.create_server_role(s.id)
+        p = await role_service.permission_repo.create("perm.test")
+
+        with pytest.raises(ForbiddenException):
+            await role_service.add_permission(
+                s.id, r.id, p.id,
+                permission_mask=helpers.perm_mask()
+            )
+
+    async def test_add_permission_wrong_server(self, role_service, factory, helpers):
+        s1 = await factory.create_server()
+        s2 = await factory.create_server()
+        r = await factory.create_server_role(s1.id)
+        p = await role_service.permission_repo.create("perm.test")
+
+        with pytest.raises(NotFoundException):
+            await role_service.add_permission(
+                s2.id, r.id, p.id,
+                permission_mask=helpers.perm_mask(PERMISSION.EDIT_SERVER_ROLES)
+            )
+
+    async def test_add_permission_not_found(self, role_service, factory, helpers):
+        s = await factory.create_server()
+        r = await factory.create_server_role(s.id)
+
+        with pytest.raises(NotFoundException):
+            await role_service.add_permission(
+                s.id, r.id, uuid.uuid4(),
+                permission_mask=helpers.perm_mask(PERMISSION.EDIT_SERVER_ROLES)
+            )
+
+    async def test_remove_permission_success(self, role_service, factory, helpers):
+        s = await factory.create_server()
+        r = await factory.create_server_role(s.id)
+        p = await role_service.permission_repo.create("perm.test")
+        await role_service.permission_repo.assign_to_role(p.id, r.id)
+
+        await role_service.remove_permission(
+            s.id, r.id, p.id,
+            permission_mask=helpers.perm_mask(PERMISSION.EDIT_SERVER_ROLES)
+        )
+
+        perms = await role_service.permission_repo.list_for_role(r.id)
+        assert p.id not in {perm.id for perm in perms}
+
+    async def test_remove_permission_not_assigned(self, role_service, factory, helpers):
+        s = await factory.create_server()
+        r = await factory.create_server_role(s.id)
+        p = await role_service.permission_repo.create("perm.test")
+
+        with pytest.raises(NotFoundException):
+            await role_service.remove_permission(
+                s.id, r.id, p.id,
+                permission_mask=helpers.perm_mask(PERMISSION.EDIT_SERVER_ROLES)
+            )
+
+    async def test_set_permissions_success(self, role_service, factory, helpers):
+        s = await factory.create_server()
+        r = await factory.create_server_role(s.id)
+        p1 = await role_service.permission_repo.create("perm.1")
+        p2 = await role_service.permission_repo.create("perm.2")
+
+        await role_service.set_permissions(
+            s.id, r.id, [p1.id, p2.id],
+            permission_mask=helpers.perm_mask(PERMISSION.EDIT_SERVER_ROLES)
+        )
+
+        perms = await role_service.permission_repo.list_for_role(r.id)
+        assert {perm.id for perm in perms} == {p1.id, p2.id}
+
+    async def test_set_permissions_invalid_perm(self, role_service, factory, helpers):
+        s = await factory.create_server()
+        r = await factory.create_server_role(s.id)
+        p1 = await role_service.permission_repo.create("perm.1")
+
+        with pytest.raises(NotFoundException):
+            await role_service.set_permissions(
+                s.id, r.id, [p1.id, uuid.uuid4()],
+                permission_mask=helpers.perm_mask(PERMISSION.EDIT_SERVER_ROLES)
+            )

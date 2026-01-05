@@ -49,16 +49,16 @@ class RoleService:
 
     async def update_role(
             self,
+            server_id: UUID,
             role_id: UUID,
             name: str | None = None,
             position: int | None = None,
             permission_mask: int = 0,
     ) -> ServerRole:
-        # TODO: check if belongs to issuer member server
         if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_SERVER_ROLES):
             raise ForbiddenException("Unable to edit role")
         role = await self.role_repo.get_by_id(role_id)
-        if role is None:
+        if role is None or role.server_id != server_id:
             raise NotFoundException("Role not found")
         if name is not None and name != role.name:
             role = await self.role_repo.set_name(role, name)
@@ -68,59 +68,72 @@ class RoleService:
 
     async def add_permission(
             self,
+            server_id: UUID,
             role_id: UUID,
             permission_id: UUID,
             permission_mask: int = 0,
     ) -> ServerRole:
-        # TODO: check if belongs to issuer member server
-        role = await self.role_repo.get_by_id(role_id)
-        if role is None:
-            raise NotFoundException("Role not found")
         if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_SERVER_ROLES):
             raise ForbiddenException("Unable to edit role")
+        role_field = await self.role_repo.get_by_id(role_id)
+        if role_field is None or role_field.server_id != server_id:
+            raise NotFoundException("Role not found")
         try:
-            await self.permission_repo.assign_to_role(role_id, permission_id)
+            await self.permission_repo.assign_to_role(permission_id, role_id)
         except IntegrityForeignException as exc:
             raise NotFoundException(exc.message)
         except IntegrityUnknownException as exc:
             raise InternalLogicException(exc.message)
-        return role
+        return role_field
 
     async def remove_permission(
             self,
+            server_id: UUID,
             role_id: UUID,
             permission_id: UUID,
             permission_mask: int = 0,
     ) -> ServerRole:
-        # TODO: check if belongs to issuer member server
-        role = await self.role_repo.get_by_id(role_id)
-        if role is None:
-            raise NotFoundException("Role not found")
         if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_SERVER_ROLES):
             raise ForbiddenException("Unable to edit role")
-        ok = await self.permission_repo.remove_from_role(role_id, permission_id)
+        role = await self.role_repo.get_by_id(role_id)
+        if role is None or role.server_id != server_id:
+            raise NotFoundException("Role not found")
+        ok = await self.permission_repo.remove_from_role(permission_id, role_id)
         if not ok:
             raise NotFoundException("Permission not found in role")
         return role
 
-    # TODO: Add bulk 
     async def set_permissions(
-        self,
-        role_id: UUID,
-        issuer_permission_mask: int = 0,
-        target_permission_mask: int = 0
-    )-> ServerRole:
-        # TODO: check if belongs to issuer member server
-        ...
+            self,
+            server_id: UUID,
+            role_id: UUID,
+            permission_ids: list[UUID],
+            permission_mask: int = 0,
+    ) -> ServerRole:
+        role_field = await self.role_repo.get_by_id(role_id)
+        if role_field is None or role_field.server_id != server_id:
+            raise NotFoundException("Role not found")
+        if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_SERVER_ROLES):
+            raise ForbiddenException("Unable to edit role")
+        try:
+            await self.permission_repo.bulk_set_for_role(permission_ids, role_id)
+        except IntegrityForeignException as exc:
+            raise NotFoundException(exc.message)
+        except IntegrityUnknownException as exc:
+            raise InternalLogicException(exc.message)
+        return role_field
 
     async def delete_role(
             self,
+            server_id: UUID,
             role_id: UUID,
             permission_mask: int = 0,
     ) -> None:
-        # TODO: check if belongs to issuer member server
         if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_SERVER_ROLES):
             raise ForbiddenException("Unable to delete role")
+        role_field = await self.role_repo.get_by_id(role_id)
+        if role_field is None or role_field.server_id != server_id:
+            raise NotFoundException("Role not found")
         ok = await self.role_repo.delete(role_id)
         if not ok:
             raise NotFoundException("Role not found")

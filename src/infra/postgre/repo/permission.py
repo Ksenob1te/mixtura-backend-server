@@ -120,3 +120,23 @@ class PermissionRepository:
                 "Failed to assign permissions to server role"
             )
 
+    async def bulk_remove_from_role(self, permission_ids: list[UUID], server_role_id: UUID) -> int:
+        stmt = delete(ServerRolePermission).where(
+            ServerRolePermission.server_role_id == server_role_id,
+            ServerRolePermission.permission_id.in_(permission_ids)
+        )
+        result = await self.session.execute(stmt)
+        await self.session.flush()
+        return result.rowcount or 0  # type: ignore
+
+    async def bulk_set_for_role(self, permission_ids: list[UUID], server_role_id: UUID) -> None:
+        existing_permissions = await self.list_for_role(server_role_id)
+        existing_permission_ids = {p.id for p in existing_permissions}
+
+        to_add = [pid for pid in permission_ids if pid not in existing_permission_ids]
+        to_remove = [pid for pid in existing_permission_ids if pid not in permission_ids]
+
+        if to_add:
+            await self.bulk_assign_to_role(to_add, server_role_id)
+        if to_remove:
+            await self.bulk_remove_from_role(to_remove, server_role_id)
