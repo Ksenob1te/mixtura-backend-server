@@ -15,6 +15,7 @@ class RatingSetUpdateRequest(BaseModel):
     icon_id: UUID | None = None
 
 
+# TODO: misplace, icons
 class RatingItemCreateRequest(BaseModel):
     access_data: AccessDataRequest
 

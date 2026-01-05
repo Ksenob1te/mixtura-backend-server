@@ -56,7 +56,7 @@ class Rating(Base):
     __tablename__ = 'rating_table'
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    icon_id: Mapped[UUID] = mapped_column()
+    icon_id: Mapped[UUID | None] = mapped_column(nullable=True)
     threshold: Mapped[int] = mapped_column()
     rating_set_id: Mapped[UUID] = mapped_column(ForeignKey('rating_set_table.id', ondelete='CASCADE'))
 

@@ -37,7 +37,7 @@ class RatingRepository:
                 raise IntegrityForeignException("Rating set field is not found") from exc
             raise IntegrityUnknownException("Failed to create rating") from exc
 
-    async def set_icon(self, rating: Rating, icon_id: UUID) -> Rating:
+    async def set_icon(self, rating: Rating, icon_id: UUID | None) -> Rating:
         rating.icon_id = icon_id
         await self.session.flush()
         return rating

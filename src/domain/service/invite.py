@@ -22,29 +22,29 @@ class InviteService:
         self.member_repo = member_repo
 
     async def get_invite_info(self, key: str) -> Invite:
-        invite = await self.invite_repo.get_by_key(key)
-        if not invite:
+        invite_field = await self.invite_repo.get_by_key(key)
+        if not invite_field:
             raise NotFoundException("Invite not found")
-        return invite
+        return invite_field
 
     async def use_invite(self, key: str, user_id: UUID, nickname: str, restriction_mask: int = 0) -> Member:
-        invite = await self.invite_repo.get_by_key(key)
-        if not invite or invite.use_limit <= 0:
+        invite_field = await self.invite_repo.get_by_key(key)
+        if not invite_field or invite_field.use_limit <= 0:
             raise NotFoundException("Invite not found")
 
         if RESTRICTION.check_restriction(restriction_mask, RESTRICTION.SERVER_BAN):
             raise NotFoundException("Invite not found")
 
-        server = invite.server
-        existing_member = await self.member_repo.get_by_user_in_server(server.id, user_id)  # type: ignore
+        server_field = invite_field.server
+        existing_member = await self.member_repo.get_by_user_in_server(server_field.id, user_id)  # type: ignore
         if existing_member:
             if not existing_member.active:
                 await self.member_repo.activate(existing_member)
-            member = existing_member
+            member_field = existing_member
         else:
             try:
-                member = await self.member_repo.create(
-                    server_id=server.id,  # type: ignore
+                member_field = await self.member_repo.create(
+                    server_id=server_field.id,  # type: ignore
                     user_id=user_id,
                     nickname=nickname,
                     server_role_id=None,
@@ -53,12 +53,12 @@ class InviteService:
                 raise NotFoundException(exc.message)
             except IntegrityUnknownException as exc:
                 raise InternalLogicException(exc.message)
-        await self.invite_repo.decrement_use_limit(invite)
-        return member
+            await self.invite_repo.decrement_use_limit(invite_field)
+        return member_field
 
     async def list_invites(self, server_id: UUID, permission_mask: int = 0) -> list[Invite]:
-        server = await self.server_repo.get_by_id(server_id)
-        if not server:
+        server_field = await self.server_repo.get_by_id(server_id)
+        if not server_field:
             raise NotFoundException("Server not found")
 
         if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_INVITES):
@@ -82,7 +82,7 @@ class InviteService:
             use_limit = 0
 
         try:
-            invite = await self.invite_repo.create(
+            invite_field = await self.invite_repo.create(
                 server_id=server_id,
                 use_limit=use_limit,
                 inviter_id=inviter_id,
@@ -91,7 +91,7 @@ class InviteService:
             raise NotFoundException(exc.message)
         except (IntegrityUnknownException, IntegrityUniqueException, InviteUniqueException) as exc:
             raise InternalLogicException(exc.message)
-        return invite
+        return invite_field
 
     async def revoke_invite(self, server_id: UUID, invite_id: UUID, permission_mask: int = 0) -> None:
         invite_field = await self.invite_repo.get_by_id(invite_id)

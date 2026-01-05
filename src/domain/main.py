@@ -16,6 +16,7 @@ exc_middleware = ExceptionMiddleware()
 
 @exc_middleware.add_handler(DomainException, publish=True)
 def error_handler(exc: DomainException) -> ResponseMessage[ErrorResponse]:
+    # TODO: think about what happens with database on the exception
     return ResponseMessage(
         status=exc.status_code, message=ErrorResponse(message=exc.message)
     )

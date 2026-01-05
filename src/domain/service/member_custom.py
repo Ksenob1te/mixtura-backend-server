@@ -25,34 +25,43 @@ class MemberCustomService:
         self.member_repo = member_repo
         self.game_role_repo = game_role_repo
 
-    async def list_customs(self, member_id: UUID) -> list[Custom]:
-        # TODO: check if belongs to issuer member server
+    async def list_customs(self, server_id: UUID, member_id: UUID) -> list[Custom]:
+        member_field = await self.member_repo.get_by_id(member_id)
+        if not member_field or member_field.server_id != server_id:
+            raise NotFoundException("Member not found")
         customs = await self.custom_repo.list_for_member(member_id)
         return list(customs)
 
-    async def create_custom(self, member_id: UUID, creator_id: UUID | None, permission_mask: int = 0) -> Custom:
-        # TODO: check if belongs to issuer member server
+    async def create_custom(
+            self, issuer_id: UUID, server_id: UUID,
+            member_id: UUID, permission_mask: int = 0
+    ) -> Custom:
         if not PERMISSION.check_permission(permission_mask, PERMISSION.CREATE_CUSTOM):
             raise ForbiddenException("Unable to create custom")
+        member_field = await self.member_repo.get_by_id(member_id)
+        if not member_field or member_field.server_id != server_id:
+            raise NotFoundException("Member not found")
         try:
-            custom = await self.custom_repo.create(member_id=member_id, creator_id=creator_id)
+            custom = await self.custom_repo.create(member_id=member_id, creator_id=issuer_id)
         except IntegrityForeignException:
-            raise NotFoundException("Some foreign fields are not found")
+            raise NotFoundException("Issuer field not found")
         except IntegrityUnknownException:
             raise InternalLogicException("Failed to create custom")
         return custom
 
-    async def get_custom(self, custom_id: UUID) -> Custom:
-        # TODO: check permission
-        # TODO: check if belongs to issuer member server
+    async def get_custom(self, server_id: UUID, custom_id: UUID) -> Custom:
         custom = await self.custom_repo.get_by_id(custom_id)
-        if not custom:
+        if custom and not custom.member:
+            raise InternalLogicException("Member for custom not found")
+        if not custom or not custom.member.server_id == server_id:
             raise NotFoundException("Custom not found")
         return custom
 
-    async def delete_custom(self, custom_id: UUID, permission_mask: int = 0) -> None:
+    async def delete_custom(self, server_id: UUID, custom_id: UUID, permission_mask: int = 0) -> None:
         if not PERMISSION.check_permission(permission_mask, PERMISSION.DELETE_CUSTOM):
             raise ForbiddenException("Unable to delete custom")
+        # raises Internal and NotFound exceptions if needed
+        await self.get_custom(server_id, custom_id)
         ok = await self.custom_repo.delete(custom_id)
         if not ok:
             raise NotFoundException("Custom not found")
@@ -60,15 +69,13 @@ class MemberCustomService:
     async def set_rating_value(
             self,
             issuer_id: UUID,
+            server_id: UUID,
             custom_id: UUID,
             game_role_id: UUID,
             rating: int,
             permission_mask: int = 0,
     ) -> Custom:
-        # TODO: check if belongs to issuer member server
-        custom = await self.get_custom(custom_id)
-        if not custom:
-            raise NotFoundException("Custom not found")
+        custom = await self.get_custom(server_id=server_id, custom_id=custom_id)
         if (
                 custom.creator_id != issuer_id and
                 not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_ALL_CUSTOMS)

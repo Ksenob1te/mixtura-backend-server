@@ -30,6 +30,28 @@ class AccessControlService:
         self.restriction_repo = restriction_repo
         self.permission_repo = permission_repo
 
+    @staticmethod
+    async def _transform_permissions_to_enum(permissions: list[Permission]) -> list[PERMISSION]:
+        return [PERMISSION(p.code) for p in permissions]
+
+    @staticmethod
+    async def _transform_permission_to_mask(permissions: list[Permission]) -> int:
+        permission_codes = [PERMISSION(p.code) for p in permissions]
+        permission_mask = PERMISSION.serialize_permission_codes(permission_codes)
+        return permission_mask
+
+    @staticmethod
+    async def _compute_overwrites_enum(permissions: list[PERMISSION]) -> list[PERMISSION]:
+        if PERMISSION.ADMINISTRATOR in permissions:
+            return [p for p in PERMISSION]
+        return permissions
+
+    @staticmethod
+    async def _compute_overwrites_mask(permission_mask: int) -> int:
+        if PERMISSION.check_permission(permission_mask, PERMISSION.ADMINISTRATOR):
+            return (1 << len(PERMISSION)) - 1
+        return permission_mask
+
     async def _get_member(self, server_id: UUID, user_id: UUID) -> Member | None:
         member = await self.member_repo.get_by_user_in_server(server_id, user_id)
         server = await self.server_repo.get_by_id(server_id)
@@ -42,34 +64,22 @@ class AccessControlService:
                 raise NotFoundException(f"Server not found")
         return member
 
-    async def get_permissions(self, server_id: UUID, user_id: UUID) -> list[str]:
+    async def get_permissions(self, server_id: UUID, user_id: UUID) -> list[PERMISSION]:
         member = await self._get_member(server_id, user_id)
-        # TODO: for server owner get all permissions
         if member is None:
             return []
         permissions = await self.permission_repo.list_for_role(member.server_role_id)
-        permission_codes = [p.code for p in permissions]
+        permission_codes = await self._transform_permissions_to_enum(list(permissions))
+        permission_codes = await self._compute_overwrites_enum(permission_codes)
         return permission_codes
-
-    @staticmethod
-    async def _compute_base_permissions(permissions: list[Permission]) -> int:
-        permission_codes = [PERMISSION(p.code) for p in permissions]
-        permission_mask = PERMISSION.serialize_permission_codes(permission_codes)
-        return permission_mask
-
-    @staticmethod
-    async def _compute_overwrites(permission_mask: int) -> int:
-        if PERMISSION.check_permission(permission_mask, PERMISSION.ADMINISTRATOR):
-            return (1 << len(PERMISSION)) - 1
-        return permission_mask
 
     async def get_permission_mask(self, server_id: UUID, user_id: UUID) -> int:
         member = await self._get_member(server_id, user_id)
         if member is None:
             return 0
         permissions = await self.permission_repo.list_for_role(member.server_role_id)
-        permission_codes = await self._compute_base_permissions(list(permissions))
-        return await self._compute_overwrites(permission_codes)
+        permission_codes = await self._transform_permission_to_mask(list(permissions))
+        return await self._compute_overwrites_mask(permission_codes)
 
     async def get_restrictions(self, server_id: UUID, user_id: UUID) -> list[MemberRestriction]:
         member = await self._get_member(server_id, user_id)
@@ -101,7 +111,6 @@ class AccessControlService:
         if not restriction_field:
             raise NotFoundException(f"Restriction not found")
         if not PERMISSION.check_permission(permission_mask, f"restrict_{restriction_field.code}"):
-            # TODO: discuss about this dynamic permission check
             raise ForbiddenException("Unable to add restriction")
         issuer_field = await self.member_repo.get_by_id(issuer_id)
         if issuer_field is None or issuer_field.server_role is None:
