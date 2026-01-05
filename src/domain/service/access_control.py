@@ -52,7 +52,7 @@ class AccessControlService:
             return (1 << len(PERMISSION)) - 1
         return permission_mask
 
-    async def _get_member(self, server_id: UUID, user_id: UUID) -> Member | None:
+    async def get_member(self, server_id: UUID, user_id: UUID) -> Member | None:
         member = await self.member_repo.get_by_user_in_server(server_id, user_id)
         server = await self.server_repo.get_by_id(server_id)
         if server is None:
@@ -65,7 +65,7 @@ class AccessControlService:
         return member
 
     async def get_permissions(self, server_id: UUID, user_id: UUID) -> list[PERMISSION]:
-        member = await self._get_member(server_id, user_id)
+        member = await self.get_member(server_id, user_id)
         if member is None:
             return []
         permissions = await self.permission_repo.list_for_role(member.server_role_id)
@@ -74,7 +74,7 @@ class AccessControlService:
         return permission_codes
 
     async def get_permission_mask(self, server_id: UUID, user_id: UUID) -> int:
-        member = await self._get_member(server_id, user_id)
+        member = await self.get_member(server_id, user_id)
         if member is None:
             return 0
         permissions = await self.permission_repo.list_for_role(member.server_role_id)
@@ -82,14 +82,14 @@ class AccessControlService:
         return await self._compute_overwrites_mask(permission_codes)
 
     async def get_restrictions(self, server_id: UUID, user_id: UUID) -> list[MemberRestriction]:
-        member = await self._get_member(server_id, user_id)
+        member = await self.get_member(server_id, user_id)
         if member is None:
             return []
         restrictions = await self.member_restriction_repo.list_for_member(member.id)
         return list(restrictions)
 
     async def get_restriction_mask(self, server_id: UUID, user_id: UUID) -> int:
-        member = await self._get_member(server_id, user_id)
+        member = await self.get_member(server_id, user_id)
         if member is None:
             return 0
         restrictions = await self.member_restriction_repo.list_for_member(member.id)
