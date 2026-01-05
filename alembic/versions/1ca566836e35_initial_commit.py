@@ -1,8 +1,8 @@
 """initial commit
 
-Revision ID: aa1aa0e0ba40
+Revision ID: 1ca566836e35
 Revises: 
-Create Date: 2025-12-06 03:44:58.981818
+Create Date: 2026-01-05 18:39:44.687881
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'aa1aa0e0ba40'
+revision: str = '1ca566836e35'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -24,16 +24,16 @@ def upgrade() -> None:
     op.create_table('game_table',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('name', sa.String(length=128), nullable=False),
-    sa.Column('icon_url', sa.String(), nullable=False),
-    sa.Column('banner_url', sa.String(), nullable=False),
+    sa.Column('icon_id', sa.Uuid(), nullable=False),
+    sa.Column('banner_id', sa.Uuid(), nullable=False),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('name')
     )
     op.create_table('permission_table',
     sa.Column('id', sa.Uuid(), nullable=False),
-    sa.Column('code_name', sa.String(), nullable=False),
+    sa.Column('code', sa.String(), nullable=False),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('code_name')
+    sa.UniqueConstraint('code')
     )
     op.create_table('rating_set_table',
     sa.Column('id', sa.Uuid(), nullable=False),
@@ -59,7 +59,6 @@ def upgrade() -> None:
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('name', sa.String(length=128), nullable=False),
     sa.Column('role_set_id', sa.Uuid(), nullable=False),
-    sa.Column('icon_url', sa.String(), nullable=True),
     sa.Column('icon_id', sa.Uuid(), nullable=True),
     sa.Column('min_in_team', sa.Integer(), nullable=False),
     sa.Column('max_in_team', sa.Integer(), nullable=False),
@@ -69,8 +68,7 @@ def upgrade() -> None:
     )
     op.create_table('rating_table',
     sa.Column('id', sa.Uuid(), nullable=False),
-    sa.Column('icon_url', sa.String(), nullable=False),
-    sa.Column('icon_id', sa.Uuid(), nullable=False),
+    sa.Column('icon_id', sa.Uuid(), nullable=True),
     sa.Column('threshold', sa.Integer(), nullable=False),
     sa.Column('rating_set_id', sa.Uuid(), nullable=False),
     sa.ForeignKeyConstraint(['rating_set_id'], ['rating_set_table.id'], ondelete='CASCADE'),
@@ -80,9 +78,7 @@ def upgrade() -> None:
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('name', sa.String(length=128), nullable=False),
     sa.Column('description', sa.String(), nullable=False),
-    sa.Column('icon_url', sa.String(), nullable=True),
     sa.Column('icon_id', sa.Uuid(), nullable=True),
-    sa.Column('banner_url', sa.String(), nullable=True),
     sa.Column('banner_id', sa.Uuid(), nullable=True),
     sa.Column('owner_id', sa.Uuid(), nullable=False),
     sa.Column('public', sa.Boolean(), nullable=False),
@@ -115,7 +111,7 @@ def upgrade() -> None:
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('server_id', sa.Uuid(), nullable=False),
     sa.Column('user_id', sa.Uuid(), nullable=True),
-    sa.Column('name', sa.String(length=128), nullable=False),
+    sa.Column('nickname', sa.String(length=128), nullable=False),
     sa.Column('server_role_id', sa.Uuid(), nullable=True),
     sa.Column('joined_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('active', sa.Boolean(), nullable=False),
