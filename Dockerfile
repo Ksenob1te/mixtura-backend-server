@@ -1,6 +1,6 @@
 FROM python:3.13-slim
 
-WORKDIR /mixtura-auth
+WORKDIR /mixtura-server
 
 COPY pyproject.toml ./
 
