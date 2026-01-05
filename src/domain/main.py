@@ -1,8 +1,9 @@
 from contextlib import asynccontextmanager
-
+import logging
 from faststream import ContextRepo, ExceptionMiddleware, FastStream
 from faststream.rabbit import RabbitBroker, Channel
 
+from ..dependency import DatabaseSession
 import src.domain.api as api
 from src.env_config import env
 from src.infra.postgre import DatabaseSessionManager
@@ -12,11 +13,17 @@ from .exceptions import DomainException
 from .models.response import ErrorResponse, ResponseMessage
 
 exc_middleware = ExceptionMiddleware()
+logger = logging.getLogger(__name__)
 
 
 @exc_middleware.add_handler(DomainException, publish=True)
-def error_handler(exc: DomainException) -> ResponseMessage[ErrorResponse]:
-    # TODO: think about what happens with database on the exception
+async def error_handler(
+    exc: DomainException, session: DatabaseSession
+) -> ResponseMessage[ErrorResponse]:
+    try:
+        await session.rollback()
+    except Exception:
+        logger.error("Session rollback error")
     return ResponseMessage(
         status=exc.status_code, message=ErrorResponse(message=exc.message)
     )

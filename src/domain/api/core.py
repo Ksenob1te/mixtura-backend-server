@@ -80,7 +80,9 @@ async def update_server(
 async def delete_banner(
     data: ServerDeleteRequest, core_service: CoreServiceDependency
 ) -> ResponseMessage[StatusResponse]:
-    # TODO: delete banner
+    await core_service.delete_server_banner(
+        data.access_data.server_id, data.access_data.permission_mask
+    )
     return ResponseMessage(status=200, message=StatusResponse())
 
 
@@ -88,7 +90,9 @@ async def delete_banner(
 async def delete_icon(
     data: ServerDeleteRequest, core_service: CoreServiceDependency
 ) -> ResponseMessage[StatusResponse]:
-    # TODO: delete icon
+    await core_service.delete_server_icon(
+        data.access_data.server_id, data.access_data.permission_mask
+    )
     return ResponseMessage(status=200, message=StatusResponse())
 
 

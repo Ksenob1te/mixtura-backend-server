@@ -7,6 +7,8 @@ from ..request import AccessDataRequest
 class GetCustomsRequest(BaseModel):
     access_data: AccessDataRequest
 
+    target_member_id: UUID
+
 
 class CreateCustomRequest(BaseModel):
     access_data: AccessDataRequest

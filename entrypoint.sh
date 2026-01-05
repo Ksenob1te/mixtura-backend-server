@@ -1,3 +1,3 @@
 alembic upgrade head
-python -m src.infra.static
+python -m src.infra.postrge.static
 python start.py

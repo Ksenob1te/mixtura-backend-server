@@ -15,8 +15,9 @@ class GetMemberListRequest(BaseModel):
 
 
 class JoinServerRequest(BaseModel):
-    access_data: AccessDataRequest
-
+    server_id: UUID
+    user_id: UUID
+    restriction_mask: int
     nickname: str
 
 
@@ -62,6 +63,7 @@ class GetMemberRestrictionsRequest(BaseModel):
 class AddMemberRestrictionRequest(BaseModel):
     access_data: AccessDataRequest
 
+    target_member_id: UUID
     reason: str
     expiration_date: datetime
     restriction_id: UUID
@@ -70,4 +72,5 @@ class AddMemberRestrictionRequest(BaseModel):
 class RemoveMemberRestrictionRequest(BaseModel):
     access_data: AccessDataRequest
 
+    target_member_id: UUID
     member_restriction_id: UUID

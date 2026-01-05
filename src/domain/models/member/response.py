@@ -12,21 +12,23 @@ from ..roles.response import ServerRoleResponse
 #     code_name: str
 
 
-
-
 class MemberResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     name: str
     user_id: UUID | None
+    server_id: UUID
     joined_at: datetime
     server_role: ServerRoleResponse | None
+
 
 class AccessResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    member: MemberResponse
+    member: MemberResponse | None
     permission_mask: int
+    restriction_mask: int
+
 
 class RestrictionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)

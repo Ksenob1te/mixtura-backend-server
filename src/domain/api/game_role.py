@@ -99,7 +99,9 @@ async def update_role(
 async def delete_role_icon(
     data: GameRoleItemDeleteRequest, game_role_service: GameRoleServiceDependency
 ) -> ResponseMessage[StatusResponse]:
-    # TODO: delete role icon
+    await game_role_service.delete_role_icon(
+        data.role_id, data.access_data.server_id, data.access_data.permission_mask
+    )
     return ResponseMessage(status=200, message=StatusResponse())
 
 
