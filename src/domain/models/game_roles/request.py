@@ -20,7 +20,6 @@ class GameRoleItemCreateRequest(BaseModel):
 
     role_set_id: UUID
 
-    role_id: UUID
     name: str = Field(max_length=32)
     min_in_team: int
     max_in_team: int
