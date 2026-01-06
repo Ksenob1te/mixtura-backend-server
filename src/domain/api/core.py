@@ -41,7 +41,12 @@ async def create_server(
     data: ServerCreateRequest, core_service: CoreServiceDependency
 ) -> ResponseMessage[ServerDetailResponse]:
     server = await core_service.create_server(
-        data.user_id, data.name, data.description, data.public
+        data.user_id,
+        data.name,
+        data.description,
+        data.public,
+        data.rating_set_id,
+        data.role_set_id,
     )
     return ResponseMessage(
         status=200, message=ServerDetailResponse.model_validate(server)

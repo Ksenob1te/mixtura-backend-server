@@ -33,7 +33,7 @@ class AccessResponse(BaseModel):
 class RestrictionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
-    type_code: str
+    code: str
 
 
 class MemberRestrictionResponse(BaseModel):

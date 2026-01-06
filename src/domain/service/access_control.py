@@ -73,7 +73,7 @@ class AccessControlService:
         permission_codes = await self._compute_overwrites_enum(permission_codes)
         return permission_codes
 
-    async def get_permission_mask(self, server_id: UUID, user_id: UUID) -> int:
+    async def get_permission_mask(self, server_id: UUID, user_id: UUID) -> int: # TODO : Creator of server has all permissions
         member = await self.get_member(server_id, user_id)
         if member is None:
             return 0

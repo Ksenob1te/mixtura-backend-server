@@ -2,6 +2,8 @@ import logging
 from faststream.rabbit import RabbitRouter
 from pydantic import TypeAdapter
 
+from ..exceptions import NotFoundException
+
 from ...dependency import MemberCustomServiceDependency
 
 from ..models.custom.response import CustomResponse
@@ -35,6 +37,8 @@ async def get_customs_by_member(
 async def create_custom(
     data: CreateCustomRequest, custom_service: MemberCustomServiceDependency
 ) -> ResponseMessage[CustomResponse]:
+    if data.access_data.member_id is None:
+        raise NotFoundException("Member not found")
     custom = await custom_service.create_custom(
         data.access_data.member_id,
         data.access_data.server_id,
@@ -48,6 +52,8 @@ async def create_custom(
 async def delete_custom(
     data: DeleteCustomRequest, custom_service: MemberCustomServiceDependency
 ) -> ResponseMessage[StatusResponse]:
+    if data.access_data.member_id is None:
+        raise NotFoundException("Member not found")
     await custom_service.delete_custom(
         data.access_data.member_id,
         data.custom_id,
@@ -60,6 +66,8 @@ async def delete_custom(
 async def update_custom(
     data: UpdateGameRoleRatingRequest, custom_service: MemberCustomServiceDependency
 ) -> ResponseMessage[CustomResponse]:
+    if data.access_data.member_id is None:
+        raise NotFoundException("Member not found")
     custom = await custom_service.set_rating_value(
         data.access_data.member_id,
         data.access_data.server_id,

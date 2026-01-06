@@ -2,6 +2,8 @@ import logging
 from faststream.rabbit import RabbitRouter
 from pydantic import TypeAdapter
 
+from ..exceptions import NotFoundException
+
 from ...dependency import (
     AccessControlServiceDependency,
     CoreServiceDependency,
@@ -98,6 +100,8 @@ async def get_member(
 async def update_member(
     data: MemberUpdateRequest, member_service: MemberServiceDependency
 ) -> ResponseMessage[MemberResponse]:
+    if data.access_data.member_id is None:
+        raise NotFoundException("Member not found")
     member = await member_service.update_member(
         data.access_data.server_id,
         data.access_data.member_id,
@@ -114,6 +118,8 @@ async def update_member(
 async def delete_member(
     data: KickMemberRequest, member_service: MemberServiceDependency
 ) -> ResponseMessage[StatusResponse]:
+    if data.access_data.member_id is None:
+        raise NotFoundException("Member not found")
     await member_service.kick_member(
         data.access_data.server_id,
         data.access_data.member_id,
