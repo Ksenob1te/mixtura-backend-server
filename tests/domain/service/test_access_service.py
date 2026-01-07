@@ -186,6 +186,21 @@ class TestAccessControlService:
         if PERMISSION.ADMINISTRATOR in role_perms:
              assert len(perms) == len(PERMISSION)
 
+    async def test_get_permissions_owner(self, access_control_service, factory):
+        owner_id = uuid.uuid4()
+        server = await factory.create_server(owner_id=owner_id)
+
+        # Role with no permissions
+        role = await factory.create_server_role(server.id, name="Empty", position=50)
+        member = await factory.create_member(server.id, user_id=owner_id, role_id=role.id, nickname="Owner")
+
+        perms = await access_control_service.get_permissions(server.id, member.user_id)
+
+        # Owner gets all permissions regardless of role
+        assert len(perms) == len(PERMISSION)
+        assert PERMISSION.ADMINISTRATOR in perms
+        assert PERMISSION.RESTRICT_SERVER_BAN in perms
+
     async def test_get_permission_mask_admin_override(self, access_control_service, factory):
         server = await factory.create_server()
 
@@ -210,6 +225,25 @@ class TestAccessControlService:
         admin_mask = await access_control_service.get_permission_mask(server.id, admin.user_id)
         assert PERMISSION.check_permission(admin_mask, PERMISSION.RESTRICT_SERVER_BAN)
         assert PERMISSION.check_permission(admin_mask, PERMISSION.KICK_MEMBERS)
+
+    async def test_get_permission_mask_owner_override(self, access_control_service, factory):
+        owner_id = uuid.uuid4()
+        server = await factory.create_server(owner_id=owner_id)
+
+        # Role with strictly limited permissions
+        role = await factory.create_server_role(server.id, name="Limited", position=1)
+        # Assign one random permission just to ensure it's not empty by default logic but overridden
+        perm = await factory.create_permission(PERMISSION.EDIT_INVITES)
+        await access_control_service.permission_repo.assign_to_role(perm.id, role.id)
+
+        member = await factory.create_member(server.id, user_id=owner_id, role_id=role.id, nickname="Owner")
+
+        mask = await access_control_service.get_permission_mask(server.id, member.user_id)
+
+        # Should be full mask
+        assert mask == (1 << len(PERMISSION)) - 1
+        assert PERMISSION.check_permission(mask, PERMISSION.ADMINISTRATOR)
+        assert PERMISSION.check_permission(mask, PERMISSION.RESTRICT_SERVER_BAN)
 
     async def test_get_restriction_mask_success(self, access_control_service, factory):
         server = await factory.create_server()

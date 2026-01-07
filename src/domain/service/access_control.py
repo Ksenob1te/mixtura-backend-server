@@ -41,14 +41,14 @@ class AccessControlService:
         return permission_mask
 
     @staticmethod
-    async def _compute_overwrites_enum(permissions: list[PERMISSION]) -> list[PERMISSION]:
-        if PERMISSION.ADMINISTRATOR in permissions:
+    async def _compute_overwrites_enum(permissions: list[PERMISSION], is_owner: bool = False) -> list[PERMISSION]:
+        if PERMISSION.ADMINISTRATOR in permissions or is_owner:
             return [p for p in PERMISSION]
         return permissions
 
     @staticmethod
-    async def _compute_overwrites_mask(permission_mask: int) -> int:
-        if PERMISSION.check_permission(permission_mask, PERMISSION.ADMINISTRATOR):
+    async def _compute_overwrites_mask(permission_mask: int, is_owner: bool = False) -> int:
+        if PERMISSION.check_permission(permission_mask, PERMISSION.ADMINISTRATOR) or is_owner:
             return (1 << len(PERMISSION)) - 1
         return permission_mask
 
@@ -68,18 +68,26 @@ class AccessControlService:
         member = await self.get_member(server_id, user_id)
         if member is None:
             return []
+        server_field = member.server
+        if not server_field:
+            raise InternalLogicException("Server for member not found")
+        is_owner = server_field.owner_id == user_id
         permissions = await self.permission_repo.list_for_role(member.server_role_id)
         permission_codes = await self._transform_permissions_to_enum(list(permissions))
-        permission_codes = await self._compute_overwrites_enum(permission_codes)
+        permission_codes = await self._compute_overwrites_enum(permission_codes, is_owner)
         return permission_codes
 
-    async def get_permission_mask(self, server_id: UUID, user_id: UUID) -> int: # TODO : Creator of server has all permissions
+    async def get_permission_mask(self, server_id: UUID, user_id: UUID) -> int:
         member = await self.get_member(server_id, user_id)
         if member is None:
             return 0
+        server_field = member.server
+        if not server_field:
+            raise InternalLogicException("Server for member not found")
+        is_owner = server_field.owner_id == user_id
         permissions = await self.permission_repo.list_for_role(member.server_role_id)
         permission_codes = await self._transform_permission_to_mask(list(permissions))
-        return await self._compute_overwrites_mask(permission_codes)
+        return await self._compute_overwrites_mask(permission_codes, is_owner)
 
     async def get_restrictions(self, server_id: UUID, user_id: UUID) -> list[MemberRestriction]:
         member = await self.get_member(server_id, user_id)
