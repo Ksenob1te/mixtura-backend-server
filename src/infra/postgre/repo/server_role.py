@@ -1,6 +1,6 @@
 from uuid import UUID
 from typing import Sequence
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..models import ServerRole
 from sqlalchemy.exc import IntegrityError
@@ -22,6 +22,14 @@ class ServerRoleRepository:
         return res.all()
 
     async def create(self, server_id: UUID, name: str, position: int) -> ServerRole:
+        stmt = (
+            update(ServerRole)
+            .where(ServerRole.server_id == server_id)
+            .where(ServerRole.position >= position)
+            .values(position=ServerRole.position + 1)
+        )
+        await self.session.execute(stmt)
+
         role = ServerRole(server_id=server_id, name=name, position=position)
         try:
             self.session.add(role)

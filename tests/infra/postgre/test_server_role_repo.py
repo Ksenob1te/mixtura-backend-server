@@ -17,6 +17,28 @@ class TestServerRoleRepository:
         assert by_id is not None and by_id.id == r.id
         assert await repo.get_by_id(uuid.uuid4()) is None
 
+    async def test_create_shifts_positions(self, async_session, factory):
+        repo = ServerRoleRepository(async_session)
+        s = await factory.create_server()
+
+        # Create roles at specific positions
+        r1 = await repo.create(s.id, "R1", 1)  # R1 at 1
+        r2 = await repo.create(s.id, "R2", 2)  # R2 at 2 (1 < 2, so R1 stays)
+
+        assert r1.position == 1
+        assert r2.position == 2
+
+        # Insert R_Mid at position 2. Should shift R2 to 3. R1 stays at 1.
+        r_mid = await repo.create(s.id, "R_Mid", 2)
+        assert r_mid.position == 2
+
+        # Verify shifts
+        r1_fresh = await repo.get_by_id(r1.id)
+        r2_fresh = await repo.get_by_id(r2.id)
+
+        assert r1_fresh and r1_fresh.position == 1
+        assert r2_fresh and r2_fresh.position == 3
+
     async def test_create_server_role_unreal_server(self, async_session):
         repo = ServerRoleRepository(async_session)
         unreal_server_id = uuid.uuid4()
@@ -37,6 +59,7 @@ class TestServerRoleRepository:
         r1 = await repo.create(s.id, "R1", 1)
         r2 = await repo.create(s.id, "R2", 2)
         listed = await repo.list_for_server(s.id)
+        # Order implies positions: R1(1), R2(2), R3(5 due to shifts)
         assert [r.name for r in listed] == ["R1", "R2", "R3"]
 
     async def test_set_name_and_position(self, async_session, factory):
@@ -68,4 +91,3 @@ class TestServerRoleRepository:
         s = await factory.create_server()
         listed = await repo.list_for_server(s.id)
         assert listed == []
-
