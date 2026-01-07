@@ -256,6 +256,39 @@ class TestMemberService:
         reloaded = await member_service.member_repo.get_by_id(member.id)
         assert reloaded is not None and reloaded.active is False
 
+    async def test_kick_member_forbidden_hierarchy(self, member_service, factory, helpers):
+        server = await factory.create_server()
+
+        # Rank 10 is higher than Rank 5
+        issuer_role = await factory.create_server_role(server.id, position=5, name="LowRole")
+        target_role = await factory.create_server_role(server.id, position=10, name="HighRole")
+
+        issuer = await factory.create_member(server.id, role_id=issuer_role.id, nickname="LowRank")
+        target = await factory.create_member(server.id, role_id=target_role.id, nickname="HighRank")
+
+        with pytest.raises(ForbiddenException):
+            await member_service.kick_member(
+                issuer.id,
+                server.id,
+                target.id,
+                permission_mask=helpers.perm_mask(PERMISSION.KICK_MEMBERS)
+            )
+
+    async def test_kick_member_forbidden_owner(self, member_service, factory, helpers):
+        owner_id = uuid.uuid4()
+        server = await factory.create_server(owner_id=owner_id)
+
+        issuer = await factory.create_member(server.id, nickname="Kicker")
+        owner_member = await factory.create_member(server.id, user_id=owner_id, nickname="Owner")
+
+        with pytest.raises(ForbiddenException):
+            await member_service.kick_member(
+                issuer.id,
+                server.id,
+                owner_member.id,
+                permission_mask=helpers.perm_mask(PERMISSION.KICK_MEMBERS)
+            )
+
     async def test_migrate_member_forbidden(self, member_service, factory, helpers):
         server = await factory.create_server()
         current = await factory.create_member(server.id, nickname="Current")

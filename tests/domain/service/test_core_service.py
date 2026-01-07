@@ -101,6 +101,7 @@ class TestCoreService:
         with pytest.raises(NotFoundException):
             await core_service.create_server(
                 owner_id=uuid.uuid4(),
+                username="Owner",
                 name="NewServer",
                 description="Desc",
                 public=True,
@@ -114,6 +115,7 @@ class TestCoreService:
         with pytest.raises(NotFoundException):
             await core_service.create_server(
                 owner_id=uuid.uuid4(),
+                username="Owner",
                 name="NewServer",
                 description="Desc",
                 public=True,
@@ -131,6 +133,7 @@ class TestCoreService:
         with pytest.raises(NotFoundException):
             await core_service.create_server(
                 owner_id=owner_id,
+                username="Owner",
                 name="BadRole",
                 description="Desc",
                 public=True,
@@ -141,6 +144,7 @@ class TestCoreService:
         with pytest.raises(NotFoundException):
             await core_service.create_server(
                 owner_id=owner_id,
+                username="Owner",
                 name="BadRating",
                 description="Desc",
                 public=True,
@@ -155,6 +159,7 @@ class TestCoreService:
 
         server = await core_service.create_server(
             owner_id=owner_id,
+            username="OwnerNickname",
             name="ServerName",
             description="Desc",
             public=True,
@@ -164,6 +169,10 @@ class TestCoreService:
         assert server is not None
         assert server.name == "ServerName"
         assert server.owner_id == owner_id
+
+        member = await core_service.member_repo.get_by_user_in_server(server.id, owner_id)
+        assert member is not None
+        assert member.nickname == "OwnerNickname"
 
         assert server.role_set_id != global_role_set.id
         assert server.rating_set_id != global_rating_set.id

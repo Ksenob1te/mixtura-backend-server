@@ -122,10 +122,23 @@ class MemberService:
     async def kick_member(self, issuer_id: UUID, server_id: UUID, member_id: UUID, permission_mask: int) -> None:
         if not PERMISSION.check_permission(permission_mask, PERMISSION.KICK_MEMBERS) or issuer_id == member_id:
             raise ForbiddenException("Unable to kick member")
-        member = await self.member_repo.get_by_id(member_id)
-        if not member or member.server_id != server_id:
+        member_field = await self.member_repo.get_by_id(member_id)
+        issuer_field = await self.member_repo.get_by_id(issuer_id)
+        if not member_field or not issuer_field or member_field.server_id != server_id:
             raise NotFoundException("Member not found")
-        await self.member_repo.deactivate(member)
+        server_field = issuer_field.server
+        if server_field is None:
+            raise InternalLogicException("Member's server not found")
+        if (
+                server_field.owner_id == member_field.user_id or
+                member_field.server_role and
+                (
+                        not issuer_field.server_role or
+                        member_field.server_role.position >= issuer_field.server_role.position
+                )
+        ):
+            raise ForbiddenException("Unable to kick member")
+        await self.member_repo.deactivate(member_field)
 
     async def migrate_member(
             self,

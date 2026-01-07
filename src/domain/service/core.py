@@ -81,6 +81,7 @@ class CoreService:
 
     async def create_server(
             self, owner_id: UUID,
+            username: str,
             name: str,
             description: str,
             public: bool,
@@ -115,6 +116,18 @@ class CoreService:
         except IntegrityForeignException as exc:
             raise NotFoundException(exc.message)
         except (IntegrityUniqueException, IntegrityUnknownException) as exc:
+            raise InternalLogicException(exc.message)
+
+        try:
+            member_field = await self.member_repo.create(
+                server_id=server.id,
+                user_id=owner_id,
+                nickname=username,
+                server_role_id=None
+            )
+        except IntegrityForeignException as exc:
+            raise NotFoundException(exc.message)
+        except (IntegrityUnknownException, IntegrityUniqueException) as exc:
             raise InternalLogicException(exc.message)
 
         # server.server_games = links
