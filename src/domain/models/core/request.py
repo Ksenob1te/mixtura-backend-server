@@ -18,6 +18,7 @@ class ServerDeleteRequest(BaseModel):
 
 class ServerCreateRequest(BaseModel):
     user_id: UUID
+    user_name: str
 
     name: str = Field(..., max_length=128)
     description: str = Field(default="")

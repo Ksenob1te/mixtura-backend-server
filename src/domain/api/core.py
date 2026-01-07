@@ -42,6 +42,7 @@ async def create_server(
 ) -> ResponseMessage[ServerDetailResponse]:
     server = await core_service.create_server(
         data.user_id,
+        data.user_name,
         data.name,
         data.description,
         data.public,

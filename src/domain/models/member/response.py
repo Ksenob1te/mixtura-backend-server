@@ -15,7 +15,8 @@ from ..roles.response import ServerRoleResponse
 class MemberResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    name: str
+    id: UUID
+    nickname: str
     user_id: UUID | None
     server_id: UUID
     joined_at: datetime

@@ -3,6 +3,9 @@ from pydantic import BaseModel
 
 from ..request import AccessDataRequest
 
+class GetUserRestrictionRequest(BaseModel):
+    user_id: UUID
+    server_id: UUID
 
 class GetInviteByKeyRequest(BaseModel):
     key: str
@@ -17,8 +20,6 @@ class UseInviteRequest(BaseModel):
 class GetInviteListRequest(BaseModel):
     access_data: AccessDataRequest
     
-    server_id: UUID
-
 class InviteCreateRequest(BaseModel):
     access_data: AccessDataRequest
 
