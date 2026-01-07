@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from src.domain.exceptions import NotFoundException, InternalLogicException, ForbiddenException
+from src.domain.exceptions import NotFoundException, InternalLogicException, ForbiddenException, BadRequestException
 from src.infra.postgre.models import Custom
 from src.infra.postgre.repo import (
     CustomRepository,
@@ -9,7 +9,11 @@ from src.infra.postgre.repo import (
     GameRoleRepository,
 )
 from src.infra.postgre.static import PERMISSION
-from src.infra.postgre import IntegrityUniqueException, IntegrityForeignException, IntegrityUnknownException
+from src.infra.postgre import (
+    IntegrityUniqueException,
+    IntegrityForeignException,
+    IntegrityUnknownException
+)
 
 
 class MemberCustomService:
@@ -81,7 +85,14 @@ class MemberCustomService:
                 not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_ALL_CUSTOMS)
         ):
             raise ForbiddenException("Unable to change custom rating")
-
+        server_field = custom.member.server
+        if server_field is None:
+            raise InternalLogicException("Server for member not found")
+        rating_set_field = server_field.rating_set
+        if rating_set_field is None:
+            raise InternalLogicException("Rating set for server not found")
+        if rating_set_field.min_rating > rating or rating > rating_set_field.max_rating:
+            raise BadRequestException("Rating value is out of bounds")
         custom_rating_field = await self.custom_rating_repo.get_by_custom_role(custom_id, game_role_id)
         if custom_rating_field is None:
             try:

@@ -3,7 +3,7 @@ import pytest
 import pytest_asyncio
 
 from src.domain.service import MemberCustomService
-from src.domain.exceptions import NotFoundException, ForbiddenException
+from src.domain.exceptions import NotFoundException, ForbiddenException, BadRequestException
 from src.infra.postgre.repo import (
     CustomRepository,
     CustomRatingRepository,
@@ -269,5 +269,41 @@ class TestMemberCustomService:
                 custom_id=created.id,
                 game_role_id=role.id,
                 rating=10,
+                permission_mask=helpers.perm_mask(),
+            )
+
+    async def test_set_rating_out_of_bounds(self, member_custom_service, factory, helpers):
+        server = await factory.create_server()
+        member = await factory.create_member(server.id)
+        created = await member_custom_service.create_custom(
+            issuer_id=member.id, server_id=server.id, member_id=member.id,
+            permission_mask=helpers.perm_mask(PERMISSION.CREATE_CUSTOM),
+        )
+        role = await factory.create_game_role(server.role_set_id)
+
+        # Get bounds from server's rating set
+        rs = server.rating_set
+        min_rating = rs.min_rating
+        max_rating = rs.max_rating
+
+        # Test value below minimum
+        with pytest.raises(BadRequestException, match="Rating value is out of bounds"):
+            await member_custom_service.set_rating_value(
+                issuer_id=member.id,
+                server_id=server.id,
+                custom_id=created.id,
+                game_role_id=role.id,
+                rating=min_rating - 1,
+                permission_mask=helpers.perm_mask(),
+            )
+
+        # Test value above maximum
+        with pytest.raises(BadRequestException, match="Rating value is out of bounds"):
+            await member_custom_service.set_rating_value(
+                issuer_id=member.id,
+                server_id=server.id,
+                custom_id=created.id,
+                game_role_id=role.id,
+                rating=max_rating + 1,
                 permission_mask=helpers.perm_mask(),
             )

@@ -51,3 +51,11 @@ class ForbiddenException(DomainException):
             status_code=403,
             message=message
         )
+
+
+class BadRequestException(DomainException):
+    def __init__(self, message: str):
+        super().__init__(
+            status_code=400,
+            message=message
+        )
