@@ -12,4 +12,4 @@ COPY . .
 
 ENV PYTHONUNBUFFERED=1
 
-CMD ["sh", "-c", "entrypoint.sh"]
+CMD ["sh", "entrypoint.sh"]
