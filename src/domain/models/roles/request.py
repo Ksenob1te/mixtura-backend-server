@@ -2,6 +2,8 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+from .response import PermissionResponse
+
 from ..request import AccessDataRequest
 
 
@@ -14,7 +16,6 @@ class CreateServerRoleRequest(BaseModel):
 
     name: str
     position: int
-    permission_mask: int
 
 
 class UpdateServerRoleRequest(BaseModel):
@@ -24,7 +25,7 @@ class UpdateServerRoleRequest(BaseModel):
 
     name: str | None
     position: int | None
-    target_permissions_ids: list[UUID]
+
 
 class UpdateServerRolePermissionsRequest(BaseModel):
     access_data: AccessDataRequest

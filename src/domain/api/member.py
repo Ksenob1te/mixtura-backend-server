@@ -121,8 +121,8 @@ async def delete_member(
     if data.access_data.member_id is None:
         raise NotFoundException("Member not found")
     await member_service.kick_member(
-        data.access_data.server_id,
         data.access_data.member_id,
+        data.access_data.server_id,
         data.target_member_id,
         data.access_data.permission_mask,
     )

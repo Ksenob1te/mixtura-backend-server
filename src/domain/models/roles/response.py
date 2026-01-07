@@ -11,6 +11,7 @@ class PermissionResponse(BaseModel):
 class ServerRoleResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
+    id: UUID
     name: str
     position: int
-    permission_mask: int
+    permissions_list: list[PermissionResponse]

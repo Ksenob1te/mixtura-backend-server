@@ -31,7 +31,7 @@ async def get_global_permissions(
 async def list_roles(
     data: ListServerRolesRequest, role_service: RoleServiceDependency
 ) -> ResponseMessage[list[ServerRoleResponse]]:
-    roles = role_service.list_roles(data.access_data.server_id)
+    roles = await role_service.list_roles(data.access_data.server_id)
     ta = TypeAdapter(list[ServerRoleResponse])
     return ResponseMessage(status=200, message=ta.validate_python(roles))
 
@@ -40,7 +40,7 @@ async def list_roles(
 async def create_role(
     data: CreateServerRoleRequest, role_service: RoleServiceDependency
 ) -> ResponseMessage[ServerRoleResponse]:
-    role = role_service.create_role(
+    role = await role_service.create_role(
         data.access_data.server_id,
         data.name,
         data.position,
