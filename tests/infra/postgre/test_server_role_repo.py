@@ -76,6 +76,42 @@ class TestServerRoleRepository:
         r = await repo.set_position(r, 7)
         assert r.position == 7
 
+    async def test_set_position_shifts_others(self, async_session, factory):
+        repo = ServerRoleRepository(async_session)
+        s = await factory.create_server()
+
+        # Initial: R1(1), R2(2), R3(3)
+        r1 = await repo.create(s.id, "R1", 1)
+        r2 = await repo.create(s.id, "R2", 2)
+        r3 = await repo.create(s.id, "R3", 3)
+
+        # Move R1 from 1 to 3.
+        # Logic: R1 moves down (idx increases). Roles between (1, 3] should shift -1.
+        # R2(2) -> 1, R3(3) -> 2. R1 -> 3.
+        await repo.set_position(r1, 3)
+
+        # Expire session to ensure we fetch fresh data from DB after raw SQL updates
+        # async_session.refresh(r1)
+        async_session.refresh(r2)
+        async_session.refresh(r3)
+
+        assert r1 and r1.position == 3
+        assert r2 and r2.position == 1
+        assert r3 and r3.position == 2
+
+        # Move R1 from 3 back to 1.
+        # Logic: R1 moves up (idx decreases). Roles between [1, 3) should shift +1.
+        # R2(1) -> 2, R3(2) -> 3. R1 -> 1.
+        await repo.set_position(r1, 1)
+
+        # async_session.refresh(r1)
+        async_session.refresh(r2)
+        async_session.refresh(r3)
+
+        assert r1 and r1.position == 1
+        assert r2 and r2.position == 2
+        assert r3 and r3.position == 3
+
     async def test_delete_server_role(self, async_session, factory):
         repo = ServerRoleRepository(async_session)
         s = await factory.create_server()

@@ -55,10 +55,29 @@ class ServerRoleRepository:
         await self.session.flush()
         return role
 
-    async def set_position(self, role: ServerRole, position: int) -> ServerRole:
-        if position < 0:
-            position = 0
-        role.position = position
+    async def set_position(self, role: ServerRole, new_position: int) -> ServerRole:
+        if new_position < 0:
+            new_position = 0
+        old_position = role.position
+
+        if new_position > old_position:
+            stmt = (
+                update(ServerRole)
+                .where(ServerRole.server_id == role.server_id)
+                .where(ServerRole.position > old_position)
+                .where(ServerRole.position <= new_position)
+                .values(position=ServerRole.position - 1)
+            )
+        else:
+            stmt = (
+                update(ServerRole)
+                .where(ServerRole.server_id == role.server_id)
+                .where(ServerRole.position >= new_position)
+                .where(ServerRole.position < old_position)
+                .values(position=ServerRole.position + 1)
+            )
+        await self.session.execute(stmt)
+        role.position = new_position
         await self.session.flush()
         return role
 
