@@ -12,12 +12,17 @@ from ..roles.response import ServerRoleResponse
 #     code_name: str
 
 
-class MemberResponse(BaseModel):
+class ReducedMemberResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
     nickname: str
     user_id: UUID | None
+
+
+class MemberResponse(ReducedMemberResponse):
+    model_config = ConfigDict(from_attributes=True)
+
     server_id: UUID
     joined_at: datetime
     server_role: ServerRoleResponse | None
