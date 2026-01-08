@@ -77,8 +77,8 @@ class Server(Base):
     role_set_id: Mapped[UUID] = mapped_column(ForeignKey('role_set_table.id', ondelete='RESTRICT'))
     rating_set_id: Mapped[UUID] = mapped_column(ForeignKey('rating_set_table.id', ondelete='RESTRICT'))
 
-    role_set: Mapped['GameRoleSet'] = relationship(uselist=False, lazy="selectin")
-    rating_set: Mapped['RatingSet'] = relationship(uselist=False, lazy="selectin")
+    role_set: Mapped['GameRoleSet'] = relationship(uselist=False, lazy="selectin", cascade="all, delete")
+    rating_set: Mapped['RatingSet'] = relationship(uselist=False, lazy="selectin", cascade="all, delete")
     members: Mapped[list['Member']] = relationship(back_populates='server', cascade='all, delete-orphan',
                                                    lazy="selectin")
     server_games: Mapped[list['ServerGame']] = relationship(back_populates='server', cascade='all, delete-orphan',

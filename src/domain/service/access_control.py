@@ -90,7 +90,10 @@ class AccessControlService:
         return await self._compute_overwrites_mask(permission_codes, is_owner)
 
     async def get_restrictions(self, server_id: UUID, user_id: UUID) -> list[MemberRestriction]:
-        member = await self.get_member(server_id, user_id)
+        try:
+            member = await self.get_member(server_id, user_id)
+        except NotFoundException:
+            return []
         if member is None:
             return []
         restrictions = await self.member_restriction_repo.list_for_member(member.id)
