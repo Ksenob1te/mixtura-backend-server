@@ -24,8 +24,8 @@ class GameRoleSetRepository:
         res = await self.session.scalars(stmt)
         return res.all()
 
-    async def create(self, name: str, is_global: bool = False) -> GameRoleSet:
-        role_set_field = GameRoleSet(name=name, is_global=is_global)
+    async def create(self, name: str, is_global: bool = False, server_id: UUID | None = None) -> GameRoleSet:
+        role_set_field = GameRoleSet(name=name, is_global=is_global, server_id=server_id)
         try:
             self.session.add(role_set_field)
             await self.session.flush()
@@ -52,5 +52,5 @@ class GameRoleSetRepository:
         await self.session.flush()
         return bool(res.rowcount)  # type: ignore
 
-    async def copy_global(self, global_role_set: GameRoleSet) -> GameRoleSet:
-        return await self.create(name=global_role_set.name, is_global=False)
+    async def copy_global(self, global_role_set: GameRoleSet, server_id: UUID | None = None) -> GameRoleSet:
+        return await self.create(name=global_role_set.name, is_global=False, server_id=server_id)

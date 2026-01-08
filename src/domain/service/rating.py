@@ -32,7 +32,7 @@ class RatingService:
 
     async def _check_rating_set(self, server_id: UUID, rating_set_id: UUID) -> RatingSet:
         server_field = await self.server_repo.get_by_id(server_id)
-        if not server_field or server_field.rating_set_id != rating_set_id:
+        if not server_field or not server_field.rating_set or server_field.rating_set.id != rating_set_id:
             raise NotFoundException("Rating set not found for server")
         return server_field.rating_set
 
@@ -91,7 +91,7 @@ class RatingService:
         if not rating_field:
             raise NotFoundException("Rating not found")
         server_field = await self.server_repo.get_by_id(server_id)
-        if not server_field or server_field.rating_set_id != rating_field.rating_set_id:
+        if not server_field or not server_field.rating_set or server_field.rating_set.id != rating_field.rating_set_id:
             raise NotFoundException("Rating not found for server")
         return rating_field
 

@@ -1,6 +1,7 @@
 import uuid
 import pytest
 import pytest_asyncio
+from sqlalchemy.ext.asyncio import async_session
 
 from src.domain.service.core import CoreService
 from src.domain.exceptions import NotFoundException, ForbiddenException
@@ -174,11 +175,11 @@ class TestCoreService:
         assert member is not None
         assert member.nickname == "OwnerNickname"
 
-        assert server.role_set_id != global_role_set.id
-        assert server.rating_set_id != global_rating_set.id
+        assert server.role_set != global_role_set
+        assert server.rating_set != global_rating_set
 
-        new_role_set = await core_service.game_role_set_repo.get_by_id(server.role_set_id)
-        new_rating_set = await core_service.rating_set_repo.get_by_id(server.rating_set_id)
+        new_role_set = await core_service.game_role_set_repo.get_by_id(server.role_set.id)
+        new_rating_set = await core_service.rating_set_repo.get_by_id(server.rating_set.id)
 
         assert new_role_set is not None
         assert new_role_set.is_global is False
@@ -285,3 +286,36 @@ class TestCoreService:
                 uuid.uuid4(),
                 permission_mask=helpers.perm_mask(PERMISSION.EDIT_SERVER_ICON)
             )
+
+    async def test_delete_server_cascades_to_sets(self, core_service, factory, helpers):
+        owner_id = uuid.uuid4()
+        global_role_set = await factory.create_role_set(is_global=True)
+        global_rating_set = await factory.create_rating_set(is_global=True)
+
+        server = await core_service.create_server(
+            owner_id=owner_id,
+            username="Owner",
+            name="ToDelete",
+            description="Desc",
+            public=True,
+            role_set_id=global_role_set.id,
+            rating_set_id=global_rating_set.id
+        )
+
+        role_set_id = server.role_set.id
+        rating_set_id = server.rating_set.id
+
+        # Verify existence before delete
+        assert await core_service.game_role_set_repo.get_by_id(role_set_id) is not None
+        assert await core_service.rating_set_repo.get_by_id(rating_set_id) is not None
+
+        await core_service.delete_server(
+            server.id,
+            permission_mask=helpers.perm_mask(PERMISSION.DELETE_SERVER)
+        )
+        # Verify server is gone
+        assert await core_service.server_repo.get_by_id(server.id) is None
+
+        # Verify sets are gone
+        assert await core_service.game_role_set_repo.get_by_id(role_set_id) is None
+        assert await core_service.rating_set_repo.get_by_id(rating_set_id) is None

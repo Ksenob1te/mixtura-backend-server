@@ -65,15 +65,15 @@ class CoreService:
         servers = await self.server_repo.list_by_owner(user_id)
         return list(servers)
 
-    async def _copy_role_set(self, global_role_set: GameRoleSet) -> GameRoleSet:
-        new_role_set = await self.game_role_set_repo.copy_global(global_role_set)
+    async def _copy_role_set(self, global_role_set: GameRoleSet, server_id: UUID) -> GameRoleSet:
+        new_role_set = await self.game_role_set_repo.copy_global(global_role_set, server_id=server_id)
         for role_field in global_role_set.game_roles:
             new_role_field = await self.game_role_repo.copy_role(role_field, new_role_set.id)
             new_role_set.game_roles.append(new_role_field)
         return new_role_set
 
-    async def _copy_rating_set(self, global_rating_set: RatingSet) -> RatingSet:
-        new_rating_set = await self.rating_set_repo.copy_global(global_rating_set)
+    async def _copy_rating_set(self, global_rating_set: RatingSet, server_id: UUID) -> RatingSet:
+        new_rating_set = await self.rating_set_repo.copy_global(global_rating_set, server_id=server_id)
         for rating_field in global_rating_set.ratings:
             new_rating_field = await self.rating_repo.copy_rating(rating_field, new_rating_set.id)
             new_rating_set.ratings.append(new_rating_field)
@@ -100,15 +100,10 @@ class CoreService:
         if not global_rating_set or not global_rating_set.is_global:
             raise NotFoundException("Rating set not found")
 
-        rating_set = await self._copy_rating_set(global_rating_set)
-        role_set = await self._copy_role_set(global_role_set)
-
         try:
             server = await self.server_repo.create(
                 name=name,
                 owner_id=owner_id,
-                role_set_id=role_set.id,
-                rating_set_id=rating_set.id,
                 public=public,
                 description=description,
             )
@@ -117,6 +112,12 @@ class CoreService:
             raise NotFoundException(exc.message)
         except (IntegrityUniqueException, IntegrityUnknownException) as exc:
             raise InternalLogicException(exc.message)
+
+        rating_set = await self._copy_rating_set(global_rating_set, server.id)
+        role_set = await self._copy_role_set(global_role_set, server.id)
+
+        server.rating_set = rating_set
+        server.role_set = role_set
 
         try:
             member_field = await self.member_repo.create(

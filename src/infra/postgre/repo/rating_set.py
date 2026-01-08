@@ -24,10 +24,12 @@ class RatingSetRepository:
         res = await self.session.scalars(stmt)
         return res.all()
 
-    async def create(self, name: str, min_rating: int, max_rating: int, is_global: bool = False) -> RatingSet:
+    async def create(self, name: str, min_rating: int, max_rating: int, is_global: bool = False,
+                     server_id: UUID | None = None) -> RatingSet:
         if min_rating > max_rating:
             min_rating = max_rating
-        rating_set_field = RatingSet(name=name, min_rating=min_rating, max_rating=max_rating, is_global=is_global)
+        rating_set_field = RatingSet(name=name, min_rating=min_rating, max_rating=max_rating, is_global=is_global,
+                                     server_id=server_id)
         try:
             self.session.add(rating_set_field)
             await self.session.flush()
@@ -68,10 +70,11 @@ class RatingSetRepository:
         await self.session.flush()
         return bool(res.rowcount)  # type: ignore
 
-    async def copy_global(self, global_rating_set: RatingSet) -> RatingSet:
+    async def copy_global(self, global_rating_set: RatingSet, server_id: UUID | None = None) -> RatingSet:
         return await self.create(
             name=global_rating_set.name,
             min_rating=global_rating_set.min_rating,
             max_rating=global_rating_set.max_rating,
-            is_global=False
+            is_global=False,
+            server_id=server_id
         )

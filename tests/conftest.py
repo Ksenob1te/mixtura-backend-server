@@ -72,38 +72,46 @@ class ServiceFactory:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def create_role_set(self, name: str = "RS", is_global: bool = False) -> GameRoleSet:
+    async def create_role_set(self, name: str = "RS", is_global: bool = False,
+                              server_id: uuid.UUID | None = None) -> GameRoleSet:
         uid = uuid.uuid4().hex[:8]
-        rs = GameRoleSet(name=f"{name}-{uid}", is_global=is_global)
+        rs = GameRoleSet(name=f"{name}-{uid}", is_global=is_global, server_id=server_id)
         self.session.add(rs)
         await self.session.flush()
         return rs
 
-    async def create_rating_set(self, name: str = "RT", is_global: bool = False) -> RatingSet:
+    async def create_rating_set(self, name: str = "RT", is_global: bool = False,
+                                server_id: uuid.UUID | None = None) -> RatingSet:
         uid = uuid.uuid4().hex[:8]
-        rts = RatingSet(name=f"{name}-{uid}", min_rating=0, max_rating=50, is_global=is_global)
+        rts = RatingSet(name=f"{name}-{uid}", min_rating=0, max_rating=50, is_global=is_global, server_id=server_id)
         self.session.add(rts)
         await self.session.flush()
         return rts
 
     async def create_server(self, public: bool = False, owner_id: uuid.UUID | None = None,
                             role_set: GameRoleSet | None = None, rating_set: RatingSet | None = None) -> Server:
-        if not role_set:
-            role_set = await self.create_role_set()
-        if not rating_set:
-            rating_set = await self.create_rating_set()
 
         uid = uuid.uuid4().hex[:8]
         s = Server(
             id=uuid.uuid4(),
             name=f"Server-{uid}",
             owner_id=owner_id or uuid.uuid4(),
-            public=public,
-            role_set_id=role_set.id,
-            rating_set_id=rating_set.id
+            public=public
         )
         self.session.add(s)
+        if role_set:
+            s.role_set = role_set
+        if rating_set:
+            s.rating_set = rating_set
         await self.session.flush()
+
+        if not role_set:
+            role_set = await self.create_role_set(server_id=s.id)
+            s.role_set = role_set
+        if not rating_set:
+            rating_set = await self.create_rating_set(server_id=s.id)
+            s.rating_set = rating_set
+
         return s
 
     async def create_member(self, server_id: uuid.UUID, user_id: uuid.UUID | int | None = 0,

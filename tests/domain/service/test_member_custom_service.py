@@ -140,7 +140,8 @@ class TestMemberCustomService:
         with pytest.raises(ForbiddenException):
             await member_custom_service.delete_custom(server.id, created.id, permission_mask=helpers.perm_mask())
 
-        await member_custom_service.delete_custom(server.id, created.id, permission_mask=helpers.perm_mask(PERMISSION.DELETE_CUSTOM))
+        await member_custom_service.delete_custom(server.id, created.id,
+                                                  permission_mask=helpers.perm_mask(PERMISSION.DELETE_CUSTOM))
 
         with pytest.raises(NotFoundException):
             await member_custom_service.get_custom(server.id, created.id)
@@ -148,7 +149,8 @@ class TestMemberCustomService:
     async def test_delete_not_existent_custom(self, member_custom_service, factory, helpers):
         server = await factory.create_server()
         with pytest.raises(NotFoundException):
-            await member_custom_service.delete_custom(server.id, uuid.uuid4(), permission_mask=helpers.perm_mask(PERMISSION.DELETE_CUSTOM))
+            await member_custom_service.delete_custom(server.id, uuid.uuid4(),
+                                                      permission_mask=helpers.perm_mask(PERMISSION.DELETE_CUSTOM))
 
     async def test_delete_custom_wrong_server(self, member_custom_service, factory, helpers):
         server1 = await factory.create_server()
@@ -173,7 +175,7 @@ class TestMemberCustomService:
             permission_mask=helpers.perm_mask(PERMISSION.CREATE_CUSTOM),
         )
 
-        role = await factory.create_game_role(server.role_set_id)
+        role = await factory.create_game_role(server.role_set.id)
 
         # Creator can change rating without extra permission
         updated = await member_custom_service.set_rating_value(
@@ -197,7 +199,8 @@ class TestMemberCustomService:
         )
         assert any(cr.game_role_id == role.id and cr.rating == 15 for cr in updated2.custom_ratings)
 
-    async def test_set_rating_forbidden_for_non_creator_without_permission(self, member_custom_service, factory, helpers):
+    async def test_set_rating_forbidden_for_non_creator_without_permission(self, member_custom_service, factory,
+                                                                           helpers):
         server = await factory.create_server()
         member = await factory.create_member(server.id)
         other_member = await factory.create_member(server.id)
@@ -206,7 +209,7 @@ class TestMemberCustomService:
             issuer_id=member.id, server_id=server.id, member_id=member.id,
             permission_mask=helpers.perm_mask(PERMISSION.CREATE_CUSTOM),
         )
-        role = await factory.create_game_role(server.role_set_id)
+        role = await factory.create_game_role(server.role_set.id)
 
         with pytest.raises(ForbiddenException):
             await member_custom_service.set_rating_value(
@@ -227,7 +230,7 @@ class TestMemberCustomService:
             issuer_id=member.id, server_id=server.id, member_id=member.id,
             permission_mask=helpers.perm_mask(PERMISSION.CREATE_CUSTOM),
         )
-        role = await factory.create_game_role(server.role_set_id)
+        role = await factory.create_game_role(server.role_set.id)
 
         updated = await member_custom_service.set_rating_value(
             issuer_id=other_member.id,
@@ -260,7 +263,7 @@ class TestMemberCustomService:
             issuer_id=member.id, server_id=server1.id, member_id=member.id,
             permission_mask=helpers.perm_mask(PERMISSION.CREATE_CUSTOM),
         )
-        role = await factory.create_game_role(server1.role_set_id)
+        role = await factory.create_game_role(server1.role_set.id)
 
         with pytest.raises(NotFoundException):
             await member_custom_service.set_rating_value(
@@ -279,7 +282,7 @@ class TestMemberCustomService:
             issuer_id=member.id, server_id=server.id, member_id=member.id,
             permission_mask=helpers.perm_mask(PERMISSION.CREATE_CUSTOM),
         )
-        role = await factory.create_game_role(server.role_set_id)
+        role = await factory.create_game_role(server.role_set.id)
 
         # Get bounds from server's rating set
         rs = server.rating_set

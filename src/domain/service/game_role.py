@@ -38,7 +38,7 @@ class GameRoleService:
             raise NotFoundException("Server not found")
         role_set_field = server_field.role_set
 
-        if server_field.role_set_id != role_set_id or role_set_field is None:
+        if role_set_field is None or role_set_field.id != role_set_id:
             raise NotFoundException("Role set not found for server")
         if name is not None and name != role_set_field.name:
             role_set_field = await self.role_set_repo.set_name(role_set_field, name)
@@ -61,7 +61,7 @@ class GameRoleService:
         if server_field is None:
             raise NotFoundException("Server not found")
         role_set_field = server_field.role_set
-        if server_field.role_set_id != role_set_id or not role_set_field:
+        if role_set_field is None or role_set_field.id != role_set_id:
             raise NotFoundException("Role set not found for server")
         try:
             role = await self.role_repo.create(
@@ -83,7 +83,7 @@ class GameRoleService:
         role_field = await self.role_repo.get_by_id(role_id)
         if server_field is None:
             raise NotFoundException("Server not found for server")
-        if not role_field or server_field.role_set_id != role_field.role_set_id:
+        if not role_field or not server_field.role_set or server_field.role_set.id != role_field.role_set_id:
             raise NotFoundException("Role not found for server")
         return role_field
 

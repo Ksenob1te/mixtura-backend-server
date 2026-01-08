@@ -31,8 +31,6 @@ class ServerRepository:
         self,
         name: str,
         owner_id: UUID,
-        role_set_id: UUID,
-        rating_set_id: UUID,
         public: bool = False,
         description: str = "",
         icon_id: UUID | None = None,
@@ -41,8 +39,6 @@ class ServerRepository:
         server = Server(
             name=name,
             owner_id=owner_id,
-            role_set_id=role_set_id,
-            rating_set_id=rating_set_id,
             public=public,
             description=description,
             icon_id=icon_id,
@@ -59,7 +55,7 @@ class ServerRepository:
             # SQLSTATE_FK_VIOLATION - some fields do not exist
             sql_state = getattr(exc.orig, "sqlstate", None)
             if sql_state == "23503":
-                raise IntegrityForeignException("Owner, role set or rating set fields are not found")
+                raise IntegrityForeignException("Owner field is not found")
             raise IntegrityUnknownException("Failed to create server")
 
     async def set_name(self, server: Server, name: str) -> Server:

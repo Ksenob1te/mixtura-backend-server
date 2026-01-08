@@ -13,8 +13,7 @@ class TestServerRepository:
         rts = await factory.create_rating_set()
         icon_id = uuid.uuid4()
         banner_id = uuid.uuid4()
-        s = await repo.create(name="Srv1", owner_id=uuid.uuid4(), role_set_id=rs.id, rating_set_id=rts.id,
-                              public=False,
+        s = await repo.create(name="Srv1", owner_id=uuid.uuid4(), public=False,
                               description="desc", icon_id=icon_id, banner_id=banner_id)
         assert s is not None
         assert s.name == "Srv1"
@@ -22,26 +21,8 @@ class TestServerRepository:
         assert s.description == "desc"
         assert s.icon_id == icon_id
         assert s.banner_id == banner_id
-        assert s.role_set_id == rs.id
-        assert s.rating_set_id == rts.id
         by_id = await repo.get_by_id(s.id)
         assert by_id is not None and by_id.id == s.id
-
-    async def test_create_server_unreal_role_set(self, async_session, factory):
-        repo = ServerRepository(async_session)
-        rts = await factory.create_rating_set()
-        unreal_role_set_id = uuid.uuid4()
-        with pytest.raises(IntegrityForeignException):
-            await repo.create(name="Srv-UnrealRS", owner_id=uuid.uuid4(), role_set_id=unreal_role_set_id,
-                              rating_set_id=rts.id)
-
-    async def test_create_server_unreal_rating_set(self, async_session, factory):
-        repo = ServerRepository(async_session)
-        rs = await factory.create_role_set()
-        unreal_rating_set_id = uuid.uuid4()
-        with pytest.raises(IntegrityForeignException):
-            await repo.create(name="Srv-UnrealRT", owner_id=uuid.uuid4(), role_set_id=rs.id,
-                              rating_set_id=unreal_rating_set_id)
 
     async def test_setters_update_fields(self, async_session, factory):
         repo = ServerRepository(async_session)

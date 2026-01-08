@@ -13,6 +13,9 @@ class GameRoleSet(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(128))
     is_global: Mapped[bool] = mapped_column(default=False)
+    server_id: Mapped[UUID | None] = mapped_column(ForeignKey('server_table.id', ondelete='CASCADE'), nullable=True)
+
+    server: Mapped['Server'] = relationship(back_populates='role_set')
 
     game_roles: Mapped[list['GameRole']] = relationship(
         back_populates='role_set',
@@ -44,6 +47,9 @@ class RatingSet(Base):
     min_rating: Mapped[int] = mapped_column()
     max_rating: Mapped[int] = mapped_column()
     is_global: Mapped[bool] = mapped_column()
+    server_id: Mapped[UUID | None] = mapped_column(ForeignKey('server_table.id', ondelete='CASCADE'), nullable=True)
+
+    server: Mapped['Server'] = relationship(back_populates='rating_set')
 
     ratings: Mapped[list['Rating']] = relationship(
         back_populates='rating_set',
@@ -74,11 +80,11 @@ class Server(Base):
     owner_id: Mapped[UUID] = mapped_column()
     public: Mapped[bool] = mapped_column()
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    role_set_id: Mapped[UUID] = mapped_column(ForeignKey('role_set_table.id', ondelete='RESTRICT'))
-    rating_set_id: Mapped[UUID] = mapped_column(ForeignKey('rating_set_table.id', ondelete='RESTRICT'))
 
-    role_set: Mapped['GameRoleSet'] = relationship(uselist=False, lazy="selectin", cascade="all, delete")
-    rating_set: Mapped['RatingSet'] = relationship(uselist=False, lazy="selectin", cascade="all, delete")
+    role_set: Mapped['GameRoleSet'] = relationship(back_populates='server', uselist=False, lazy="selectin",
+                                                   cascade="all, delete-orphan")
+    rating_set: Mapped['RatingSet'] = relationship(back_populates='server', uselist=False, lazy="selectin",
+                                                   cascade="all, delete-orphan")
     members: Mapped[list['Member']] = relationship(back_populates='server', cascade='all, delete-orphan',
                                                    lazy="selectin")
     server_games: Mapped[list['ServerGame']] = relationship(back_populates='server', cascade='all, delete-orphan',

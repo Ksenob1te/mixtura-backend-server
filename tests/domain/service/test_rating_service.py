@@ -32,14 +32,14 @@ class TestRatingService:
     async def test_get_rating_set_success(self, rating_service, factory):
         server = await factory.create_server()
         rs = await rating_service.get_rating_set(server.id)
-        assert rs.id == server.rating_set_id
+        assert rs.id == server.rating_set.id
 
     async def test_update_rating_set_forbidden(self, rating_service, factory, helpers):
         server = await factory.create_server()
         with pytest.raises(ForbiddenException):
             await rating_service.update_rating_set(
                 server.id,
-                server.rating_set_id,
+                server.rating_set.id,
                 name="NewName",
                 min_rating=10,
                 max_rating=100,
@@ -64,7 +64,7 @@ class TestRatingService:
         with pytest.raises(NotFoundException):
             await rating_service.update_rating_set(
                 server2.id,
-                server1.rating_set_id,
+                server1.rating_set.id,
                 name="NewName",
                 permission_mask=helpers.perm_mask(PERMISSION.EDIT_RATING_SET),
             )
@@ -74,7 +74,7 @@ class TestRatingService:
 
         updated = await rating_service.update_rating_set(
             server.id,
-            server.rating_set_id,
+            server.rating_set.id,
             name="NewName",
             min_rating=10,
             max_rating=100,
@@ -91,7 +91,7 @@ class TestRatingService:
         with pytest.raises(ForbiddenException):
             await rating_service.create_rating(
                 server.id,
-                server.rating_set_id,
+                server.rating_set.id,
                 threshold=10,
                 icon_id=uuid.uuid4(),
                 permission_mask=helpers.perm_mask(),
@@ -116,7 +116,7 @@ class TestRatingService:
         with pytest.raises(NotFoundException):
             await rating_service.create_rating(
                 server2.id,
-                server1.rating_set_id,
+                server1.rating_set.id,
                 threshold=10,
                 icon_id=uuid.uuid4(),
                 permission_mask=helpers.perm_mask(PERMISSION.EDIT_RATING_SET),
@@ -127,14 +127,14 @@ class TestRatingService:
 
         created = await rating_service.create_rating(
             server.id,
-            server.rating_set_id,
+            server.rating_set.id,
             threshold=10,
             icon_id=uuid.uuid4(),
             permission_mask=helpers.perm_mask(PERMISSION.EDIT_RATING_SET),
         )
 
         assert created.threshold == 10
-        assert created.rating_set_id == server.rating_set_id
+        assert created.rating_set.id == server.rating_set.id
 
         updated = await rating_service.update_rating(
             server.id,
@@ -164,7 +164,7 @@ class TestRatingService:
 
         created = await rating_service.create_rating(
             server.id,
-            server.rating_set_id,
+            server.rating_set.id,
             threshold=10,
             icon_id=uuid.uuid4(),
             permission_mask=helpers.perm_mask(PERMISSION.EDIT_RATING_SET),
@@ -184,7 +184,7 @@ class TestRatingService:
 
         created = await rating_service.create_rating(
             server1.id,
-            server1.rating_set_id,
+            server1.rating_set.id,
             threshold=10,
             icon_id=uuid.uuid4(),
             permission_mask=helpers.perm_mask(PERMISSION.EDIT_RATING_SET),
@@ -203,7 +203,7 @@ class TestRatingService:
 
         created = await rating_service.create_rating(
             server.id,
-            server.rating_set_id,
+            server.rating_set.id,
             threshold=10,
             icon_id=uuid.uuid4(),
             permission_mask=helpers.perm_mask(PERMISSION.EDIT_RATING_SET),
@@ -231,7 +231,7 @@ class TestRatingService:
 
         created = await rating_service.create_rating(
             server1.id,
-            server1.rating_set_id,
+            server1.rating_set.id,
             threshold=10,
             icon_id=uuid.uuid4(),
             permission_mask=helpers.perm_mask(PERMISSION.EDIT_RATING_SET),
@@ -249,7 +249,7 @@ class TestRatingService:
         icon_id = uuid.uuid4()
         created = await rating_service.create_rating(
             server.id,
-            server.rating_set_id,
+            server.rating_set.id,
             threshold=10,
             icon_id=icon_id,
             permission_mask=helpers.perm_mask(PERMISSION.EDIT_RATING_SET),
