@@ -6,7 +6,7 @@ from ..service.access_control import AccessControlService
 
 from ..models.member.response import MemberResponse
 
-from ...dependency import InviteServiceDependency
+from ...dependency import AccessControlServiceDependency, InviteServiceDependency
 
 from ..models.invites.response import InviteAdminResponse, InviteKeyResponse
 
@@ -37,7 +37,7 @@ async def get_invite_info(
 
 @router.subscriber(queue="invite.get_restriction")
 async def get_invite_restriction(
-    data: GetUserRestrictionRequest, access_control_service: AccessControlService
+    data: GetUserRestrictionRequest, access_control_service: AccessControlServiceDependency
 ) -> ResponseMessage[int]:
     restriction_mask = await access_control_service.get_restriction_mask(data.server_id, data.user_id)
     return ResponseMessage(status=200, message=restriction_mask)
