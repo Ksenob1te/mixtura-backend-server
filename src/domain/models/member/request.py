@@ -35,6 +35,10 @@ class MemberGetInfoRequest(BaseModel):
     target_member_id: UUID
 
 
+class MemberPermissionRequest(BaseModel):
+    access_data: AccessDataRequest
+
+
 class MemberUpdateRequest(BaseModel):
     access_data: AccessDataRequest
 

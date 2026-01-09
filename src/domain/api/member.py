@@ -20,6 +20,7 @@ from ..models.member.request import (
     KickMemberRequest,
     MemberGetInfoRequest,
     AddMemberRestrictionRequest,
+    MemberPermissionRequest,
     MemberUpdateRequest,
     MemberMigrationRequest,
     RemoveMemberRestrictionRequest,
@@ -28,6 +29,7 @@ from ..models.member.request import (
 
 from ..models.member.response import (
     AccessResponse,
+    MemberPermissionResponse,
     MemberResponse,
     MemberRestrictionResponse,
     RestrictionResponse,
@@ -99,6 +101,34 @@ async def get_member(
 ) -> ResponseMessage[MemberResponse]:
     member = await member_service.get_member(data.target_member_id)
     return ResponseMessage(status=200, message=MemberResponse.model_validate(member))
+
+
+@router.subscriber(queue="member.permissions.get")
+async def get_member_permissions(
+    data: MemberPermissionRequest,
+    access_service: AccessControlServiceDependency,
+    member_service: MemberServiceDependency,
+) -> ResponseMessage[MemberPermissionResponse]:
+    if data.access_data.member_id is None:
+        raise NotFoundException("Member not found")
+    member = await member_service.get_member(data.access_data.member_id)
+    if member.user_id is None:
+        return ResponseMessage(
+            status=200,
+            message=MemberPermissionResponse(permissions=[], restrictions=[]),
+        )
+    permissions = await access_service.get_permissions(
+        data.access_data.server_id, member.user_id
+    )
+    restrictions = await access_service.get_restrictions(
+        data.access_data.server_id, member.user_id
+    )
+    return ResponseMessage(
+        status=200,
+        message=MemberPermissionResponse.model_validate(
+            {"permissions": permissions, "restrictions": restrictions}
+        ),
+    )
 
 
 @router.subscriber(queue="member.update")
