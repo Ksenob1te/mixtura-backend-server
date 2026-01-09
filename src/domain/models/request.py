@@ -6,3 +6,7 @@ class AccessDataRequest(BaseModel):
     server_id: UUID 
     permission_mask: int
     restriction_mask: int
+
+class PaginationRequest(BaseModel):
+    page: int | None = None
+    page_size: int = 50

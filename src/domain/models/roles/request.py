@@ -2,8 +2,6 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-from .response import PermissionResponse
-
 from ..request import AccessDataRequest
 
 

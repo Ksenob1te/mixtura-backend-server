@@ -3,9 +3,9 @@ from typing import Optional
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict
 
-from src.domain.models.game_roles.response import GameRoleSetResponse
-from src.domain.models.games.response import GameResponse
-from src.domain.models.rating.response import RatingSetResponse
+from ..game_roles.response import GameRoleSetResponse
+from ..games.response import GameResponse
+from ..rating.response import RatingSetResponse
 
 
 class ServerListResponse(BaseModel):
