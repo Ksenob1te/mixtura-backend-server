@@ -1,7 +1,7 @@
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict
 
-from src.domain.models.game_roles.response import GameRoleItemResponse
+from ..game_roles.response import GameRoleItemResponse
 from ..member.response import ReducedMemberResponse
 
 
