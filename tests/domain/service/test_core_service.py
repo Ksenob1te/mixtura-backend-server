@@ -85,6 +85,23 @@ class TestCoreService:
         res = await core_service.list_servers()
         assert all(s.public for s in res)
 
+    async def test_list_servers_filtering(self, core_service, factory):
+        await factory.create_server(name="AlphaServer", public=True)
+        await factory.create_server(name="BetaServer", public=True)
+        await factory.create_server(name="AlphaTwo", public=True)
+
+        # Test name filter
+        res = await core_service.list_servers(name_filter="Alpha")
+        assert len(res) == 2
+        assert all("Alpha" in s.name for s in res)
+
+        # Test pagination
+        res_page_1 = await core_service.list_servers(name_filter="Alpha", page=1, page_size=1)
+        assert len(res_page_1) == 1
+        res_page_2 = await core_service.list_servers(name_filter="Alpha", page=2, page_size=1)
+        assert len(res_page_2) == 1
+        assert res_page_1[0].id != res_page_2[0].id
+
     async def test_list_user_servers_filters_by_owner(self, core_service, factory):
         owner_id = uuid.uuid4()
         other_owner_id = uuid.uuid4()
@@ -95,6 +112,21 @@ class TestCoreService:
         res = await core_service.list_user_servers(owner_id)
         assert len(res) >= 1
         assert all(s.owner_id == owner_id for s in res)
+
+    async def test_list_user_servers_filtering(self, core_service, factory):
+        owner_id = uuid.uuid4()
+        await factory.create_server(owner_id=owner_id, name="MyGameServer")
+        await factory.create_server(owner_id=owner_id, name="MyChatServer")
+        await factory.create_server(owner_id=owner_id, name="OtherServer")
+
+        # Test name filter
+        res = await core_service.list_user_servers(owner_id, name_filter="My")
+        assert len(res) == 2
+        assert all("My" in s.name for s in res)
+
+        # Test pagination
+        res_page = await core_service.list_user_servers(owner_id, name_filter="My", page=0, page_size=1)
+        assert len(res_page) == 1
 
     async def test_create_server_raises_when_role_set_not_found(self, core_service, factory):
         rating = await factory.create_rating_set()

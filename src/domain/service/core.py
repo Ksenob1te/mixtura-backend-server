@@ -57,12 +57,21 @@ class CoreService:
     async def get_global_games(self) -> list[Game]:
         return list(await self.game_repo.get_all())
 
-    async def list_servers(self) -> list[Server]:
-        servers = await self.server_repo.list_public()
+    async def list_servers(
+            self, page: int | None = None,
+            name_filter: str = "",
+            page_size: int = 50
+    ) -> list[Server]:
+        servers = await self.server_repo.list_public(page, name_filter, page_size)
         return list(servers)
 
-    async def list_user_servers(self, user_id: UUID) -> list[Server]:
-        servers = await self.server_repo.list_by_owner(user_id)
+    async def list_user_servers(
+            self, user_id: UUID,
+            page: int | None = None,
+            name_filter: str = "",
+            page_size: int = 50
+    ) -> list[Server]:
+        servers = await self.server_repo.list_by_owner(user_id, page, name_filter, page_size)
         return list(servers)
 
     async def _copy_role_set(self, global_role_set: GameRoleSet, server_id: UUID) -> GameRoleSet:
@@ -198,4 +207,3 @@ class CoreService:
         if not PERMISSION.check_permission(permission_mask, PERMISSION.EDIT_SERVER_ICON):
             raise ForbiddenException("Unable to edit server")
         return await self.server_repo.set_icon(server, None)
-

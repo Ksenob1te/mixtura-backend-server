@@ -89,12 +89,13 @@ class ServiceFactory:
         return rts
 
     async def create_server(self, public: bool = False, owner_id: uuid.UUID | None = None,
-                            role_set: GameRoleSet | None = None, rating_set: RatingSet | None = None) -> Server:
+                            role_set: GameRoleSet | None = None, rating_set: RatingSet | None = None,
+                            name: str | None = None) -> Server:
 
         uid = uuid.uuid4().hex[:8]
         s = Server(
             id=uuid.uuid4(),
-            name=f"Server-{uid}",
+            name=name or f"Server-{uid}",
             owner_id=owner_id or uuid.uuid4(),
             public=public
         )

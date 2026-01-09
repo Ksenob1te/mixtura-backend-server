@@ -4,6 +4,7 @@ from sqlalchemy import select, delete
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from sqlalchemy import Select
 from ..models import Server
 
 from ..exceptions import IntegrityUnknownException, IntegrityForeignException
@@ -17,24 +18,50 @@ class ServerRepository:
         stmt = select(Server).where(Server.id == server_id).limit(1)
         return await self.session.scalar(stmt)
 
-    async def list_public(self) -> Sequence[Server]:
+    @staticmethod
+    async def _apply_filter(
+            stmt: Select, page: int | None = None,
+            name_filter: str = "",
+            page_size: int = 50
+    ) -> Select:
+        if name_filter:
+            stmt = stmt.where(Server.name.ilike(f"%{name_filter}%"))
+        stmt = stmt.order_by(Server.name)
+
+        if page is not None:
+            current_page = max(1, page)
+            stmt = stmt.limit(page_size).offset((current_page - 1) * page_size)
+        return stmt
+
+    async def list_public(
+            self, page: int | None = None,
+            name_filter: str = "",
+            page_size: int = 50
+    ) -> Sequence[Server]:
         stmt = select(Server).where(Server.public.is_(True))
+        stmt = await self._apply_filter(stmt, page, name_filter, page_size)
         res = await self.session.scalars(stmt)
         return res.all()
 
-    async def list_by_owner(self, owner_id: UUID) -> Sequence[Server]:
+    async def list_by_owner(
+            self, owner_id: UUID,
+            page: int | None = None,
+            name_filter: str = "",
+            page_size: int = 50
+    ) -> Sequence[Server]:
         stmt = select(Server).where(Server.owner_id == owner_id)
+        stmt = await self._apply_filter(stmt, page, name_filter, page_size)
         res = await self.session.scalars(stmt)
         return res.all()
 
     async def create(
-        self,
-        name: str,
-        owner_id: UUID,
-        public: bool = False,
-        description: str = "",
-        icon_id: UUID | None = None,
-        banner_id: UUID | None = None,
+            self,
+            name: str,
+            owner_id: UUID,
+            public: bool = False,
+            description: str = "",
+            icon_id: UUID | None = None,
+            banner_id: UUID | None = None,
     ) -> Server:
         server = Server(
             name=name,
