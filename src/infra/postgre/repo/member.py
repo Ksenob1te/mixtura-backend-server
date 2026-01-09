@@ -25,8 +25,19 @@ class MemberRepository:
         res = await self.session.scalars(stmt)
         return res.all()
 
-    async def list_active_for_server(self, server_id: UUID) -> Sequence[Member]:
+    async def list_active_for_server(self, server_id: UUID, page: int | None = None,
+                                     nickname_filter: str | None = None, page_size: int = 50) -> Sequence[Member]:
         stmt = select(Member).where(Member.server_id == server_id, Member.active.is_(True))
+
+        if nickname_filter:
+            stmt = stmt.where(Member.nickname.ilike(f"%{nickname_filter}%"))
+
+        stmt = stmt.order_by(Member.nickname)
+
+        if page is not None:
+            current_page = max(1, page)
+            stmt = stmt.limit(page_size).offset((current_page - 1) * page_size)
+
         res = await self.session.scalars(stmt)
         return res.all()
 

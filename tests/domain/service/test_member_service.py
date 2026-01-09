@@ -39,6 +39,33 @@ class TestMemberService:
         assert isinstance(res, list)
         assert {m.id for m in res} == {m1.id}
 
+    async def test_list_members_with_filter(self, member_service, factory):
+        server = await factory.create_server()
+        m1 = await factory.create_member(server.id, nickname="FindMe")
+        m2 = await factory.create_member(server.id, nickname="Hidden")
+
+        res_filtered = await member_service.list_members(server.id, nickname_filter="Find")
+        assert len(res_filtered) == 1
+        assert res_filtered[0].id == m1.id
+
+        res_empty = await member_service.list_members(server.id, nickname_filter="Missing")
+        assert len(res_empty) == 0
+
+    async def test_list_members_pagination(self, member_service, factory):
+        server = await factory.create_server()
+        # Create 5 members
+        for i in range(5):
+            await factory.create_member(server.id, nickname=f"User{i}")
+
+        page_1 = await member_service.list_members(server.id, page=1, page_size=2)
+        assert len(page_1) == 2
+
+        page_2 = await member_service.list_members(server.id, page=2, page_size=2)
+        assert len(page_2) == 2
+
+        page_3 = await member_service.list_members(server.id, page=3, page_size=2)
+        assert len(page_3) == 1
+
     async def test_join_server_not_found_without_server(self, member_service):
         with pytest.raises(NotFoundException):
             await member_service.join_server(uuid.uuid4(), uuid.uuid4(), "User")

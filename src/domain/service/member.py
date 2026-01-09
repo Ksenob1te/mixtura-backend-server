@@ -27,8 +27,13 @@ class MemberService:
         self.server_repo = server_repo
         self.server_role_repo = server_role_repo
 
-    async def list_members(self, server_id: UUID) -> list[Member]:
-        members = await self.member_repo.list_active_for_server(server_id)
+    async def list_members(
+            self, server_id: UUID,
+            page: int | None = None,
+            nickname_filter: str = "",
+            page_size: int = 50
+    ) -> list[Member]:
+        members = await self.member_repo.list_active_for_server(server_id, page, nickname_filter, page_size)
         return list(members)
 
     async def join_server(self, server_id: UUID, user_id: UUID, nickname: str, restriction_mask: int = 0) -> Member:
