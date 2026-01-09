@@ -2,7 +2,7 @@ from datetime import datetime
 from uuid import UUID
 from pydantic import BaseModel
 
-from ..request import AccessDataRequest
+from ..request import AccessDataRequest, PaginationRequest
 
 
 class GetMemberByUserRequest(BaseModel):
@@ -12,6 +12,8 @@ class GetMemberByUserRequest(BaseModel):
 
 class GetMemberListRequest(BaseModel):
     access_data: AccessDataRequest
+    pagination: PaginationRequest
+    nickname_filter: str = ""
 
 
 class JoinServerRequest(BaseModel):

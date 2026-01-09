@@ -63,7 +63,12 @@ async def get_member_by_user(
 async def list_members(
     data: GetMemberListRequest, member_service: MemberServiceDependency
 ) -> ResponseMessage[list[MemberResponse]]:
-    members = await member_service.list_members(data.access_data.server_id)
+    members = await member_service.list_members(
+        data.access_data.server_id,
+        data.pagination.page,
+        data.nickname_filter,
+        data.pagination.page_size,
+    )
     ta = TypeAdapter(list[MemberResponse])
     return ResponseMessage(status=200, message=ta.validate_python(members))
 
