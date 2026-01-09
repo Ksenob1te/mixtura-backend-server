@@ -1,12 +1,17 @@
 from uuid import UUID
 from pydantic import BaseModel, Field
 
-from ..request import AccessDataRequest
+from ..request import AccessDataRequest, PaginationRequest
 
 
-class GetUseServersRequest(BaseModel):
+class GetUserServersRequest(BaseModel):
     user_id: UUID
+    pagination: PaginationRequest
+    name_filter: str = ""
 
+class GetPublicServersRequest(BaseModel):
+    pagination: PaginationRequest
+    name_filter: str = ""
 
 class ServerGetRequest(BaseModel):
     access_data: AccessDataRequest

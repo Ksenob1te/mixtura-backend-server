@@ -4,7 +4,8 @@ from pydantic import TypeAdapter
 
 from ...dependency import CoreServiceDependency
 from src.domain.models.core.request import (
-    GetUseServersRequest,
+    GetPublicServersRequest,
+    GetUserServersRequest,
     ServerCreateRequest,
     ServerDeleteRequest,
     ServerGetRequest,
@@ -20,18 +21,28 @@ logger = logging.getLogger(__name__)
 
 @router.subscriber(queue="server.public_server_list")
 async def get_public_servers(
+    data: GetPublicServersRequest,
     core_service: CoreServiceDependency,
 ) -> ResponseMessage[list[ServerListResponse]]:
-    servers = await core_service.list_servers()
+    servers = await core_service.list_servers(
+        page=data.pagination.page,
+        page_size=data.pagination.page_size,
+        name_filter=data.name_filter,
+    )
     ta = TypeAdapter(list[ServerListResponse])
     return ResponseMessage(status=200, message=ta.validate_python(servers))
 
 
 @router.subscriber(queue="server.user_server_list")
 async def get_user_servers(
-    data: GetUseServersRequest, core_service: CoreServiceDependency
+    data: GetUserServersRequest, core_service: CoreServiceDependency
 ) -> ResponseMessage[list[ServerListResponse]]:
-    servers = await core_service.list_user_servers(data.user_id)
+    servers = await core_service.list_user_servers(
+        user_id=data.user_id,
+        page=data.pagination.page,
+        page_size=data.pagination.page_size,
+        name_filter=data.name_filter,
+    )
     ta = TypeAdapter(list[ServerListResponse])
     return ResponseMessage(status=200, message=ta.validate_python(servers))
 
