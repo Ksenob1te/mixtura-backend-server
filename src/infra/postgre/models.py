@@ -6,6 +6,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import ForeignKey, func, String, UniqueConstraint, DateTime
 from . import Base
 
+# TODO: change lazy selectin and update all the repos so it wont select unneeded info
+
 
 class GameRoleSet(Base):
     __tablename__ = 'role_set_table'

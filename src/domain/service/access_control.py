@@ -10,7 +10,7 @@ from src.infra.postgre.repo import (
     RestrictionRepository,
     PermissionRepository,
 )
-from src.infra.postgre.models import Member, MemberRestriction, Permission
+from src.infra.postgre.models import Member, MemberRestriction, Permission, Server
 from src.infra.postgre.static import PERMISSION, RESTRICTION
 from src.infra.postgre import IntegrityUnknownException, IntegrityForeignException
 
@@ -108,6 +108,27 @@ class AccessControlService:
         restriction_mask = RESTRICTION.serialize_restriction_codes(restriction_enum)
         return restriction_mask
 
+    @staticmethod
+    async def _can_manipulate_restrictions(issuer_field: Member, member_field: Member, server_field: Server) -> None:
+        can_manipulate_restriction: bool = False
+        if (
+                member_field.server_role is not None and
+                issuer_field.server_role is not None and
+                issuer_field.server_role.position > member_field.server_role.position
+        ):
+            can_manipulate_restriction = True
+        if member_field.server_role is None and issuer_field.server_role is not None:
+            can_manipulate_restriction = True
+        if server_field.owner_id == issuer_field.user_id:
+            can_manipulate_restriction = True
+
+        # overwrite flag if member is owner
+        if server_field.owner_id == member_field.user_id:
+            can_manipulate_restriction = False
+
+        if not can_manipulate_restriction:
+            raise ForbiddenException("Unable to add restriction")
+
     async def add_restriction(self, member_id: UUID,
                               issuer_id: UUID,
                               server_id: UUID,
@@ -124,11 +145,12 @@ class AccessControlService:
         if not PERMISSION.check_permission(permission_mask, f"restrict_{restriction_field.code}"):
             raise ForbiddenException("Unable to add restriction")
         issuer_field = await self.member_repo.get_by_id(issuer_id)
-        if issuer_field is None or issuer_field.server_role is None:
+        if issuer_field is None:
             raise InternalLogicException("Issuer member or role not found")
-        if (member_field.server_role is not None and
-                issuer_field.server_role.position <= member_field.server_role.position):
-            raise ForbiddenException("Unable to add restriction to this member")
+        server_field = issuer_field.server
+        if server_field is None:
+            raise InternalLogicException("Server not found")
+        await self._can_manipulate_restrictions(issuer_field, member_field, server_field)
         try:
             member_restriction_field = await self.member_restriction_repo.create(
                 member_id=member_id,
@@ -149,24 +171,25 @@ class AccessControlService:
                                  member_restriction_id: UUID,
                                  permission_mask: int = 0) -> None:
         issuer_field = await self.member_repo.get_by_id(issuer_id)
-        if issuer_field is None or issuer_field.server_role is None:
+        if issuer_field is None:
             raise NotFoundException(f"Issuer member not found")
         member_restriction_field = await self.member_restriction_repo.get_by_id(member_restriction_id)
         if not member_restriction_field or member_restriction_field.member_id != member_id:
             raise NotFoundException(f"Member restriction not found")
-        member_field = member_restriction_field.member
-        if member_field is None or member_field.server_id != server_id:
-            raise NotFoundException(f"Member not found")
-        if (
-                member_field.server_role is not None and
-                issuer_field.server_role.position <= member_field.server_role.position
-        ):
-            raise ForbiddenException("Unable to remove restriction from this member")
         if not PERMISSION.check_permission(
                 permission_mask,
                 f"restrict_{member_restriction_field.restriction.code}"  # type: ignore
         ):
             raise ForbiddenException("Unable to remove restriction")
+
+        member_field = member_restriction_field.member
+        if member_field is None or member_field.server_id != server_id:
+            raise InternalLogicException(f"Member not found")
+        server_field = issuer_field.server
+        if server_field is None:
+            raise InternalLogicException("Server not found")
+        await self._can_manipulate_restrictions(issuer_field, member_field, server_field)
+
         status = await self.member_restriction_repo.delete(member_restriction_id)
         if not status:
             raise NotFoundException(f"Member restriction not found")

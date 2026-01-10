@@ -80,7 +80,7 @@ class TestAccessControlService:
         issuer = await factory.create_member(server.id, role_id=role_2.id, nickname="Issuer")
         restriction = await factory.create_restriction(code=RESTRICTION.SERVER_BAN)
 
-        with pytest.raises(ForbiddenException, match="Unable to add restriction to this member"):
+        with pytest.raises(ForbiddenException):
             await access_control_service.add_restriction(
                 member_id=member.id,
                 issuer_id=issuer.id,
@@ -155,7 +155,7 @@ class TestAccessControlService:
             creator_id=issuer.id
         )
 
-        with pytest.raises(ForbiddenException, match="Unable to remove restriction from this member"):
+        with pytest.raises(ForbiddenException):
             await access_control_service.remove_restriction(
                 member_id=member.id,
                 issuer_id=issuer.id,
@@ -275,3 +275,94 @@ class TestAccessControlService:
                 expiration_date=datetime.now(UTC) + timedelta(days=1),
                 restriction_id=uuid.uuid4()
             )
+
+    async def test_add_restriction_owner_can_restrict_anyone(self, access_control_service, factory, helpers):
+        owner_id = uuid.uuid4()
+        server = await factory.create_server(owner_id=owner_id)
+
+        # Owner role (позиция не имеет значения)
+        owner_role = await factory.create_server_role(server.id, name="OwnerRole", position=0)
+        user_role = await factory.create_server_role(server.id, name="User", position=100)
+
+        owner = await factory.create_member(
+            server.id, user_id=owner_id, role_id=owner_role.id, nickname="Owner"
+        )
+        target = await factory.create_member(
+            server.id, role_id=user_role.id, nickname="Target"
+        )
+
+        restriction = await factory.create_restriction(code=RESTRICTION.SERVER_BAN)
+
+        mr = await access_control_service.add_restriction(
+            member_id=target.id,
+            issuer_id=owner.id,
+            server_id=server.id,
+            permission_mask=helpers.perm_mask(PERMISSION.RESTRICT_SERVER_BAN),
+            reason="Owner restriction",
+            expiration_date=datetime.now(UTC) + timedelta(days=1),
+            restriction_id=restriction.id,
+        )
+
+        assert mr.member_id == target.id
+
+    async def test_add_restriction_target_is_owner_forbidden(self, access_control_service, factory, helpers):
+        owner_id = uuid.uuid4()
+        server = await factory.create_server(owner_id=owner_id)
+
+        admin_role = await factory.create_server_role(server.id, name="Admin", position=100)
+        owner_role = await factory.create_server_role(server.id, name="OwnerRole", position=0)
+
+        owner = await factory.create_member(
+            server.id, user_id=owner_id, role_id=owner_role.id, nickname="Owner"
+        )
+        admin = await factory.create_member(
+            server.id, role_id=admin_role.id, nickname="Admin"
+        )
+
+        restriction = await factory.create_restriction(code=RESTRICTION.SERVER_BAN)
+
+        with pytest.raises(ForbiddenException, match="Unable to add restriction"):
+            await access_control_service.add_restriction(
+                member_id=owner.id,
+                issuer_id=admin.id,
+                server_id=server.id,
+                permission_mask=helpers.perm_mask(PERMISSION.RESTRICT_SERVER_BAN),
+                reason="Try restrict owner",
+                expiration_date=datetime.now(UTC) + timedelta(days=1),
+                restriction_id=restriction.id,
+            )
+
+    async def test_remove_restriction_owner_can_remove_any(self, access_control_service, factory, helpers):
+        owner_id = uuid.uuid4()
+        server = await factory.create_server(owner_id=owner_id)
+
+        owner_role = await factory.create_server_role(server.id, name="OwnerRole", position=0)
+        user_role = await factory.create_server_role(server.id, name="User", position=1)
+
+        owner = await factory.create_member(
+            server.id, user_id=owner_id, role_id=owner_role.id, nickname="Owner"
+        )
+        user = await factory.create_member(
+            server.id, role_id=user_role.id, nickname="User"
+        )
+
+        restriction = await factory.create_restriction(code=RESTRICTION.SERVER_BAN)
+
+        mr = await access_control_service.member_restriction_repo.create(
+            member_id=user.id,
+            restriction_id=restriction.id,
+            reason="Test",
+            expiration_date=datetime.now(UTC) + timedelta(days=1),
+            creator_id=owner.id,
+        )
+
+        await access_control_service.remove_restriction(
+            member_id=user.id,
+            issuer_id=owner.id,
+            server_id=server.id,
+            member_restriction_id=mr.id,
+            permission_mask=helpers.perm_mask(PERMISSION.RESTRICT_SERVER_BAN),
+        )
+
+        restrictions = await access_control_service.get_restrictions(server.id, user.user_id)
+        assert restrictions == []
