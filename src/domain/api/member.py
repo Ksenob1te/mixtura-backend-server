@@ -2,7 +2,7 @@ import logging
 from faststream.rabbit import RabbitRouter
 from pydantic import TypeAdapter
 
-from ..exceptions import NotFoundException
+from ..exceptions import ForbiddenException, NotFoundException
 
 from ...dependency import (
     AccessControlServiceDependency,
@@ -188,10 +188,15 @@ async def get_global_restrictions(
 
 @router.subscriber(queue="member.restriction.list")
 async def list_restrictions(
-    data: GetMemberRestrictionsRequest, access_service: AccessControlServiceDependency
+    data: GetMemberRestrictionsRequest, access_service: AccessControlServiceDependency, member_service: MemberServiceDependency
 ) -> ResponseMessage[list[MemberRestrictionResponse]]:
+    member = await member_service.get_member(data.target_member_id)
+    if member is None:
+        raise NotFoundException("Member not found")
+    if member.user_id is None:
+        raise ForbiddenException("Virtual member can't have restrictions")
     restrictions = await access_service.get_restrictions(
-        data.access_data.server_id, data.target_member_id
+        data.access_data.server_id, member.user_id
     )
     ta = TypeAdapter(list[MemberRestrictionResponse])
     return ResponseMessage(status=200, message=ta.validate_python(restrictions))
