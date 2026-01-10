@@ -387,3 +387,61 @@ class TestMemberService:
                 uuid.uuid4(),
                 permission_mask=helpers.perm_mask(PERMISSION.MIGRATE_MEMBERS),
             )
+
+    async def test_update_member_owner_can_assign_any_role(self, member_service, factory, helpers):
+        owner_id = uuid.uuid4()
+        server = await factory.create_server(owner_id=owner_id)
+
+        low_role = await factory.create_server_role(server.id, name="Low", position=1)
+        high_role = await factory.create_server_role(server.id, name="High", position=100)
+
+        owner = await factory.create_member(
+            server.id,
+            user_id=owner_id,
+            role_id=low_role.id,
+            nickname="Owner",
+        )
+        target = await factory.create_member(
+            server.id,
+            role_id=low_role.id,
+            nickname="Target",
+        )
+
+        updated = await member_service.update_member(
+            server_id=server.id,
+            issuer_id=owner.id,
+            member_id=target.id,
+            server_role_id=high_role.id,
+            permission_mask=helpers.perm_mask(PERMISSION.EDIT_ROLES),
+            restriction_mask=helpers.restr_mask(),
+        )
+
+        assert updated.server_role_id == high_role.id
+
+    async def test_update_member_owner_without_role_can_assign_role(self, member_service, factory, helpers):
+        owner_id = uuid.uuid4()
+        server = await factory.create_server(owner_id=owner_id)
+
+        role = await factory.create_server_role(server.id, name="Any", position=50)
+
+        owner = await factory.create_member(
+            server.id,
+            user_id=owner_id,
+            role_id=None,
+            nickname="Owner",
+        )
+        target = await factory.create_member(
+            server.id,
+            nickname="Target",
+        )
+
+        updated = await member_service.update_member(
+            server_id=server.id,
+            issuer_id=owner.id,
+            member_id=target.id,
+            server_role_id=role.id,
+            permission_mask=helpers.perm_mask(PERMISSION.EDIT_ROLES),
+            restriction_mask=helpers.restr_mask(),
+        )
+
+        assert updated.server_role_id == role.id

@@ -11,7 +11,7 @@ from src.infra.postgre.repo import (
     ServerRepository,
     ServerRoleRepository
 )
-from src.infra.postgre.models import Member
+from src.infra.postgre.models import Member, Server, ServerRole
 from src.infra.postgre.static import PERMISSION, RESTRICTION
 from src.infra.postgre import IntegrityUnknownException, IntegrityForeignException, IntegrityUniqueException
 
@@ -88,6 +88,20 @@ class MemberService:
             raise NotFoundException("Member with id not found")
         return member
 
+    @staticmethod
+    async def _can_manipulate_roles(issuer_field: Member, assign_role: ServerRole, server_field: Server) -> None:
+        can_manipulate_roles: bool = False
+        if (
+                issuer_field.server_role is not None and
+                issuer_field.server_role.position > assign_role.position
+        ):
+            can_manipulate_roles = True
+        if server_field.owner_id == issuer_field.user_id:
+            can_manipulate_roles = True
+
+        if not can_manipulate_roles:
+            raise ForbiddenException("Unable to assign role to member")
+
     async def update_member(
             self,
             server_id: UUID,
@@ -114,13 +128,14 @@ class MemberService:
 
             assign_role = await self.server_role_repo.get_by_id(server_role_id)
             issuer_field = await self.member_repo.get_by_id(issuer_id)
-            if not assign_role or not issuer_field or assign_role.server_id != server_id:
+            if not assign_role or assign_role.server_id != server_id:
                 raise NotFoundException("Server role not found")
-            if (
-                    assign_role.position >= issuer_field.server_role.position or
-                    not issuer_field.server_role
-            ):
-                raise ForbiddenException("Unable to assign role to member")
+            if not issuer_field:
+                raise NotFoundException("Issuer not found")
+            server_field = issuer_field.server
+            if not server_field:
+                raise InternalLogicException("Server not found")
+            await self._can_manipulate_roles(issuer_field, assign_role, server_field)
             member = await self.member_repo.set_role(member, server_role_id)
         return member
 
