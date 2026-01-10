@@ -34,6 +34,9 @@ class AccessControlService:
     async def _transform_permissions_to_enum(permissions: list[Permission]) -> list[PERMISSION]:
         return [PERMISSION(p.code) for p in permissions]
 
+    async def _transform_enum_to_permissions(self, permissions: list[PERMISSION]) -> list[Permission]:
+        return list(await self.permission_repo.get_by_code_bulk(list(map(str, permissions))))
+
     @staticmethod
     async def _transform_permission_to_mask(permissions: list[Permission]) -> int:
         permission_codes = [PERMISSION(p.code) for p in permissions]
@@ -64,7 +67,7 @@ class AccessControlService:
                 raise NotFoundException(f"Server not found")
         return member
 
-    async def get_permissions(self, server_id: UUID, user_id: UUID) -> list[PERMISSION]:
+    async def get_permissions(self, server_id: UUID, user_id: UUID) -> list[Permission]:
         member = await self.get_member(server_id, user_id)
         if member is None:
             return []
@@ -75,7 +78,7 @@ class AccessControlService:
         permissions = await self.permission_repo.list_for_role(member.server_role_id)
         permission_codes = await self._transform_permissions_to_enum(list(permissions))
         permission_codes = await self._compute_overwrites_enum(permission_codes, is_owner)
-        return permission_codes
+        return await self._transform_enum_to_permissions(permission_codes)
 
     async def get_permission_mask(self, server_id: UUID, user_id: UUID) -> int:
         member = await self.get_member(server_id, user_id)

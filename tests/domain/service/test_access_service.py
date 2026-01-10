@@ -172,23 +172,27 @@ class TestAccessControlService:
         server = await factory.create_server()
         role = await factory.create_server_role(server.id, name=role_name, position=50)
 
-        for p_code in role_perms:
+        for p_code in PERMISSION:
             perm = await factory.create_permission(code=p_code)
-            await access_control_service.permission_repo.assign_to_role(perm.id, role.id)
+            if p_code in role_perms:
+                await access_control_service.permission_repo.assign_to_role(perm.id, role.id)
 
         member = await factory.create_member(server.id, role_id=role.id, nickname=role_name)
 
         perms = await access_control_service.get_permissions(server.id, member.user_id)
 
         for p in expected_perms:
-            assert p in perms
+            assert p in [perm.code for perm in perms]
 
         if PERMISSION.ADMINISTRATOR in role_perms:
-             assert len(perms) == len(PERMISSION)
+            assert len(perms) == len(PERMISSION)
 
     async def test_get_permissions_owner(self, access_control_service, factory):
         owner_id = uuid.uuid4()
         server = await factory.create_server(owner_id=owner_id)
+
+        for p_code in PERMISSION:
+            await factory.create_permission(code=p_code)
 
         # Role with no permissions
         role = await factory.create_server_role(server.id, name="Empty", position=50)
@@ -198,8 +202,8 @@ class TestAccessControlService:
 
         # Owner gets all permissions regardless of role
         assert len(perms) == len(PERMISSION)
-        assert PERMISSION.ADMINISTRATOR in perms
-        assert PERMISSION.RESTRICT_SERVER_BAN in perms
+        assert PERMISSION.ADMINISTRATOR in [perm.code for perm in perms]
+        assert PERMISSION.RESTRICT_SERVER_BAN in [perm.code for perm in perms]
 
     async def test_get_permission_mask_admin_override(self, access_control_service, factory):
         server = await factory.create_server()
