@@ -5,7 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy import Select
-from ..models import Server
+from ..models import Server, Member
 
 from ..exceptions import IntegrityUnknownException, IntegrityForeignException
 
@@ -50,6 +50,22 @@ class ServerRepository:
             page_size: int = 50
     ) -> Sequence[Server]:
         stmt = select(Server).where(Server.owner_id == owner_id)
+        stmt = await self._apply_filter(stmt, page, name_filter, page_size)
+        res = await self.session.scalars(stmt)
+        return res.all()
+
+    async def list_by_user(
+            self, user_id: UUID,
+            page: int | None = None,
+            name_filter: str = "",
+            page_size: int = 50
+    ):
+        stmt = select(Server).where(
+            Server.members.any(
+                (Member.user_id == user_id) &
+                (Member.active == True)
+            )
+        )
         stmt = await self._apply_filter(stmt, page, name_filter, page_size)
         res = await self.session.scalars(stmt)
         return res.all()

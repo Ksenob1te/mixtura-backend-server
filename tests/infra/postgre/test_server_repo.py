@@ -58,3 +58,21 @@ class TestServerRepository:
         assert ok is True
         not_ok = await repo.delete(s2.id)
         assert not_ok is False
+
+    async def test_list_by_user_returns_active_servers(self, async_session, factory):
+        repo = ServerRepository(async_session)
+        user_id = uuid.uuid4()
+
+        active_server = await factory.create_server(name="ActiveServer")
+        inactive_server = await factory.create_server(name="InactiveServer")
+
+        await factory.create_member(active_server.id, user_id=user_id)
+        inactive_member = await factory.create_member(inactive_server.id, user_id=user_id)
+
+        inactive_member.active = False
+        await repo.session.flush()
+
+        res = await repo.list_by_user(user_id)
+
+        assert len(res) == 1
+        assert res[0].id == active_server.id

@@ -24,6 +24,19 @@ class MemberRepository:
         stmt = select(Member).where(Member.server_id == server_id)
         res = await self.session.scalars(stmt)
         return res.all()
+    #
+    # async def list_for_user(
+    #         self, user_id: UUID,
+    #         page: int | None = None,
+    #         page_size: int = 50
+    # ) -> Sequence[Member]:
+    #     stmt = select(Member).where(Member.user_id == user_id, Member.active.is_(True))
+    #     if page is not None:
+    #         current_page = max(1, page)
+    #         stmt = stmt.limit(page_size).offset((current_page - 1) * page_size)
+    #
+    #     res = await self.session.scalars(stmt)
+    #     return res.all()
 
     async def list_active_for_server(self, server_id: UUID, page: int | None = None,
                                      nickname_filter: str | None = None, page_size: int = 50) -> Sequence[Member]:

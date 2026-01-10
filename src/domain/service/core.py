@@ -71,7 +71,7 @@ class CoreService:
             name_filter: str = "",
             page_size: int = 50
     ) -> list[Server]:
-        servers = await self.server_repo.list_by_owner(user_id, page, name_filter, page_size)
+        servers = await self.server_repo.list_by_user(user_id, page, name_filter, page_size)
         return list(servers)
 
     async def _copy_role_set(self, global_role_set: GameRoleSet, server_id: UUID) -> GameRoleSet:

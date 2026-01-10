@@ -151,4 +151,47 @@ class TestMemberRepository:
         reloaded = await repo.get_by_id(member.id)
         assert reloaded is not None
         assert reloaded.user_id is None
+    #
+    # async def test_list_for_user_multiple_servers(self, async_session, factory):
+    #     repo = MemberRepository(async_session)
+    #
+    #     user_id = uuid.uuid4()
+    #
+    #     s1 = await factory.create_server()
+    #     s2 = await factory.create_server()
+    #
+    #     m1 = await repo.create(server_id=s1.id, user_id=user_id, nickname="User1")
+    #     m2 = await repo.create(server_id=s2.id, user_id=user_id, nickname="User2")
+    #
+    #     res = await repo.list_for_user(user_id)
+    #
+    #     assert {m.id for m in res} == {m1.id, m2.id}
+    #
+    # async def test_list_for_user_returns_empty_if_not_found(self, async_session, factory):
+    #     repo = MemberRepository(async_session)
+    #
+    #     server = await factory.create_server()
+    #     for _ in range(3):
+    #         await repo.create(server_id=server.id, user_id=uuid.uuid4(), nickname="Other")
+    #
+    #     res = await repo.list_for_user(uuid.uuid4())
+    #
+    #     assert res == []
+    #
+    # async def test_list_for_user_includes_inactive_members(self, async_session, factory):
+    #     repo = MemberRepository(async_session)
+    #
+    #     server = await factory.create_server()
+    #     server2 = await factory.create_server()
+    #     user_id = uuid.uuid4()
+    #
+    #     active = await repo.create(server_id=server.id, user_id=user_id, nickname="Active")
+    #     inactive = await repo.create(server_id=server2.id, user_id=user_id, nickname="Inactive")
+    #
+    #     await repo.deactivate(inactive)
+    #
+    #     res = await repo.list_for_user(user_id)
+    #
+    #     assert {m.id for m in res} == {active.id}
+    #
 

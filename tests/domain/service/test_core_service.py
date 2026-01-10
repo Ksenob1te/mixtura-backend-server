@@ -102,31 +102,52 @@ class TestCoreService:
         assert len(res_page_2) == 1
         assert res_page_1[0].id != res_page_2[0].id
 
-    async def test_list_user_servers_filters_by_owner(self, core_service, factory):
-        owner_id = uuid.uuid4()
-        other_owner_id = uuid.uuid4()
+    async def test_list_user_servers_returns_only_active_members(self, core_service, factory):
+        user_id = uuid.uuid4()
 
-        await factory.create_server(owner_id=owner_id)
-        await factory.create_server(owner_id=other_owner_id)
+        active_server = await factory.create_server(name="ActiveServer")
+        inactive_server = await factory.create_server(name="InactiveServer")
 
-        res = await core_service.list_user_servers(owner_id)
-        assert len(res) >= 1
-        assert all(s.owner_id == owner_id for s in res)
+        await factory.create_member(active_server.id, user_id=user_id)
+        inactive_member = await factory.create_member(inactive_server.id, user_id=user_id)
 
-    async def test_list_user_servers_filtering(self, core_service, factory):
-        owner_id = uuid.uuid4()
-        await factory.create_server(owner_id=owner_id, name="MyGameServer")
-        await factory.create_server(owner_id=owner_id, name="MyChatServer")
-        await factory.create_server(owner_id=owner_id, name="OtherServer")
+        await core_service.member_repo.deactivate(inactive_member)
 
-        # Test name filter
-        res = await core_service.list_user_servers(owner_id, name_filter="My")
+        res = await core_service.list_user_servers(user_id)
+        assert len(res) == 1
+        assert res[0].id == active_server.id
+
+    async def test_list_user_servers_name_filter(self, core_service, factory):
+        user_id = uuid.uuid4()
+
+        s1 = await factory.create_server(name="AlphaServer")
+        s2 = await factory.create_server(name="BetaServer")
+        s3 = await factory.create_server(name="AlphaTwo")
+
+        await factory.create_member(s1.id, user_id=user_id)
+        await factory.create_member(s2.id, user_id=user_id)
+        await factory.create_member(s3.id, user_id=user_id)
+
+        res = await core_service.list_user_servers(user_id, name_filter="Alpha")
         assert len(res) == 2
-        assert all("My" in s.name for s in res)
+        assert all("Alpha" in s.name for s in res)
 
-        # Test pagination
-        res_page = await core_service.list_user_servers(owner_id, name_filter="My", page=0, page_size=1)
-        assert len(res_page) == 1
+    async def test_list_user_servers_pagination(self, core_service, factory):
+        user_id = uuid.uuid4()
+
+        servers = [await factory.create_server(name=f"Server{i}") for i in range(5)]
+        for s in servers:
+            await factory.create_member(s.id, user_id=user_id)
+
+        res_page1 = await core_service.list_user_servers(user_id, page=1, page_size=2)
+        res_page2 = await core_service.list_user_servers(user_id, page=2, page_size=2)
+        res_page3 = await core_service.list_user_servers(user_id, page=3, page_size=2)
+
+        assert len(res_page1) == 2
+        assert len(res_page2) == 2
+        assert len(res_page3) == 1
+        ids = {s.id for s in res_page1 + res_page2 + res_page3}
+        assert len(ids) == 5
 
     async def test_create_server_raises_when_role_set_not_found(self, core_service, factory):
         rating = await factory.create_rating_set()
