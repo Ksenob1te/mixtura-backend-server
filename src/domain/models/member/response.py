@@ -54,5 +54,5 @@ class MemberRestrictionResponse(BaseModel):
 class MemberPermissionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    permissions: list[str]
+    permissions: list[PermissionResponse]
     restrictions: list[MemberRestrictionResponse]
