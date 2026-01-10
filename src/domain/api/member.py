@@ -227,9 +227,11 @@ async def add_restriction(
 async def remove_restriction(
     data: RemoveMemberRestrictionRequest, access_service: AccessControlServiceDependency
 ) -> ResponseMessage[StatusResponse]:
+    if data.access_data.member_id is None:
+        raise NotFoundException("Issuer member not found")
     await access_service.remove_restriction(
         data.target_member_id,
-        data.access_data.server_id,
+        data.access_data.member_id,
         data.access_data.server_id,
         data.member_restriction_id,
         data.access_data.permission_mask,
