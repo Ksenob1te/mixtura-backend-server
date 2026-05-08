@@ -3,6 +3,7 @@
 __pycache__
 *.pyc
 .*
+!.env.example
 !.dockerignore
 !.gitignore
 /logger.log
