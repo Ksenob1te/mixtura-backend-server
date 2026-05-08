@@ -41,6 +41,18 @@ class PERMISSION(StrEnum):
     RESTRICT_TOURNAMENT_BAN = 'restrict_tournament_ban'
     RESTRICT_SELF_EDIT_NAME = 'restrict_self_edit_name'
 
+    # event permissions
+
+    EVENT_CREATE = 'event_create'
+    EVENT_ADMIN_VIEW = 'event_admin_view'
+    EVENT_ADMIN_UPDATE = 'event_admin_update'
+    EVENT_ADMIN_MANAGE_ORGANIZERS = 'event_admin_manage_organizers'
+    EVENT_ADMIN_MANAGE_PLAYERS = 'event_admin_manage_players'
+    EVENT_ADMIN_MANAGE_BRACKET  = 'event_admin_manage_bracket'
+    EVENT_ADMIN_CANCEL  = 'event_admin_cancel'
+    EVENT_ADMIN_COMPLETE  = 'event_admin_complete'
+
+
     @staticmethod
     def serialize_permission_codes(permissions: Iterable["PERMISSION"]) -> int:
         mask = 0
