@@ -2,8 +2,8 @@ import uuid
 import pytest
 import pytest_asyncio
 
-from src.domain.service import MemberCustomService
-from src.domain.exceptions import NotFoundException, ForbiddenException, BadRequestException
+from src.core.services import MemberCustomService
+from src.core.exceptions import NotFoundException, ForbiddenException, BadRequestException
 from src.infra.postgre.repo import (
     CustomRepository,
     CustomRatingRepository,

@@ -18,3 +18,9 @@ dependencies = [
     "sqlalchemy>=2.0.44",
     "testcontainers>=4.13.3",
 ]
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.411",
+    "ruff>=0.16.0",
+]

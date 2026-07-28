@@ -1,6 +1,7 @@
 import uuid
 import pytest
 
+from src.core.models.rating import RatingCreate, RatingUpdate
 from src.infra.postgre.repo import RatingRepository
 from src.infra.postgre import IntegrityForeignException
 
@@ -14,9 +15,9 @@ class TestRatingRepository:
         r = await repo.create(uuid.uuid4(), 100, rs.id)
         assert r is not None
         assert r.threshold == 100
-        by_id = await repo.get_by_id(r.id)
+        by_id = await repo.get(r.id)
         assert by_id is not None and by_id.id == r.id
-        assert await repo.get_by_id(uuid.uuid4()) is None
+        assert await repo.get(uuid.uuid4()) is None
 
     async def test_create_rating_unreal_set(self, async_session):
         repo = RatingRepository(async_session)

@@ -1,8 +1,8 @@
 import logging
-from logging.handlers import RotatingFileHandler
-from pathlib import Path
 import sys
 import traceback
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
 
 LOG_FILE_PATH = Path('.local') / 'temp.log'
 
@@ -51,4 +51,4 @@ def setup_logging(level: int = logging.INFO):
     _configured = True
 
 
-__all__ = ['setup_logging', 'LOG_FILE_PATH']
+__all__ = ['LOG_FILE_PATH', 'setup_logging']

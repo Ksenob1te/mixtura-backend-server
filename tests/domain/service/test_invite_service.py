@@ -2,8 +2,8 @@ import uuid
 import pytest
 import pytest_asyncio
 
-from src.domain.service.invite import InviteService
-from src.domain.exceptions import NotFoundException, ForbiddenException
+from src.core.services.invite import InviteService
+from src.core.exceptions import NotFoundException, ForbiddenException
 from src.infra.postgre.static import PERMISSION, RESTRICTION
 from src.infra.postgre.repo import InviteRepository, ServerRepository, MemberRepository
 
@@ -40,7 +40,7 @@ class TestInviteService:
         assert member is not None
         assert member.user_id == user_id
 
-        reloaded = await invite_service.invite_repo.get_by_id(inv.id)
+        reloaded = await invite_service.invite_repo.get(inv.id)
         assert reloaded.use_limit == 0
 
     async def test_use_invite_not_found_or_exhausted(self, invite_service, factory):
@@ -169,7 +169,7 @@ class TestInviteService:
             inv.id,
             permission_mask=helpers.perm_mask(PERMISSION.EDIT_INVITES),
         )
-        assert await invite_service.invite_repo.get_by_id(inv.id) is None
+        assert await invite_service.invite_repo.get(inv.id) is None
 
     async def test_revoke_invite_server_not_found(self, invite_service, helpers):
         with pytest.raises(NotFoundException):

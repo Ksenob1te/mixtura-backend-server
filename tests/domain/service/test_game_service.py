@@ -2,8 +2,8 @@ import uuid
 import pytest
 import pytest_asyncio
 
-from src.domain.service.game import GameService
-from src.domain.exceptions import NotFoundException, ForbiddenException
+from src.core.services.game import GameService
+from src.core.exceptions import NotFoundException, ForbiddenException
 from src.infra.postgre.static import PERMISSION
 from src.infra.postgre.repo import GameRepository, ServerRepository
 
@@ -66,7 +66,7 @@ class TestGameService:
             permission_mask=helpers.perm_mask(PERMISSION.EDIT_SERVER_GAME),
         )
 
-        await game_service.server_repo.session.refresh(server)
+        await game_service.server_repo._session.refresh(server)
         ids = {g.id for g in server.games}
         assert {g1.id, g2.id} == ids
 
@@ -116,7 +116,7 @@ class TestGameService:
             permission_mask=helpers.perm_mask(PERMISSION.EDIT_SERVER_GAME),
         )
 
-        await game_service.server_repo.session.refresh(server)
+        await game_service.server_repo._session.refresh(server)
         remaining_ids = {g.id for g in server.games}
         assert g1.id not in remaining_ids
         assert g2.id in remaining_ids
@@ -159,6 +159,6 @@ class TestGameService:
             permission_mask=helpers.perm_mask(PERMISSION.EDIT_SERVER_GAME)
         )
 
-        await game_service.server_repo.session.refresh(server)
+        await game_service.server_repo._session.refresh(server)
         current_ids = {g.id for g in server.games}
         assert current_ids == {g2.id, g3.id}

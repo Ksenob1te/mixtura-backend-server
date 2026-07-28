@@ -1,7 +1,7 @@
 import contextlib
-from typing import AsyncIterator
-from redis.asyncio import Redis, ConnectionPool
-from src.env_config import env
+from collections.abc import AsyncIterator
+
+from redis.asyncio import ConnectionPool, Redis
 
 
 class RedisSessionManager:

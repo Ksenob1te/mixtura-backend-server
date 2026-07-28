@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from src.domain.main import app
+from src.app.rabbit.main import app
 from src.logging_setup import setup_logging
 
 setup_logging()

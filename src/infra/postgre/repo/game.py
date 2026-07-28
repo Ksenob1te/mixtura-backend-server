@@ -1,157 +1,144 @@
+from collections.abc import Sequence
 from uuid import UUID
-from typing import Sequence
-from sqlalchemy import select, delete
+
+from sqlalchemy import delete, select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from ..models import Game, ServerGame
-from sqlalchemy.dialects.postgresql import insert
 
-from ..exceptions import IntegrityUniqueException, IntegrityUnknownException, IntegrityForeignException
+from src.core.exceptions import IntegrityForeignException, IntegrityUnknownException
+from src.core.interfaces.repo.game import GameRepositoryProtocol
+from src.core.models.game import Game as GameDTO
+from src.core.models.game import GameCreate, GameUpdate
+from src.core.models.server_game import ServerGame as ServerGameDTO
+
+from ..models import Game as GameModel
+from ..models import ServerGame as ServerGameModel
+from .base import BaseRepository
 
 
-class GameRepository:
+class GameRepository(
+    BaseRepository[GameModel, GameCreate, GameDTO, GameUpdate],
+    GameRepositoryProtocol,
+):
+    model = GameModel
+    dto_model = GameDTO
+
     def __init__(self, session: AsyncSession):
-        self.session = session
+        super().__init__(session)
 
-    async def get_by_id(self, game_id: UUID) -> Game | None:
-        stmt = select(Game).where(Game.id == game_id).limit(1)
-        return await self.session.scalar(stmt)
+    async def get_by_name(self, name: str) -> GameDTO | None:
+        stmt = select(GameModel).where(GameModel.name == name).limit(1)
+        result = await self._session.scalar(stmt)
+        return self._to_dto(result) if result else None
 
-    async def get_by_name(self, name: str) -> Game | None:
-        stmt = select(Game).where(Game.name == name).limit(1)
-        return await self.session.scalar(stmt)
+    async def get_all(self) -> Sequence[GameDTO]:
+        stmt = select(GameModel)
+        res = await self._session.scalars(stmt)
+        return [self._to_dto(item) for item in res.all()]
 
-    async def get_all(self) -> Sequence[Game]:
-        stmt = select(Game)
-        res = await self.session.scalars(stmt)
-        return res.all()
+    async def list_for_server(self, server_id: UUID) -> Sequence[GameDTO]:
+        stmt = select(GameModel).join(
+            ServerGameModel, GameModel.id == ServerGameModel.game_id
+        ).where(ServerGameModel.server_id == server_id)
+        res = await self._session.scalars(stmt)
+        return [self._to_dto(item) for item in res.all()]
 
-    async def create(self, name: str, icon_id: UUID, banner_id: UUID) -> Game:
-        game = Game(name=name, icon_id=icon_id, banner_id=banner_id)
-        try:
-            self.session.add(game)
-            await self.session.flush()
-            game_field = await self.get_by_id(game.id)
-            if game_field is None:
-                raise IntegrityUnknownException("Failed to create game")
-            return game_field
-        except IntegrityError as exc:
-            # SQLSTATE_UNIQUE_VIOLATION - game with this name already exists
-            sql_state = getattr(exc.orig, "sqlstate", None)
-            if sql_state == "23505":
-                raise IntegrityUniqueException("Game with this name already exists")
-            raise IntegrityUnknownException("Failed to create game")
+    @staticmethod
+    def _to_server_game_dto(obj: ServerGameModel) -> ServerGameDTO:
+        return ServerGameDTO.model_validate(obj, from_attributes=True)
 
-    async def set_name(self, game: Game, name: str) -> Game:
-        game.name = name
-        await self.session.flush()
-        return game
-
-    async def set_icon(self, game: Game, icon_id: UUID) -> Game:
-        game.icon_id = icon_id
-        await self.session.flush()
-        return game
-
-    async def set_banner(self, game: Game, banner_id: UUID) -> Game:
-        game.banner_id = banner_id
-        await self.session.flush()
-        return game
-
-    async def delete(self, game_id: UUID) -> bool:
-        stmt = delete(Game).where(Game.id == game_id)
-        result = await self.session.execute(stmt)
-        await self.session.flush()
-        return bool(result.rowcount)    # type: ignore
-
-    async def add_to_server(self, game_id: UUID, server_id: UUID) -> ServerGame:
+    async def add_to_server(self, game_id: UUID, server_id: UUID) -> ServerGameDTO:
         try:
             stmt = (
-                insert(ServerGame)
+                insert(ServerGameModel)
                 .values(game_id=game_id, server_id=server_id)
                 .on_conflict_do_nothing(
-                    index_elements=[ServerGame.game_id, ServerGame.server_id]
+                    index_elements=[ServerGameModel.game_id, ServerGameModel.server_id]
                 )
-                .returning(ServerGame)
+                .returning(ServerGameModel)
             )
 
-            result = await self.session.execute(stmt)
+            result = await self._session.execute(stmt)
             row = result.scalar_one_or_none()
 
             if row is not None:
-                return row
+                return self._to_server_game_dto(row)
 
-            stmt = select(ServerGame).where(
-                ServerGame.game_id == game_id,
-                ServerGame.server_id == server_id
+            stmt = select(ServerGameModel).where(
+                ServerGameModel.game_id == game_id,
+                ServerGameModel.server_id == server_id
             ).limit(1)
-            existing = await self.session.scalar(stmt)
+            existing = await self._session.scalar(stmt)
             if existing is not None:
-                return existing
+                return self._to_server_game_dto(existing)
 
         except IntegrityError as exc:
             sql_state = getattr(exc.orig, "sqlstate", None)
-            # SQLSTATE_FK_VIOLATION - some fields do not exist
             if sql_state == "23503":
                 raise IntegrityForeignException("Game or server fields are not found")
         raise IntegrityUnknownException("Failed to add game to server")
 
     async def remove_from_server(self, game_id: UUID, server_id: UUID) -> bool:
-        stmt = delete(ServerGame).where(
-            ServerGame.game_id == game_id,
-            ServerGame.server_id == server_id
+        stmt = delete(ServerGameModel).where(
+            ServerGameModel.game_id == game_id,
+            ServerGameModel.server_id == server_id
         )
-        result = await self.session.execute(stmt)
-        await self.session.flush()
-        return bool(result.rowcount)    # type: ignore
+        return bool(await self._execute_dml(stmt))
 
-    async def bulk_add_to_server(self, server_id: UUID, game_ids: list[UUID]) -> list[ServerGame]:
+    async def bulk_add_to_server(self, server_id: UUID, game_ids: list[UUID]) -> list[ServerGameDTO]:
         stmt = (
-            insert(ServerGame)
+            insert(ServerGameModel)
             .values(
-                [
-                    {
-                        "server_id": server_id,
-                        "game_id": gid,
-                    }
-                    for gid in game_ids
-                ]
+                [{"server_id": server_id, "game_id": gid} for gid in game_ids]
             )
             .on_conflict_do_nothing(
                 index_elements=[
-                    ServerGame.server_id,
-                    ServerGame.game_id,
+                    ServerGameModel.game_id,
+                    ServerGameModel.server_id,
                 ]
             )
-            .returning(ServerGame)
+            .returning(ServerGameModel)
         )
 
         try:
-            result = await self.session.execute(stmt)
-            await self.session.flush()
-            return list(result.scalars().all())
+            result = await self._session.execute(stmt)
+            await self._flush()
+            rows = result.scalars().all()
+            if rows:
+                return [self._to_server_game_dto(row) for row in rows]
         except IntegrityError as exc:
             sql_state = getattr(exc.orig, "sqlstate", None)
             if sql_state == "23503":
-                raise IntegrityForeignException("Some games are not found")
+                raise IntegrityForeignException("Game or server fields are not found")
             raise IntegrityUnknownException("Failed to add games to server")
 
-    async def bulk_remove_from_server(self, server_id: UUID, game_ids: list[UUID]) -> int:
-        stmt = delete(ServerGame).where(
-            ServerGame.server_id == server_id,
-            ServerGame.game_id.in_(game_ids)
+        stmt = select(ServerGameModel).where(
+            ServerGameModel.server_id == server_id,
+            ServerGameModel.game_id.in_(game_ids),
         )
-        result = await self.session.execute(stmt)
-        await self.session.flush()
-        return result.rowcount or 0    # type: ignore
+        res = await self._session.scalars(stmt)
+        return [self._to_server_game_dto(item) for item in res.all()]
+
+    async def bulk_remove_from_server(self, server_id: UUID, game_ids: list[UUID]) -> int:
+        stmt = delete(ServerGameModel).where(
+            ServerGameModel.server_id == server_id,
+            ServerGameModel.game_id.in_(game_ids)
+        )
+        return await self._execute_dml(stmt)
 
     async def set_server_games(self, server_id: UUID, game_ids: list[UUID]) -> None:
-        stmt = select(ServerGame).where(ServerGame.server_id == server_id)
-        res = await self.session.scalars(stmt)
-        current_game_ids = {sg.game_id for sg in res.all()}
-        to_remove_game_ids = current_game_ids - set(game_ids)
-        to_add_game_ids = set(game_ids) - current_game_ids
-        if to_add_game_ids:
-            await self.bulk_add_to_server(server_id, list(to_add_game_ids))
-        if to_remove_game_ids:
-            await self.bulk_remove_from_server(server_id, list(to_remove_game_ids))
+        stmt = select(ServerGameModel).where(ServerGameModel.server_id == server_id)
+        res = await self._session.scalars(stmt)
+        existing_links = res.all()
 
+        existing_ids = {link.game_id for link in existing_links}
+        target_ids = set(game_ids)
+
+        to_add_ids = target_ids - existing_ids
+        to_remove_ids = existing_ids - target_ids
+
+        if to_add_ids:
+            await self.bulk_add_to_server(server_id, list(to_add_ids))
+        if to_remove_ids:
+            await self.bulk_remove_from_server(server_id, list(to_remove_ids))

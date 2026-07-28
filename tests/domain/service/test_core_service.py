@@ -3,8 +3,8 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import async_session
 
-from src.domain.service.core import CoreService
-from src.domain.exceptions import NotFoundException, ForbiddenException
+from src.core.services.core import CoreService
+from src.core.exceptions import NotFoundException, ForbiddenException
 from src.infra.postgre.static import PERMISSION
 from src.infra.postgre.repo import (
     MemberRepository,
@@ -231,8 +231,8 @@ class TestCoreService:
         assert server.role_set != global_role_set
         assert server.rating_set != global_rating_set
 
-        new_role_set = await core_service.game_role_set_repo.get_by_id(server.role_set.id)
-        new_rating_set = await core_service.rating_set_repo.get_by_id(server.rating_set.id)
+        new_role_set = await core_service.game_role_set_repo.get(server.role_set.id)
+        new_rating_set = await core_service.rating_set_repo.get(server.rating_set.id)
 
         assert new_role_set is not None
         assert new_role_set.is_global is False
@@ -297,12 +297,12 @@ class TestCoreService:
             await core_service.delete_server(uuid.uuid4(), permission_mask=helpers.perm_mask(PERMISSION.DELETE_SERVER))
 
         await core_service.delete_server(server.id, permission_mask=helpers.perm_mask(PERMISSION.DELETE_SERVER))
-        assert await core_service.server_repo.get_by_id(server.id) is None
+        assert await core_service.server_repo.get(server.id) is None
 
     async def test_delete_server_banner(self, core_service, factory, helpers):
         server = await factory.create_server()
         server.banner_id = uuid.uuid4()
-        await core_service.server_repo.session.flush()
+        await core_service.server_repo._session.flush()
 
         with pytest.raises(ForbiddenException):
             await core_service.delete_server_banner(server.id, permission_mask=0)
@@ -316,7 +316,7 @@ class TestCoreService:
     async def test_delete_server_icon(self, core_service, factory, helpers):
         server = await factory.create_server()
         server.icon_id = uuid.uuid4()
-        await core_service.server_repo.session.flush()
+        await core_service.server_repo._session.flush()
 
         with pytest.raises(ForbiddenException):
             await core_service.delete_server_icon(server.id, permission_mask=0)
@@ -359,16 +359,16 @@ class TestCoreService:
         rating_set_id = server.rating_set.id
 
         # Verify existence before delete
-        assert await core_service.game_role_set_repo.get_by_id(role_set_id) is not None
-        assert await core_service.rating_set_repo.get_by_id(rating_set_id) is not None
+        assert await core_service.game_role_set_repo.get(role_set_id) is not None
+        assert await core_service.rating_set_repo.get(rating_set_id) is not None
 
         await core_service.delete_server(
             server.id,
             permission_mask=helpers.perm_mask(PERMISSION.DELETE_SERVER)
         )
         # Verify server is gone
-        assert await core_service.server_repo.get_by_id(server.id) is None
+        assert await core_service.server_repo.get(server.id) is None
 
         # Verify sets are gone
-        assert await core_service.game_role_set_repo.get_by_id(role_set_id) is None
-        assert await core_service.rating_set_repo.get_by_id(rating_set_id) is None
+        assert await core_service.game_role_set_repo.get(role_set_id) is None
+        assert await core_service.rating_set_repo.get(rating_set_id) is None

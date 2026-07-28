@@ -1,9 +1,11 @@
-from enum import StrEnum
 import logging
-from sqlalchemy.ext.asyncio import AsyncSession
-from src.infra.postgre.repo import RestrictionRepository
+from collections.abc import Iterable
+from enum import StrEnum
 
-from typing import Iterable
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.core.models.restriction import RestrictionCreate
+from src.infra.postgre.repo import RestrictionRepository
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +45,7 @@ async def init_restrictions(session: AsyncSession) -> None:
     existing_codes = {p.code for p in existing_perms}
     for r in RESTRICTION:
         if r.value not in existing_codes:
-            await repo.create(r)
-            created_codes.append(r)
+            await repo.create(RestrictionCreate(code=r.value))
+            created_codes.append(r.value)
     if created_codes:
         logger.info(f"Initialized restrictions: {', '.join(created_codes)}")

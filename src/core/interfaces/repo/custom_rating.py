@@ -1,0 +1,16 @@
+from typing import Protocol
+from uuid import UUID
+
+from src.core.models.custom_rating import (
+    CustomRating,
+    CustomRatingCreate,
+    CustomRatingUpdate,
+)
+
+
+class CustomRatingRepositoryProtocol(Protocol):
+    async def get(self, custom_rating_id: UUID, /) -> CustomRating | None: ...
+    async def get_by_custom_role(self, custom_id: UUID, game_role_id: UUID) -> CustomRating | None: ...
+    async def create(self, dto: CustomRatingCreate) -> CustomRating: ...
+    async def update(self, dto: CustomRatingUpdate) -> CustomRating: ...
+    async def delete(self, custom_rating_id: UUID, /) -> bool: ...

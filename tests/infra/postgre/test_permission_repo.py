@@ -15,7 +15,7 @@ class TestPermissionRepository:
         p = await repo.create("perm.view")
         assert p is not None
         assert p.code == "perm.view"
-        by_id = await repo.get_by_id(p.id)
+        by_id = await repo.get(p.id)
         assert by_id is not None and by_id.id == p.id
         by_code = await repo.get_by_code("perm.view")
         assert by_code is not None and by_code.id == p.id

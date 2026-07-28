@@ -1,14 +1,14 @@
-from .game import GameRepository
-from .permission import PermissionRepository
-from .rating import RatingRepository
-from .game_role import GameRoleRepository
-from .custom_rating import CustomRatingRepository
-from .custom import CustomRepository
-from .game_role_set import GameRoleSetRepository
-from .rating_set import RatingSetRepository
-from .invite import InviteRepository
-from .member import MemberRepository
-from .server import ServerRepository
-from .server_role import ServerRoleRepository
-from .restriction import RestrictionRepository
-from .member_restriction import MemberRestrictionRepository
+from .custom import CustomRepository  # noqa: F401
+from .custom_rating import CustomRatingRepository  # noqa: F401
+from .game import GameRepository  # noqa: F401
+from .game_role import GameRoleRepository  # noqa: F401
+from .game_role_set import GameRoleSetRepository  # noqa: F401
+from .invite import InviteRepository  # noqa: F401
+from .member import MemberRepository  # noqa: F401
+from .member_restriction import MemberRestrictionRepository  # noqa: F401
+from .permission import PermissionRepository  # noqa: F401
+from .rating import RatingRepository  # noqa: F401
+from .rating_set import RatingSetRepository  # noqa: F401
+from .restriction import RestrictionRepository  # noqa: F401
+from .server import ServerRepository  # noqa: F401
+from .server_role import ServerRoleRepository  # noqa: F401

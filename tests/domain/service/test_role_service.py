@@ -2,8 +2,8 @@ import uuid
 import pytest
 import pytest_asyncio
 
-from src.domain.exceptions import ForbiddenException, NotFoundException
-from src.domain.service.role import RoleService
+from src.core.exceptions import ForbiddenException, NotFoundException
+from src.core.services.role import RoleService
 from src.infra.postgre.repo import ServerRepository, ServerRoleRepository, MemberRepository, PermissionRepository
 from src.infra.postgre.static import PERMISSION
 
@@ -142,7 +142,7 @@ class TestRoleService:
             permission_mask=helpers.perm_mask(PERMISSION.EDIT_SERVER_ROLES),
         )
 
-        assert await role_service.role_repo.get_by_id(r.id) is None
+        assert await role_service.role_repo.get(r.id) is None
 
     async def test_delete_role_not_found(self, role_service, helpers):
         with pytest.raises(NotFoundException):
@@ -174,10 +174,10 @@ class TestRoleService:
             r.id,
             permission_mask=helpers.perm_mask(PERMISSION.EDIT_SERVER_ROLES),
         )
-        assert await role_service.role_repo.get_by_id(r.id) is None
+        assert await role_service.role_repo.get(r.id) is None
 
-        updated_member = await role_service.member_repo.get_by_id(member.id)
-        await role_service.member_repo.session.refresh(updated_member)
+        updated_member = await role_service.member_repo.get(member.id)
+        await role_service.member_repo._session.refresh(updated_member)
         assert updated_member is not None
         assert updated_member.server_role_id is None
 

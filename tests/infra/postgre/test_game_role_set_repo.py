@@ -13,11 +13,11 @@ class TestGameRoleSetRepository:
         assert rs is not None
         assert rs.name == "SetA"
         assert rs.is_global is False
-        by_id = await repo.get_by_id(rs.id)
+        by_id = await repo.get(rs.id)
         assert by_id is not None and by_id.id == rs.id
         by_name = await repo.get_by_name("SetA")
         assert by_name is not None and by_name.id == rs.id
-        assert await repo.get_by_id(uuid.uuid4()) is None
+        assert await repo.get(uuid.uuid4()) is None
         assert await repo.get_by_name("MissingName") is None
 
     async def test_setters_update_fields(self, async_session):

@@ -3,8 +3,8 @@ import pytest
 import pytest_asyncio
 from datetime import datetime, timedelta, UTC
 
-from src.domain.service import AccessControlService
-from src.domain.exceptions import NotFoundException, ForbiddenException
+from src.core.services import AccessControlService
+from src.core.exceptions import NotFoundException, ForbiddenException
 from src.infra.postgre.static import PERMISSION, RESTRICTION
 from src.infra.postgre.repo import (
     MemberRepository,

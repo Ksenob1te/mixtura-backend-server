@@ -1,56 +1,45 @@
+from collections.abc import Sequence
 from uuid import UUID
-from typing import Sequence
-from sqlalchemy import select, delete
+
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from ..models import GameRoleSet
-from sqlalchemy.exc import IntegrityError
-from ..exceptions import IntegrityUnknownException, IntegrityUniqueException, IntegrityForeignException
+
+from src.core.interfaces.repo.game_role_set import GameRoleSetRepositoryProtocol
+from src.core.models.game_role_set import GameRoleSet as GameRoleSetDTO
+from src.core.models.game_role_set import GameRoleSetCreate, GameRoleSetUpdate
+
+from ..models import GameRoleSet as GameRoleSetModel
+from .base import BaseRepository
 
 
-class GameRoleSetRepository:
+class GameRoleSetRepository(
+    BaseRepository[GameRoleSetModel, GameRoleSetCreate, GameRoleSetDTO, GameRoleSetUpdate],
+    GameRoleSetRepositoryProtocol,
+):
+    model = GameRoleSetModel
+    dto_model = GameRoleSetDTO
+
     def __init__(self, session: AsyncSession):
-        self.session = session
+        super().__init__(session)
 
-    async def get_by_id(self, role_set_id: UUID) -> GameRoleSet | None:
-        stmt = select(GameRoleSet).where(GameRoleSet.id == role_set_id).limit(1)
-        return await self.session.scalar(stmt)
+    async def get_by_name(self, name: str) -> GameRoleSetDTO | None:
+        stmt = select(GameRoleSetModel).where(GameRoleSetModel.name == name).limit(1)
+        result = await self._session.scalar(stmt)
+        return self._to_dto(result) if result else None
 
-    async def get_by_name(self, name: str) -> GameRoleSet | None:
-        stmt = select(GameRoleSet).where(GameRoleSet.name == name).limit(1)
-        return await self.session.scalar(stmt)
+    async def get_by_server_id(self, server_id: UUID) -> GameRoleSetDTO | None:
+        stmt = select(GameRoleSetModel).where(GameRoleSetModel.server_id == server_id).limit(1)
+        result = await self._session.scalar(stmt)
+        return self._to_dto(result) if result else None
 
-    async def get_global(self) -> Sequence[GameRoleSet]:
-        stmt = select(GameRoleSet).where(GameRoleSet.is_global.is_(True))
-        res = await self.session.scalars(stmt)
-        return res.all()
+    async def get_global(self) -> Sequence[GameRoleSetDTO]:
+        stmt = select(GameRoleSetModel).where(GameRoleSetModel.is_global.is_(True))
+        res = await self._session.scalars(stmt)
+        return [self._to_dto(item) for item in res.all()]
 
-    async def create(self, name: str, is_global: bool = False, server_id: UUID | None = None) -> GameRoleSet:
-        role_set_field = GameRoleSet(name=name, is_global=is_global, server_id=server_id)
-        try:
-            self.session.add(role_set_field)
-            await self.session.flush()
-            role_set_field = await self.get_by_id(role_set_field.id)
-            if role_set_field is None:
-                raise IntegrityUnknownException("Failed to create game role set")
-            return role_set_field
-        except IntegrityError as exc:
-            raise IntegrityUnknownException("Failed to create game role set") from exc
-
-    async def set_name(self, role_set: GameRoleSet, name: str) -> GameRoleSet:
-        role_set.name = name
-        await self.session.flush()
-        return role_set
-
-    async def set_global(self, role_set: GameRoleSet, is_global: bool) -> GameRoleSet:
-        role_set.is_global = is_global
-        await self.session.flush()
-        return role_set
-
-    async def delete(self, role_set_id: UUID) -> bool:
-        stmt = delete(GameRoleSet).where(GameRoleSet.id == role_set_id)
-        res = await self.session.execute(stmt)
-        await self.session.flush()
-        return bool(res.rowcount)  # type: ignore
-
-    async def copy_global(self, global_role_set: GameRoleSet, server_id: UUID | None = None) -> GameRoleSet:
-        return await self.create(name=global_role_set.name, is_global=False, server_id=server_id)
+    async def copy_global(self, global_role_set: GameRoleSetDTO, server_id: UUID | None = None) -> GameRoleSetDTO:
+        return await self.create(GameRoleSetCreate(
+            name=global_role_set.name,
+            is_global=False,
+            server_id=server_id,
+        ))

@@ -16,9 +16,9 @@ class TestCustomRepository:
         assert c is not None
         assert c.member_id == m.id
         assert c.creator_id == m.id
-        by_id = await repo.get_by_id(c.id)
+        by_id = await repo.get(c.id)
         assert by_id is not None and by_id.id == c.id
-        assert await repo.get_by_id(uuid.uuid4()) is None
+        assert await repo.get(uuid.uuid4()) is None
 
     async def test_create_custom_unreal_member(self, async_session):
         repo = CustomRepository(async_session)

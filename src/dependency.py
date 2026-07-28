@@ -1,28 +1,22 @@
-from faststream import Context, Depends
-
-from .domain.service.role import RoleService
-
-from .domain.service.access_control import AccessControlService
-
-from .domain.service.member_custom import MemberCustomService
-
-from .domain.service.member import MemberService
-
-from .infra.postgre import DatabaseSessionManager
-from .infra.redis import RedisSessionManager, RedisRepository
-from .infra.postgre.repo import *
-
-from typing import Annotated
-from sqlalchemy.ext.asyncio import AsyncSession
-from redis.asyncio import Redis
-
 import logging
+from typing import Annotated
 
-from .domain.service.core import CoreService
-from .domain.service.game import GameService
-from .domain.service.game_role import GameRoleService
-from .domain.service.invite import InviteService
-from .domain.service.rating import RatingService
+from faststream import Context, Depends
+from redis.asyncio import Redis
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from .core.services.access_control import AccessControlService
+from .core.services.core import CoreService
+from .core.services.game import GameService
+from .core.services.game_role import GameRoleService
+from .core.services.invite import InviteService
+from .core.services.member import MemberService
+from .core.services.member_custom import MemberCustomService
+from .core.services.rating import RatingService
+from .core.services.role import RoleService
+from .infra.postgre import DatabaseSessionManager
+from .infra.postgre.repo import *
+from .infra.redis import RedisRepository, RedisSessionManager
 
 logger = logging.getLogger(__name__)
 
@@ -227,12 +221,18 @@ async def get_member_custom_service(
     ],
     member_repo: Annotated[MemberRepository, Depends(get_member_repository)],
     game_role_repo: Annotated[GameRoleRepository, Depends(get_game_role_repository)],
+    server_repo: Annotated[ServerRepository, Depends(get_server_repository)],
+    rating_set_repo: Annotated[
+        RatingSetRepository, Depends(get_rating_set_repository)
+    ],
 ) -> MemberCustomService:
     return MemberCustomService(
         custom_repo=custom_repo,
         custom_rating_repo=custom_rating_repo,
         member_repo=member_repo,
         game_role_repo=game_role_repo,
+        server_repo=server_repo,
+        rating_set_repo=rating_set_repo,
     )
 
 
@@ -248,6 +248,9 @@ async def get_access_control_service(
     permission_repo: Annotated[
         PermissionRepository, Depends(get_permission_repository)
     ],
+    server_role_repo: Annotated[
+        ServerRoleRepository, Depends(get_server_role_repository)
+    ],
 ) -> AccessControlService:
     return AccessControlService(
         member_repo=member_repo,
@@ -255,6 +258,7 @@ async def get_access_control_service(
         server_repo=server_repo,
         restriction_repo=restriction_repo,
         permission_repo=permission_repo,
+        server_role_repo=server_role_repo,
     )
 
 

@@ -2,8 +2,8 @@ import uuid
 import pytest
 import pytest_asyncio
 
-from src.domain.service.rating import RatingService
-from src.domain.exceptions import NotFoundException, ForbiddenException
+from src.core.services.rating import RatingService
+from src.core.exceptions import NotFoundException, ForbiddenException
 from src.domain.models.rating.request import (
     RatingItemCreateRequest,
     RatingItemUpdateRequest,

@@ -3,6 +3,7 @@ import pytest
 from src.infra.postgre import IntegrityUniqueException, IntegrityForeignException
 
 from src.infra.postgre.repo import MemberRepository
+from src.core.models.member import MemberCreate, MemberUpdate
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -13,9 +14,9 @@ class TestMemberRepository:
         s = await factory.create_server()
         m = await repo.create(server_id=s.id, user_id=uuid.uuid4(), nickname="Alice")
         assert m is not None and m.nickname == "Alice"
-        by_id = await repo.get_by_id(m.id)
+        by_id = await repo.get(m.id)
         assert by_id is not None and by_id.id == m.id
-        assert await repo.get_by_id(uuid.uuid4()) is None
+        assert await repo.get(uuid.uuid4()) is None
 
     async def test_create_member_unreal_server(self, async_session):
         repo = MemberRepository(async_session)
@@ -148,7 +149,7 @@ class TestMemberRepository:
         assert updated.id == member.id
         assert updated.user_id is None
 
-        reloaded = await repo.get_by_id(member.id)
+        reloaded = await repo.get(member.id)
         assert reloaded is not None
         assert reloaded.user_id is None
     #

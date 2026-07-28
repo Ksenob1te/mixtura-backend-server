@@ -1,8 +1,10 @@
-from . import *
 import asyncio
+
 from src.env_config import env
 from src.infra.postgre import DatabaseSessionManager
 from src.logging_setup import setup_logging
+
+from . import *
 
 
 async def init_constants():

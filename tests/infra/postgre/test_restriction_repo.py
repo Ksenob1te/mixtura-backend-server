@@ -12,9 +12,9 @@ class TestRestrictionRepository:
         repo = RestrictionRepository(async_session)
         rc = await repo.create("BAN")
         assert rc is not None and rc.code == "BAN"
-        fetched = await repo.get_by_id(rc.id)
+        fetched = await repo.get(rc.id)
         assert fetched is not None and fetched.id == rc.id
-        assert await repo.get_by_id(uuid.uuid4()) is None
+        assert await repo.get(uuid.uuid4()) is None
 
     async def test_unique_code_constraint(self, async_session):
         repo = RestrictionRepository(async_session)

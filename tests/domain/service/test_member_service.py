@@ -2,8 +2,8 @@ import uuid
 import pytest
 import pytest_asyncio
 
-from src.domain.service.member import MemberService
-from src.domain.exceptions import NotFoundException, ForbiddenException, MigrationException
+from src.core.services.member import MemberService
+from src.core.exceptions import NotFoundException, ForbiddenException, MigrationException
 from src.domain.models.member.request import (
     VirtualMemberCreateRequest,
     MemberUpdateRequest,
@@ -280,7 +280,7 @@ class TestMemberService:
             member.id,
             permission_mask=helpers.perm_mask(PERMISSION.KICK_MEMBERS)
         )
-        reloaded = await member_service.member_repo.get_by_id(member.id)
+        reloaded = await member_service.member_repo.get(member.id)
         assert reloaded is not None and reloaded.active is False
 
     async def test_kick_member_forbidden_hierarchy(self, member_service, factory, helpers):
@@ -344,7 +344,7 @@ class TestMemberService:
         assert migrated.id == target.id
         assert migrated.user_id == user_id
 
-        reloaded_current = await member_service.member_repo.get_by_id(current.id)
+        reloaded_current = await member_service.member_repo.get(current.id)
         assert reloaded_current.user_id is None
         assert reloaded_current.active is False
 

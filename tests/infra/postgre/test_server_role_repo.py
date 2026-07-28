@@ -13,9 +13,9 @@ class TestServerRoleRepository:
         s = await factory.create_server()
         r = await repo.create(s.id, "RoleA", position=1)
         assert r is not None and r.name == "RoleA" and r.position == 1
-        by_id = await repo.get_by_id(r.id)
+        by_id = await repo.get(r.id)
         assert by_id is not None and by_id.id == r.id
-        assert await repo.get_by_id(uuid.uuid4()) is None
+        assert await repo.get(uuid.uuid4()) is None
 
     async def test_create_shifts_positions(self, async_session, factory):
         repo = ServerRoleRepository(async_session)
@@ -33,8 +33,8 @@ class TestServerRoleRepository:
         assert r_mid.position == 2
 
         # Verify shifts
-        r1_fresh = await repo.get_by_id(r1.id)
-        r2_fresh = await repo.get_by_id(r2.id)
+        r1_fresh = await repo.get(r1.id)
+        r2_fresh = await repo.get(r2.id)
 
         assert r1_fresh and r1_fresh.position == 1
         assert r2_fresh and r2_fresh.position == 3

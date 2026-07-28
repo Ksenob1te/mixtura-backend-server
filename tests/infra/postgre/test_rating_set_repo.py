@@ -14,11 +14,11 @@ class TestRatingSetRepository:
         assert rs.name == "RSetA"
         assert rs.min_rating == 0
         assert rs.max_rating == 100
-        by_id = await repo.get_by_id(rs.id)
+        by_id = await repo.get(rs.id)
         assert by_id is not None and by_id.id == rs.id
         by_name = await repo.get_by_name("RSetA")
         assert by_name is not None and by_name.id == rs.id
-        assert await repo.get_by_id(uuid.uuid4()) is None
+        assert await repo.get(uuid.uuid4()) is None
         assert await repo.get_by_name("MissingRatingSet") is None
 
     async def test_setters_and_bounds(self, async_session):

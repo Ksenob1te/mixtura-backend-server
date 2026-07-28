@@ -3,6 +3,7 @@ import pytest
 from src.infra.postgre.models import Custom
 from src.infra.postgre.repo import CustomRatingRepository
 
+from src.core.models.custom_rating import CustomRatingCreate, CustomRatingUpdate
 from src.infra.postgre import IntegrityForeignException, IntegrityUniqueException
 
 
@@ -23,7 +24,7 @@ class TestCustomRatingRepository:
         cr = await repo.create(c.id, r.id, 12)
         assert cr is not None and cr.rating == 12
 
-        by_id = await repo.get_by_id(cr.id)
+        by_id = await repo.get(cr.id)
         assert by_id is not None and by_id.id == cr.id
 
         by_pair = await repo.get_by_custom_role(c.id, r.id)

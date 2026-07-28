@@ -1,91 +1,38 @@
+from collections.abc import Sequence
 from uuid import UUID
-from typing import Sequence
-from sqlalchemy import select, delete
+
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.exc import IntegrityError
-from ..models import GameRole
 
-from ..exceptions import IntegrityUnknownException, IntegrityForeignException, IntegrityUniqueException
+from src.core.interfaces.repo.game_role import GameRoleRepositoryProtocol
+from src.core.models.game_role import GameRole as GameRoleDTO
+from src.core.models.game_role import GameRoleCreate, GameRoleUpdate
+
+from ..models import GameRole as GameRoleModel
+from .base import BaseRepository
 
 
-class GameRoleRepository:
+class GameRoleRepository(
+    BaseRepository[GameRoleModel, GameRoleCreate, GameRoleDTO, GameRoleUpdate],
+    GameRoleRepositoryProtocol,
+):
+    model = GameRoleModel
+    dto_model = GameRoleDTO
+
     def __init__(self, session: AsyncSession):
-        self.session = session
+        super().__init__(session)
 
-    async def get_by_id(self, role_id: UUID) -> GameRole | None:
-        stmt = select(GameRole).where(GameRole.id == role_id).limit(1)
-        return await self.session.scalar(stmt)
+    async def list_for_set(self, role_set_id: UUID) -> Sequence[GameRoleDTO]:
+        stmt = select(GameRoleModel).where(GameRoleModel.role_set_id == role_set_id)
+        res = await self._session.scalars(stmt)
+        return [self._to_dto(item) for item in res.all()]
 
-    async def list_for_set(self, role_set_id: UUID) -> Sequence[GameRole]:
-        stmt = select(GameRole).where(GameRole.role_set_id == role_set_id)
-        res = await self.session.scalars(stmt)
-        return res.all()
-
-    async def create(self, name: str, role_set_id: UUID, min_in_team: int, max_in_team: int,
-                     icon_id: UUID | None = None, hidden: bool = False) -> GameRole:
-        role = GameRole(
-            name=name,
-            role_set_id=role_set_id,
-            min_in_team=min_in_team,
-            max_in_team=max_in_team,
-            icon_id=icon_id,
-            hidden=hidden
-        )
-        try:
-            self.session.add(role)
-            await self.session.flush()
-            game_role_field = await self.get_by_id(role.id)
-            if game_role_field is None:
-                raise IntegrityUnknownException("Failed to create game role")
-            return game_role_field
-        except IntegrityError as exc:
-            # SQLSTATE_FK_VIOLATION - some fields do not exist
-            sql_state = getattr(exc.orig, "sqlstate", None)
-            if sql_state == "23503":
-                raise IntegrityForeignException("Role set field is not found")
-            raise IntegrityUnknownException("Failed to create game role")
-
-    async def set_name(self, role: GameRole, name: str) -> GameRole:
-        role.name = name
-        await self.session.flush()
-        return role
-
-    async def set_icon(self, role: GameRole, icon_id: UUID | None) -> GameRole:
-        role.icon_id = icon_id
-        await self.session.flush()
-        return role
-
-    async def set_hidden(self, role: GameRole, hidden: bool) -> GameRole:
-        role.hidden = hidden
-        await self.session.flush()
-        return role
-
-    async def set_min(self, role: GameRole, min_in_team: int) -> GameRole:
-        role.min_in_team = min_in_team
-        if role.max_in_team < min_in_team:
-            role.min_in_team = role.max_in_team
-        await self.session.flush()
-        return role
-
-    async def set_max(self, role: GameRole, max_in_team: int) -> GameRole:
-        role.max_in_team = max_in_team
-        if role.min_in_team > max_in_team:
-            role.max_in_team = role.min_in_team
-        await self.session.flush()
-        return role
-
-    async def delete(self, role_id: UUID) -> bool:
-        stmt = delete(GameRole).where(GameRole.id == role_id)
-        res = await self.session.execute(stmt)
-        await self.session.flush()
-        return bool(res.rowcount)  # type: ignore
-
-    async def copy_role(self, template_role: GameRole, new_role_set_id: UUID) -> GameRole:
-        return await self.create(
+    async def copy_role(self, template_role: GameRoleDTO, new_role_set_id: UUID) -> GameRoleDTO:
+        return await self.create(GameRoleCreate(
             name=template_role.name,
             role_set_id=new_role_set_id,
             min_in_team=template_role.min_in_team,
             max_in_team=template_role.max_in_team,
             icon_id=template_role.icon_id,
-            hidden=template_role.hidden
-        )
+            hidden=template_role.hidden,
+        ))

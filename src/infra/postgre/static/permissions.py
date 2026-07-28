@@ -1,9 +1,11 @@
-from enum import StrEnum
 import logging
-from sqlalchemy.ext.asyncio import AsyncSession
-from src.infra.postgre.repo.permission import PermissionRepository
+from collections.abc import Callable, Iterable
+from enum import StrEnum
 
-from typing import Iterable, Callable
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.core.models.permission import PermissionCreate
+from src.infra.postgre.repo.permission import PermissionRepository
 
 logger = logging.getLogger(__name__)
 
@@ -91,8 +93,8 @@ async def init_permissions(session: AsyncSession) -> None:
     existing_perms = await repo.get_by_code_bulk([p for p in PERMISSION])
     existing_codes = {p.code for p in existing_perms}
     for perm in PERMISSION:
-        if perm not in existing_codes:
-            await repo.create(perm)
-            created_codes.append(perm)
+        if perm.value not in existing_codes:
+            await repo.create(PermissionCreate(code=perm.value))
+            created_codes.append(perm.value)
     if created_codes:
         logger.info(f"Initialized permissions: {', '.join(created_codes)}")

@@ -1,7 +1,0 @@
-from .core import CoreService
-from .game import GameService
-from .game_role import GameRoleService
-from .invite import InviteService
-from .member import MemberService
-from .member_custom import MemberCustomService
-from .access_control import AccessControlService

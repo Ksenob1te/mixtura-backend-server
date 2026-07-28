@@ -29,13 +29,13 @@ class TestGameRepository:
         repo = GameRepository(async_session)
         g = await repo.create("LookupGame", uuid.uuid4(), uuid.uuid4())
         assert g is not None
-        by_id = await repo.get_by_id(g.id)
+        by_id = await repo.get(g.id)
         assert by_id is not None
         by_name = await repo.get_by_name("LookupGame")
         assert by_name is not None
         assert by_id.id == g.id
         assert by_name.id == g.id
-        assert await repo.get_by_id(uuid.uuid4()) is None
+        assert await repo.get(uuid.uuid4()) is None
         assert await repo.get_by_name("Missing") is None
 
     async def test_setters_modify_fields(self, async_session):

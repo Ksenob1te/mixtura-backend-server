@@ -2,8 +2,8 @@ import uuid
 import pytest
 import pytest_asyncio
 
-from src.domain.service.game_role import GameRoleService
-from src.domain.exceptions import NotFoundException, ForbiddenException
+from src.core.services.game_role import GameRoleService
+from src.core.exceptions import NotFoundException, ForbiddenException
 from src.infra.postgre.static import PERMISSION
 from src.infra.postgre.repo import (
     GameRoleSetRepository,
@@ -205,7 +205,7 @@ class TestGameRoleService:
             server.id,
             permission_mask=helpers.perm_mask(PERMISSION.EDIT_ROLE_SET),
         )
-        assert await game_role_service.role_repo.get_by_id(r.id) is None
+        assert await game_role_service.role_repo.get(r.id) is None
 
     async def test_delete_role_icon_success(self, game_role_service, factory, helpers):
         rs = await factory.create_role_set()
@@ -214,7 +214,7 @@ class TestGameRoleService:
 
         # Set an icon first
         r.icon_id = uuid.uuid4()
-        await game_role_service.role_repo.session.flush()
+        await game_role_service.role_repo._session.flush()
 
         updated = await game_role_service.delete_role_icon(
             r.id,

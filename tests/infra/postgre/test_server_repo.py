@@ -21,7 +21,7 @@ class TestServerRepository:
         assert s.description == "desc"
         assert s.icon_id == icon_id
         assert s.banner_id == banner_id
-        by_id = await repo.get_by_id(s.id)
+        by_id = await repo.get(s.id)
         assert by_id is not None and by_id.id == s.id
 
     async def test_setters_update_fields(self, async_session, factory):
@@ -70,7 +70,7 @@ class TestServerRepository:
         inactive_member = await factory.create_member(inactive_server.id, user_id=user_id)
 
         inactive_member.active = False
-        await repo.session.flush()
+        await repo._session.flush()
 
         res = await repo.list_by_user(user_id)
 

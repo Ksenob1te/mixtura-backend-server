@@ -14,9 +14,9 @@ class TestGameRoleRepository:
         role = await repo.create("Support", rs.id, 1, 3, icon_id=uuid.uuid4(), hidden=False)
         assert role is not None
         assert role.name == "Support"
-        by_id = await repo.get_by_id(role.id)
+        by_id = await repo.get(role.id)
         assert by_id is not None and by_id.id == role.id
-        assert await repo.get_by_id(uuid.uuid4()) is None
+        assert await repo.get(uuid.uuid4()) is None
 
     async def test_create_game_role_invalid_role_set(self, async_session):
         repo = GameRoleRepository(async_session)

@@ -22,7 +22,7 @@ class TestMemberRestrictionRepository:
         assert mr is not None and mr.reason == "Rule violation"
         assert mr.creator_id == creator.id
         assert mr.creator is not None and mr.creator.id == creator.id
-        fetched = await mr_repo.get_by_id(mr.id)
+        fetched = await mr_repo.get(mr.id)
         assert fetched is not None and fetched.id == mr.id
         assert fetched.creator_id == creator.id
 

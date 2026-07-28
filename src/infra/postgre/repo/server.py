@@ -1,133 +1,78 @@
+from collections.abc import Sequence
 from uuid import UUID
-from typing import Sequence
-from sqlalchemy import select, delete
-from sqlalchemy.exc import IntegrityError
+
+from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
-from sqlalchemy import Select
-from ..models import Server, Member
 
-from ..exceptions import IntegrityUnknownException, IntegrityForeignException
+from src.core.interfaces.repo.server import ServerRepositoryProtocol
+from src.core.models.server import Server as ServerDTO
+from src.core.models.server import ServerCreate, ServerUpdate
+
+from ..models import Member
+from ..models import Server as ServerModel
+from .base import BaseRepository
 
 
-class ServerRepository:
+class ServerRepository(
+    BaseRepository[ServerModel, ServerCreate, ServerDTO, ServerUpdate],
+    ServerRepositoryProtocol,
+):
+    model = ServerModel
+    dto_model = ServerDTO
+
     def __init__(self, session: AsyncSession):
-        self.session = session
-
-    async def get_by_id(self, server_id: UUID) -> Server | None:
-        stmt = select(Server).where(Server.id == server_id).limit(1)
-        return await self.session.scalar(stmt)
+        super().__init__(session)
 
     @staticmethod
     async def _apply_filter(
-            stmt: Select, page: int | None = None,
-            name_filter: str = "",
-            page_size: int = 50
+            stmt: Select,
+            page: int | None = None,
+            name_filter: str | None = None,
+            page_size: int = 50,
     ) -> Select:
         if name_filter:
-            stmt = stmt.where(Server.name.ilike(f"%{name_filter}%"))
-        stmt = stmt.order_by(Server.name)
-
+            stmt = stmt.where(ServerModel.name.ilike(f"%{name_filter}%"))
         if page is not None:
             current_page = max(1, page)
             stmt = stmt.limit(page_size).offset((current_page - 1) * page_size)
         return stmt
 
     async def list_public(
-            self, page: int | None = None,
-            name_filter: str = "",
-            page_size: int = 50
-    ) -> Sequence[Server]:
-        stmt = select(Server).where(Server.public.is_(True))
+            self,
+            page: int | None = None,
+            name_filter: str | None = None,
+            page_size: int = 50,
+    ) -> Sequence[ServerDTO]:
+        stmt = select(ServerModel).where(ServerModel.public.is_(True))
         stmt = await self._apply_filter(stmt, page, name_filter, page_size)
-        res = await self.session.scalars(stmt)
-        return res.all()
+        res = await self._session.scalars(stmt)
+        return [self._to_dto(item) for item in res.all()]
 
     async def list_by_owner(
-            self, owner_id: UUID,
+            self,
+            owner_id: UUID,
             page: int | None = None,
             name_filter: str = "",
-            page_size: int = 50
-    ) -> Sequence[Server]:
-        stmt = select(Server).where(Server.owner_id == owner_id)
+            page_size: int = 50,
+    ) -> Sequence[ServerDTO]:
+        stmt = select(ServerModel).where(ServerModel.owner_id == owner_id)
         stmt = await self._apply_filter(stmt, page, name_filter, page_size)
-        res = await self.session.scalars(stmt)
-        return res.all()
+        res = await self._session.scalars(stmt)
+        return [self._to_dto(item) for item in res.all()]
 
     async def list_by_user(
-            self, user_id: UUID,
+            self,
+            user_id: UUID,
             page: int | None = None,
-            name_filter: str = "",
-            page_size: int = 50
-    ):
-        stmt = select(Server).where(
-            Server.members.any(
+            name_filter: str | None = None,
+            page_size: int = 50,
+    ) -> Sequence[ServerDTO]:
+        stmt = select(ServerModel).where(
+            ServerModel.members.any(
                 (Member.user_id == user_id) &
                 (Member.active == True)
             )
         )
         stmt = await self._apply_filter(stmt, page, name_filter, page_size)
-        res = await self.session.scalars(stmt)
-        return res.all()
-
-    async def create(
-            self,
-            name: str,
-            owner_id: UUID,
-            public: bool = False,
-            description: str = "",
-            icon_id: UUID | None = None,
-            banner_id: UUID | None = None,
-    ) -> Server:
-        server = Server(
-            name=name,
-            owner_id=owner_id,
-            public=public,
-            description=description,
-            icon_id=icon_id,
-            banner_id=banner_id,
-        )
-        try:
-            self.session.add(server)
-            await self.session.flush()
-            server_field = await self.get_by_id(server.id)
-            if server_field is None:
-                raise IntegrityUnknownException("Failed to create server")
-            return server_field
-        except IntegrityError as exc:
-            # SQLSTATE_FK_VIOLATION - some fields do not exist
-            sql_state = getattr(exc.orig, "sqlstate", None)
-            if sql_state == "23503":
-                raise IntegrityForeignException("Owner field is not found")
-            raise IntegrityUnknownException("Failed to create server")
-
-    async def set_name(self, server: Server, name: str) -> Server:
-        server.name = name
-        await self.session.flush()
-        return server
-
-    async def set_description(self, server: Server, description: str) -> Server:
-        server.description = description
-        await self.session.flush()
-        return server
-
-    async def set_public(self, server: Server, public: bool) -> Server:
-        server.public = public
-        await self.session.flush()
-        return server
-
-    async def set_icon(self, server: Server, icon_id: UUID | None) -> Server:
-        server.icon_id = icon_id
-        await self.session.flush()
-        return server
-
-    async def set_banner(self, server: Server, banner_id: UUID | None) -> Server:
-        server.banner_id = banner_id
-        await self.session.flush()
-        return server
-
-    async def delete(self, server_id: UUID) -> bool:
-        stmt = delete(Server).where(Server.id == server_id)
-        res = await self.session.execute(stmt)
-        await self.session.flush()
-        return bool(res.rowcount)  # type: ignore
+        res = await self._session.scalars(stmt)
+        return [self._to_dto(item) for item in res.all()]

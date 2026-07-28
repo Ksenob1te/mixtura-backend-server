@@ -1,141 +1,73 @@
+from collections.abc import Sequence
 from uuid import UUID
-from typing import Sequence
-from sqlalchemy import select, delete, update
+
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.exc import IntegrityError
-from ..models import Member
 
-from ..exceptions import IntegrityUniqueException, IntegrityUnknownException, IntegrityForeignException
+from src.core.interfaces.repo.member import MemberRepositoryProtocol
+from src.core.models.member import Member as MemberDTO
+from src.core.models.member import MemberCreate, MemberUpdate
+
+from ..models import Member as MemberModel
+from .base import BaseRepository
 
 
-class MemberRepository:
+class MemberRepository(
+    BaseRepository[MemberModel, MemberCreate, MemberDTO, MemberUpdate],
+    MemberRepositoryProtocol,
+):
+    model = MemberModel
+    dto_model = MemberDTO
+
     def __init__(self, session: AsyncSession):
-        self.session = session
+        super().__init__(session)
 
-    async def get_by_id(self, member_id: UUID) -> Member | None:
-        stmt = select(Member).where(Member.id == member_id).limit(1)
-        return await self.session.scalar(stmt)
+    async def get_by_user_in_server(self, server_id: UUID, user_id: UUID) -> MemberDTO | None:
+        stmt = select(MemberModel).where(MemberModel.server_id == server_id, MemberModel.user_id == user_id).limit(1)
+        result = await self._session.scalar(stmt)
+        return self._to_dto(result) if result else None
 
-    async def get_by_user_in_server(self, server_id: UUID, user_id: UUID) -> Member | None:
-        stmt = select(Member).where(Member.server_id == server_id, Member.user_id == user_id).limit(1)
-        return await self.session.scalar(stmt)
-
-    async def list_for_server(self, server_id: UUID) -> Sequence[Member]:
-        stmt = select(Member).where(Member.server_id == server_id)
-        res = await self.session.scalars(stmt)
-        return res.all()
-    #
-    # async def list_for_user(
-    #         self, user_id: UUID,
-    #         page: int | None = None,
-    #         page_size: int = 50
-    # ) -> Sequence[Member]:
-    #     stmt = select(Member).where(Member.user_id == user_id, Member.active.is_(True))
-    #     if page is not None:
-    #         current_page = max(1, page)
-    #         stmt = stmt.limit(page_size).offset((current_page - 1) * page_size)
-    #
-    #     res = await self.session.scalars(stmt)
-    #     return res.all()
+    async def list_for_server(self, server_id: UUID) -> Sequence[MemberDTO]:
+        stmt = select(MemberModel).where(MemberModel.server_id == server_id)
+        res = await self._session.scalars(stmt)
+        return [self._to_dto(item) for item in res.all()]
 
     async def list_active_for_server(self, server_id: UUID, page: int | None = None,
-                                     nickname_filter: str | None = None, page_size: int = 50) -> Sequence[Member]:
-        stmt = select(Member).where(Member.server_id == server_id, Member.active.is_(True))
+                                     nickname_filter: str | None = None, page_size: int = 50) -> Sequence[MemberDTO]:
+        stmt = select(MemberModel).where(MemberModel.server_id == server_id, MemberModel.active.is_(True))
 
         if nickname_filter:
-            stmt = stmt.where(Member.nickname.ilike(f"%{nickname_filter}%"))
+            stmt = stmt.where(MemberModel.nickname.ilike(f"%{nickname_filter}%"))
 
-        stmt = stmt.order_by(Member.nickname)
+        stmt = stmt.order_by(MemberModel.nickname)
 
         if page is not None:
             current_page = max(1, page)
             stmt = stmt.limit(page_size).offset((current_page - 1) * page_size)
 
-        res = await self.session.scalars(stmt)
-        return res.all()
+        res = await self._session.scalars(stmt)
+        return [self._to_dto(item) for item in res.all()]
 
-    async def create(self, server_id: UUID, user_id: UUID | None, nickname: str,
-                     server_role_id: UUID | None = None) -> Member:
-        member_field = Member(server_id=server_id, user_id=user_id, nickname=nickname, server_role_id=server_role_id)
-        try:
-            self.session.add(member_field)
-            await self.session.flush()
-            member_field = await self.get_by_id(member_field.id)
-            if member_field is None:
-                raise IntegrityUnknownException("Failed to create member")
-            return member_field
-        except IntegrityError as exc:
-            # SQLSTATE_FK_VIOLATION - some fields do not exist
-            sql_state = getattr(exc.orig, "sqlstate", None)
-            if sql_state == "23503":
-                raise IntegrityForeignException("Server, user or server role fields are not found") from exc
-            # SQLSTATE_UNIQUE_VIOLATION - user is already a member of this server
-            if sql_state == "23505":
-                raise IntegrityUniqueException("User is already a member of this server") from exc
-            raise IntegrityUnknownException("Failed to create member") from exc
-
-    async def set_role(self, member: Member, server_role_id: UUID | None) -> Member:
-        if member.server_role_id == server_role_id:
-            return member
-        member.server_role_id = server_role_id
-        await self.session.flush()
-        return member
-
-    async def set_nickname(self, member: Member, nickname: str) -> Member:
-        if member.nickname == nickname:
-            return member
-        member.nickname = nickname
-        await self.session.flush()
-        return member
-
-    async def set_user_if_none(self, member: Member, user_id: UUID) -> bool:
+    async def set_user_if_none(self, member: MemberDTO, user_id: UUID) -> bool:
         if member.user_id is not None:
             return False
 
-        conflict_exists = select(Member.id).where(
-            Member.server_id == member.server_id,
-            Member.user_id == user_id
+        conflict_exists = select(MemberModel.id).where(
+            MemberModel.server_id == member.server_id,
+            MemberModel.user_id == user_id
         ).exists()
 
         stmt = (
-            update(Member)
-            .where(Member.id == member.id)
-            .where(Member.user_id.is_(None))
+            update(MemberModel)
+            .where(MemberModel.id == member.id)
+            .where(MemberModel.user_id.is_(None))
             .where(~conflict_exists)
             .values(user_id=user_id)
-            .returning(Member.id)
+            .returning(MemberModel.id)
         )
-        res = await self.session.execute(stmt)
+        res = await self._session.execute(stmt)
         success = res.scalar_one_or_none() is not None
         if success:
-            member.user_id = user_id
-            await self.session.flush()
+            await self._flush()
             return True
         return False
-
-    async def remove_user(self, member: Member) -> Member:
-        if member.user_id is None:
-            return member
-        member.user_id = None
-        await self.session.flush()
-        return member
-
-    async def deactivate(self, member: Member) -> Member:
-        if not member.active:
-            return member
-        member.active = False
-        await self.session.flush()
-        return member
-
-    async def activate(self, member: Member) -> Member:
-        if member.active:
-            return member
-        member.active = True
-        await self.session.flush()
-        return member
-
-    async def delete(self, member_id: UUID) -> bool:
-        stmt = delete(Member).where(Member.id == member_id)
-        res = await self.session.execute(stmt)
-        await self.session.flush()
-        return bool(res.rowcount)  # type: ignore
