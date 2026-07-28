@@ -47,11 +47,11 @@
 |-------|------|-------------|
 | Server | [models/server.md](models/server.md) | Игровой сервер — центральная сущность |
 | Member | [models/member.md](models/member.md) | Участник сервера |
-| Game | [models/game.md](models/game.md) | Глобальная игра |
+| Game | [models/game.md](models/game.md) | Игра — глобальная (сайт-админ) или локальная (принадлежит серверу) |
 | GameRole | [models/game-role.md](models/game-role.md) | Роль в наборе ролей |
-| GameRoleSet | [models/game-role-set.md](models/game-role-set.md) | Набор ролей |
+| GameRoleSet | [models/game-role-set.md](models/game-role-set.md) | Набор ролей игры (1:1 с игрой) |
 | Rating | [models/rating.md](models/rating.md) | Уровень рейтинга |
-| RatingSet | [models/rating-set.md](models/rating-set.md) | Набор рейтингов |
+| RatingSet | [models/rating-set.md](models/rating-set.md) | Набор рейтингов игры (1:1 с игрой) |
 | Invite | [models/invite.md](models/invite.md) | Приглашение на сервер |
 | Permission | [models/permission.md](models/permission.md) | Право доступа |
 | ServerRole | [models/server-role.md](models/server-role.md) | Роль сервера |
@@ -73,9 +73,9 @@
 | MemberRepository | [repositories/member.md](repositories/member.md) | Участники: CRUD, активация |
 | GameRepository | [repositories/game.md](repositories/game.md) | Игры: CRUD, управление на сервере |
 | GameRoleRepository | [repositories/game_role.md](repositories/game_role.md) | Игровые роли: CRUD, копирование |
-| GameRoleSetRepository | [repositories/game_role_set.md](repositories/game_role_set.md) | Наборы ролей: шаблоны, копирование |
+| GameRoleSetRepository | [repositories/game_role_set.md](repositories/game_role_set.md) | Наборы ролей игр: CRUD |
 | RatingRepository | [repositories/rating.md](repositories/rating.md) | Уровни рейтинга: CRUD, копирование |
-| RatingSetRepository | [repositories/rating_set.md](repositories/rating_set.md) | Наборы рейтингов: шаблоны, копирование |
+| RatingSetRepository | [repositories/rating_set.md](repositories/rating_set.md) | Наборы рейтингов игр: CRUD |
 | InviteRepository | [repositories/invite.md](repositories/invite.md) | Приглашения: ключи, лимиты |
 | PermissionRepository | [repositories/permission.md](repositories/permission.md) | Права: CRUD, назначение ролям |
 | ServerRoleRepository | [repositories/server_role.md](repositories/server_role.md) | Роли сервера: позиции, переиндексация |

@@ -1,22 +1,29 @@
-import asyncio
 import uuid
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
 import pytest
 import pytest_asyncio
-from testcontainers.postgres import PostgresContainer
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from testcontainers.postgres import PostgresContainer
 
 from src.infra.postgre import Base
 from src.infra.postgre.models import (
-    Server, GameRoleSet, RatingSet, Member, Game, Permission, Restriction,
-    ServerRole, GameRole, Invite
+    Game,
+    GameRole,
+    GameRoleSet,
+    Member,
+    Permission,
+    RatingSet,
+    Restriction,
+    Server,
+    ServerGame,
+    ServerRole,
 )
 from src.infra.postgre.static import PERMISSION, RESTRICTION
 
 
 @pytest_asyncio.fixture(scope="session")
-async def postgres_container() -> AsyncGenerator[str, None]:
+async def postgres_container() -> AsyncGenerator[str]:
     with PostgresContainer("postgres:15") as container:
         container.start()
         sync_url = container.get_connection_url()
@@ -72,26 +79,23 @@ class ServiceFactory:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def create_role_set(self, name: str = "RS", is_global: bool = False,
-                              server_id: uuid.UUID | None = None) -> GameRoleSet:
+    async def create_role_set(self, name: str = "RS", *, game_id: uuid.UUID) -> GameRoleSet:
         uid = uuid.uuid4().hex[:8]
-        rs = GameRoleSet(name=f"{name}-{uid}", is_global=is_global, server_id=server_id)
+        rs = GameRoleSet(name=f"{name}-{uid}", game_id=game_id)
         self.session.add(rs)
         await self.session.flush()
         return rs
 
-    async def create_rating_set(self, name: str = "RT", is_global: bool = False,
-                                server_id: uuid.UUID | None = None) -> RatingSet:
+    async def create_rating_set(self, name: str = "RT", *, game_id: uuid.UUID,
+                                min_rating: int = 0, max_rating: int = 50) -> RatingSet:
         uid = uuid.uuid4().hex[:8]
-        rts = RatingSet(name=f"{name}-{uid}", min_rating=0, max_rating=50, is_global=is_global, server_id=server_id)
+        rts = RatingSet(name=f"{name}-{uid}", min_rating=min_rating, max_rating=max_rating, game_id=game_id)
         self.session.add(rts)
         await self.session.flush()
         return rts
 
     async def create_server(self, public: bool = False, owner_id: uuid.UUID | None = None,
-                            role_set: GameRoleSet | None = None, rating_set: RatingSet | None = None,
                             name: str | None = None) -> Server:
-
         uid = uuid.uuid4().hex[:8]
         s = Server(
             id=uuid.uuid4(),
@@ -100,19 +104,7 @@ class ServiceFactory:
             public=public
         )
         self.session.add(s)
-        if role_set:
-            s.role_set = role_set
-        if rating_set:
-            s.rating_set = rating_set
         await self.session.flush()
-
-        if not role_set:
-            role_set = await self.create_role_set(server_id=s.id)
-            s.role_set = role_set
-        if not rating_set:
-            rating_set = await self.create_rating_set(server_id=s.id)
-            s.rating_set = rating_set
-
         return s
 
     async def create_member(self, server_id: uuid.UUID, user_id: uuid.UUID | int | None = 0,
@@ -141,11 +133,20 @@ class ServiceFactory:
         await self.session.flush()
         return r
 
-    async def create_game(self, name: str = "Game") -> Game:
-        g = Game(name=f"{name}-{uuid.uuid4()}", icon_id=uuid.uuid4(), banner_id=uuid.uuid4())
-        self.session.add(g)
+    async def create_game(self, name: str = "Game", server_id: uuid.UUID | None = None,
+                          min_rating: int = 0, max_rating: int = 50) -> Game:
+        g = Game(id=uuid.uuid4(), name=f"{name}-{uuid.uuid4()}", server_id=server_id)
+        role_set = GameRoleSet(name=g.name, game_id=g.id)
+        rating_set = RatingSet(name=g.name, min_rating=min_rating, max_rating=max_rating, game_id=g.id)
+        self.session.add_all([g, role_set, rating_set])
         await self.session.flush()
         return g
+
+    async def attach_game(self, server_id: uuid.UUID, game_id: uuid.UUID) -> ServerGame:
+        sg = ServerGame(server_id=server_id, game_id=game_id)
+        self.session.add(sg)
+        await self.session.flush()
+        return sg
 
     async def create_permission(self, code: PERMISSION) -> Permission:
         # Check if exists first to avoid unique constraint errors in tests

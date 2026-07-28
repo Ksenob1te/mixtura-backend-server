@@ -3,10 +3,10 @@
 - **Pydantic file:** `src/core/models/rating_set.py`
 - **ORM file:** `src/infra/postgre/models/rating_set.py`
 - **Repo protocol:** `RatingSetRepositoryProtocol`
-- **Used by services:** `CoreService`, `RatingService`
+- **Used by services:** `GameService`, `RatingService`, `MemberCustomService`
 
 ## Role
-Представляет набор рейтинговых уровней. Может быть глобальным шаблоном или принадлежать конкретному серверу.
+Набор рейтинговых уровней, принадлежащий ровно одной игре (`Game`). Игра владеет своим набором рейтингов 1:1 — набор создаётся вместе с игрой и каскадно удаляется вместе с ней.
 
 ## Fields
 
@@ -16,14 +16,13 @@
 | `name` | `str` | Название набора |
 | `min_rating` | `int` | Минимальный рейтинг |
 | `max_rating` | `int` | Максимальный рейтинг |
-| `is_global` | `bool` | Флаг глобального шаблона |
-| `server_id` | `UUID \| None` | ID сервера (если не глобальный) |
+| `game_id` | `UUID` | ID игры-владельца (уникально — один набор рейтингов на игру) |
 
 ## Relations
 
 | Relation | Type | Description |
 |----------|------|-------------|
-| `server` | `Server \| None` | Сервер набора |
+| `game` | `Game` | Игра-владелец набора |
 | `ratings` | `list[Rating]` | Уровни рейтинга |
 
 ## Create/Update Models
@@ -35,8 +34,7 @@
 | `name` | `str` | Yes | — | |
 | `min_rating` | `int` | Yes | — | |
 | `max_rating` | `int` | Yes | — | |
-| `is_global` | `bool` | No | `False` | |
-| `server_id` | `UUID \| None` | No | `None` | |
+| `game_id` | `UUID` | Yes | — | |
 
 ### Update — `RatingSetUpdate` (`src/core/models/rating_set.py`)
 
@@ -46,7 +44,7 @@
 | `min_rating` | `int \| None` | No | `None` | |
 | `max_rating` | `int \| None` | No | `None` | |
 
-> Поля `id`, `is_global`, `server_id` неизменяемы после создания.
+> Поля `id` и `game_id` неизменяемы после создания.
 
 ### Read — `RatingSet` (`src/core/models/rating_set.py`)
 
@@ -56,5 +54,11 @@
 | `name` | `str` | |
 | `min_rating` | `int` | |
 | `max_rating` | `int` | |
-| `is_global` | `bool` | |
-| `server_id` | `UUID \| None` | |
+| `game_id` | `UUID` | |
+
+#### `RatingSetDetail` (`src/core/models/rating_set.py`)
+
+| Field | Type | Notes |
+|-------|------|-------|
+| *(поля `RatingSet`)* | | |
+| `ratings` | `list[Rating]` | Навигационное свойство |

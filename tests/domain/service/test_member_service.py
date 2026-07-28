@@ -1,20 +1,21 @@
 import uuid
+
 import pytest
 import pytest_asyncio
 
-from src.core.services.member import MemberService
-from src.core.exceptions import NotFoundException, ForbiddenException, MigrationException
-from src.domain.models.member.request import (
-    VirtualMemberCreateRequest,
-    MemberUpdateRequest,
-    MemberMigrationRequest,
+from src.core.exceptions import (
+    ForbiddenException,
+    MigrationException,
+    NotFoundException,
 )
-from src.infra.postgre.static import PERMISSION, RESTRICTION
+from src.core.models.member import MemberUpdate
+from src.core.services.member import MemberService
 from src.infra.postgre.repo import (
     MemberRepository,
     ServerRepository,
-    ServerRoleRepository
+    ServerRoleRepository,
 )
+from src.infra.postgre.static import PERMISSION, RESTRICTION
 
 
 @pytest_asyncio.fixture(loop_scope="session")
@@ -33,7 +34,7 @@ class TestMemberService:
         server = await factory.create_server()
         m1 = await factory.create_member(server.id, nickname="Active1")
         m2 = await factory.create_member(server.id, nickname="Inactive1")
-        await member_service.member_repo.deactivate(m2)
+        await member_service.member_repo.update(MemberUpdate(id=m2.id, active=False))
 
         res = await member_service.list_members(server.id)
         assert isinstance(res, list)
@@ -89,7 +90,7 @@ class TestMemberService:
         server = await factory.create_server(public=True)
         user_id = uuid.uuid4()
         member = await factory.create_member(server.id, user_id=user_id, nickname="User")
-        await member_service.member_repo.deactivate(member)
+        await member_service.member_repo.update(MemberUpdate(id=member.id, active=False))
 
         joined = await member_service.join_server(server.id, user_id, "User")
         assert joined.id == member.id

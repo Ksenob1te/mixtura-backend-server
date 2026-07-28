@@ -3,118 +3,208 @@
 ## Overview
 - **File:** `src/core/services/rating.py`
 - **Private helpers:**
-  - `_check_rating_set(server_id, rating_set_id) -> RatingSet` — проверяет, что набор рейтингов принадлежит серверу; выбрасывает `NotFoundException` если сервер не найден или `rating_set_id` не соответствует
-  - `_check_rating(server_id, rating_id) -> Rating` — проверяет, что уровень рейтинга существует и принадлежит набору рейтингов сервера; выбрасывает `NotFoundException` если уровень не найден или не принадлежит серверу
+  - `_set_and_game(rating_set_id) -> tuple[RatingSet, Game]` — получает набор рейтингов и игру-владельца; `NotFoundException`, если набор не найден, `InternalLogicException`, если игра-владелец не найдена
+  - `_require_local_set(server_id, rating_set_id) -> RatingSet` — через `_set_and_game`, проверяет, что игра локальная и принадлежит `server_id`
+  - `_require_global_set(rating_set_id) -> RatingSet` — через `_set_and_game`, проверяет, что игра глобальная
+  - `_require_local_rating(server_id, rating_id) -> Rating` / `_require_global_rating(rating_id) -> Rating` — получают уровень рейтинга и делегируют проверку набора соответствующему `_require_*_set()`
+  - `_build_rating_set_update_data(current, name, min_rating, max_rating) -> dict` — собирает поля, отличающиеся от текущих значений набора
+  - `_assert_bounds_valid(update_data, current) -> None` — проверяет `min_rating <= max_rating` по эффективным границам (учитывая ещё не применённый `update_data`) → `BadRequestException`, если нарушено
+  - `_apply_rating_set_update(rating_set_id, current, name, min_rating, max_rating) -> RatingSetDetail` — общее тело, переиспользуемое `update_rating_set` и `update_global_rating_set`
+  - `_apply_rating_update(rating, threshold, icon_id) -> Rating` — общее тело, переиспользуемое `update_rating` и `update_global_rating`
 
 ## Dependencies
 
 ### Repositories
-- `RatingRepositoryProtocol` — CRUD уровней рейтинга (`create`, `get`, `delete`, `set_threshold`, `set_icon`)
-- `RatingSetRepositoryProtocol` — CRUD наборов рейтингов (`set_name`, `set_min_rating`, `set_max_rating`)
-- `ServerRepositoryProtocol` — получение сервера (`get`)
+- `RatingRepositoryProtocol` — CRUD уровней рейтинга
+- `RatingSetRepositoryProtocol` — чтение набора рейтингов и его игры-владельца, обновление параметров набора
+- `GameRepositoryProtocol` — определение, глобальная или локальная игра владеет набором рейтингов
+- `ServerRepositoryProtocol` — принимается в конструкторе, но не используется в текущей реализации (принадлежность серверу определяется через `game.server_id`, а не запрос к репозиторию сервера)
 
-## Method: `get_rating_set(server_id: UUID) -> RatingSet`
+---
+
+## Method: `update_rating_set(server_id, rating_set_id, name=None, min_rating=None, max_rating=None, permission_mask=0) -> RatingSetDetail`
 
 ### Purpose
-Возвращает набор рейтингов сервера.
+Обновляет параметры набора рейтингов локальной игры сервера.
 
 ### Algorithm
-1. Получить сервер через `server_repo.get(server_id)` → `NotFoundException` если не найден
-2. Вернуть `server.rating_set`
+1. Проверить `EDIT_RATING_SET` permission → `ForbiddenException` ("Unable to edit rating set")
+2. `_require_local_set(server_id, rating_set_id)`
+3. `_apply_rating_set_update(rating_set_id, rating_set, name, min_rating, max_rating)`:
+   1. Собрать `update_data` из полей (`name`, `min_rating`, `max_rating`), отличающихся от текущих
+   2. Проверить эффективные границы (`update_data`, применённый поверх текущего набора) → `BadRequestException` ("Rating bounds are invalid"), если `min > max`
+   3. Если `update_data` не пуст — `rating_set_repo.update(RatingSetUpdate(...))`
+   4. Вернуть `rating_set_repo.get_detail(rating_set_id)` → `InternalLogicException`, если `None`
 
 ### Exceptions
 | Exception | Condition |
 |-----------|-----------|
-| `NotFoundException` | Сервер не найден |
+| `ForbiddenException` | Недостаточно прав; набор принадлежит глобальной игре ("Unable to edit a global game rating set") |
+| `NotFoundException` | Набор не найден; набор принадлежит другому серверу |
+| `BadRequestException` | Эффективные `min_rating` > `max_rating` |
+| `InternalLogicException` | Игра-владелец не найдена; набор не найден после обновления |
 
-## Method: `update_rating_set(server_id: UUID, rating_set_id: UUID, name: str | None, min_rating: int | None, max_rating: int | None, permission_mask: int) -> RatingSet`
+---
+
+## Method: `update_global_rating_set(rating_set_id, name=None, min_rating=None, max_rating=None) -> RatingSetDetail`
 
 ### Purpose
-Обновляет параметры набора рейтингов.
+Обновляет параметры набора рейтингов глобальной игры. Не проверяет права.
 
 ### Algorithm
-1. Проверить `EDIT_RATING_SET` permission через `PERMISSION.check_permission()` → `ForbiddenException` если нет прав
-2. Проверить набор через `_check_rating_set(server_id, rating_set_id)` → `NotFoundException` если сервер или набор не найден
-3. Если `name` передан и отличается от текущего — вызвать `rating_set_repo.set_name(rating_set, name)`
-4. Если `min_rating` передан и отличается — вызвать `rating_set_repo.set_min_rating(rating_set, min_rating)`
-5. Если `max_rating` передан и отличается — вызвать `rating_set_repo.set_max_rating(rating_set, max_rating)`
-6. Вернуть обновлённый `rating_set`
+1. `_require_global_set(rating_set_id)` → `ForbiddenException` ("Rating set does not belong to a global game"), если набор принадлежит локальной игре
+2. `_apply_rating_set_update(...)` — та же логика диффинга и проверки границ, что и у `update_rating_set`
 
 ### Exceptions
 | Exception | Condition |
 |-----------|-----------|
-| `NotFoundException` | Сервер или набор не найден |
-| `ForbiddenException` | Недостаточно прав (`EDIT_RATING_SET`) |
+| `ForbiddenException` | Набор принадлежит локальной игре |
+| `NotFoundException` | Набор не найден |
+| `BadRequestException` | Эффективные `min_rating` > `max_rating` |
+| `InternalLogicException` | Игра-владелец не найдена; набор не найден после обновления |
 
-## Method: `create_rating(server_id: UUID, rating_set_id: UUID, threshold: int, icon_id: UUID | None, permission_mask: int) -> Rating`
+---
+
+## Method: `create_rating(server_id, rating_set_id, threshold, icon_id=None, permission_mask=0) -> Rating`
 
 ### Purpose
-Создаёт новый уровень рейтинга в наборе.
+Создаёт новый уровень рейтинга в наборе локальной игры.
 
 ### Algorithm
-1. Проверить `EDIT_RATING_SET` permission → `ForbiddenException` если нет прав
-2. Проверить набор через `_check_rating_set(server_id, rating_set_id)` → `NotFoundException` если не найден
-3. Вызвать `rating_repo.create(icon_id, threshold, rating_set_id)`
-4. `IntegrityForeignException` → `NotFoundException`
-5. `IntegrityUnknownException` → `InternalLogicException`
-6. Добавить созданный уровень в `rating_set_field.ratings`
-7. Вернуть созданный `Rating`
+1. Проверить `EDIT_RATING_SET` permission → `ForbiddenException`
+2. `_require_local_set(server_id, rating_set_id)`
+3. `rating_repo.create(RatingCreate(...))` → `IntegrityForeignException` → `NotFoundException`; `IntegrityUnknownException` → `InternalLogicException`
 
 ### Exceptions
 | Exception | Condition |
 |-----------|-----------|
-| `NotFoundException` | Сервер, набор или FK (icon_id) не найдены |
-| `ForbiddenException` | Недостаточно прав (`EDIT_RATING_SET`) |
-| `InternalLogicException` | Неизвестная целостностная ошибка БД |
+| `ForbiddenException` | Недостаточно прав; набор принадлежит глобальной игре |
+| `NotFoundException` | Набор не найден; набор принадлежит другому серверу; FK-ограничение |
+| `InternalLogicException` | Неизвестная ошибка целостности |
 
-## Method: `update_rating(server_id: UUID, rating_id: UUID, threshold: int | None, icon_id: UUID | None, permission_mask: int) -> Rating`
+---
+
+## Method: `create_global_rating(rating_set_id, threshold, icon_id=None) -> Rating`
 
 ### Purpose
-Обновляет уровень рейтинга.
+Создаёт новый уровень рейтинга в наборе глобальной игры. Не проверяет права.
 
 ### Algorithm
-1. Проверить `EDIT_RATING_SET` permission → `ForbiddenException` если нет прав
-2. Проверить уровень через `_check_rating(server_id, rating_id)` → `NotFoundException` если не найден
-3. Если `threshold` передан и отличается — вызвать `rating_repo.set_threshold(rating, threshold)`
-4. Если `icon_id` передан и отличается — вызвать `rating_repo.set_icon(rating, icon_id)`
-5. Вернуть обновлённый `Rating`
+1. `_require_global_set(rating_set_id)`
+2. `rating_repo.create(RatingCreate(...))` → та же обработка исключений
 
 ### Exceptions
 | Exception | Condition |
 |-----------|-----------|
-| `NotFoundException` | Сервер или уровень не найден |
-| `ForbiddenException` | Недостаточно прав (`EDIT_RATING_SET`) |
+| `ForbiddenException` | Набор принадлежит локальной игре |
+| `NotFoundException` | Набор не найден; FK-ограничение |
+| `InternalLogicException` | Неизвестная ошибка целостности |
 
-## Method: `delete_rating(server_id: UUID, rating_id: UUID, permission_mask: int) -> None`
+---
+
+## Method: `update_rating(server_id, rating_id, threshold=None, icon_id=None, permission_mask=0) -> Rating`
 
 ### Purpose
-Удаляет уровень рейтинга.
+Обновляет уровень рейтинга локальной игры.
 
 ### Algorithm
-1. Проверить `EDIT_RATING_SET` permission → `ForbiddenException` если нет прав
-2. Проверить уровень через `_check_rating(server_id, rating_id)` → `NotFoundException` если не найден
-3. Вызвать `rating_repo.delete(rating_id)`
-4. Если `delete` вернул `False` → `NotFoundException`
+1. Проверить `EDIT_RATING_SET` permission → `ForbiddenException`
+2. `_require_local_rating(server_id, rating_id)`
+3. `_apply_rating_update(rating, threshold, icon_id)` — обновляет только переданные и изменившиеся поля
 
 ### Exceptions
 | Exception | Condition |
 |-----------|-----------|
-| `NotFoundException` | Сервер, уровень не найден, или уровень не удалось удалить |
-| `ForbiddenException` | Недостаточно прав (`EDIT_RATING_SET`) |
+| `ForbiddenException` | Недостаточно прав; уровень принадлежит набору глобальной игры |
+| `NotFoundException` | Уровень не найден; набор уровня принадлежит другому серверу |
 
-## Method: `delete_rating_icon(server_id: UUID, rating_id: UUID, permission_mask: int) -> Rating`
+---
+
+## Method: `update_global_rating(rating_id, threshold=None, icon_id=None) -> Rating`
 
 ### Purpose
-Удаляет иконку уровня рейтинга (устанавливает `icon_id` в `None`).
+Обновляет уровень рейтинга глобальной игры. Не проверяет права.
 
 ### Algorithm
-1. Проверить `EDIT_RATING_SET` permission → `ForbiddenException` если нет прав
-2. Проверить уровень через `_check_rating(server_id, rating_id)` → `NotFoundException` если не найден
-3. Вызвать `rating_repo.set_icon(rating, None)`
-4. Вернуть обновлённый `Rating`
+1. `_require_global_rating(rating_id)`
+2. `_apply_rating_update(rating, threshold, icon_id)`
 
 ### Exceptions
 | Exception | Condition |
 |-----------|-----------|
-| `NotFoundException` | Сервер или уровень не найден |
-| `ForbiddenException` | Недостаточно прав (`EDIT_RATING_SET`) |
+| `ForbiddenException` | Уровень принадлежит набору локальной игры |
+| `NotFoundException` | Уровень не найден |
+
+---
+
+## Method: `delete_rating(server_id, rating_id, permission_mask=0) -> None`
+
+### Purpose
+Удаляет уровень рейтинга локальной игры.
+
+### Algorithm
+1. Проверить `EDIT_RATING_SET` permission → `ForbiddenException`
+2. `_require_local_rating(server_id, rating_id)`
+3. `rating_repo.delete(rating_id)` → `NotFoundException`, если `False`
+
+### Exceptions
+| Exception | Condition |
+|-----------|-----------|
+| `ForbiddenException` | Недостаточно прав; уровень принадлежит набору глобальной игры |
+| `NotFoundException` | Уровень не найден; набор уровня принадлежит другому серверу; удаление не выполнено |
+
+---
+
+## Method: `delete_global_rating(rating_id) -> None`
+
+### Purpose
+Удаляет уровень рейтинга глобальной игры. Не проверяет права.
+
+### Algorithm
+1. `_require_global_rating(rating_id)`
+2. `rating_repo.delete(rating_id)` → `NotFoundException`, если `False`
+
+### Exceptions
+| Exception | Condition |
+|-----------|-----------|
+| `ForbiddenException` | Уровень принадлежит набору локальной игры |
+| `NotFoundException` | Уровень не найден; удаление не выполнено |
+
+---
+
+## Method: `delete_rating_icon(server_id, rating_id, permission_mask=0) -> Rating`
+
+### Purpose
+Удаляет иконку уровня рейтинга локальной игры (устанавливает `icon_id` в `None`).
+
+### Algorithm
+1. Проверить `EDIT_RATING_SET` permission → `ForbiddenException`
+2. `_require_local_rating(server_id, rating_id)`
+3. `rating_repo.update(RatingUpdate(id=rating.id, icon_id=None))`
+
+### Exceptions
+| Exception | Condition |
+|-----------|-----------|
+| `ForbiddenException` | Недостаточно прав; уровень принадлежит набору глобальной игры |
+| `NotFoundException` | Уровень не найден; набор уровня принадлежит другому серверу |
+
+---
+
+## Method: `delete_global_rating_icon(rating_id) -> Rating`
+
+### Purpose
+Удаляет иконку уровня рейтинга глобальной игры. Не проверяет права.
+
+### Algorithm
+1. `_require_global_rating(rating_id)`
+2. `rating_repo.update(RatingUpdate(id=rating.id, icon_id=None))`
+
+### Exceptions
+| Exception | Condition |
+|-----------|-----------|
+| `ForbiddenException` | Уровень принадлежит набору локальной игры |
+| `NotFoundException` | Уровень не найден |
+
+---
+
+> Метод `get_rating_set` удалён — набор рейтингов теперь всегда доставляется вложенным внутри `GameDetail` (см. [modules/game/service.md](../game/service.md)); отдельного пути чтения набора рейтингов больше нет.

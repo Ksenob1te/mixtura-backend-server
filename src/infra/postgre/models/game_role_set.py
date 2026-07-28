@@ -4,8 +4,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from .game import Game
     from .game_role import GameRole
-    from .server import Server
 
 
 import uuid
@@ -22,10 +22,9 @@ class GameRoleSet(Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(128))
-    is_global: Mapped[bool] = mapped_column(default=False)
-    server_id: Mapped[UUID | None] = mapped_column(ForeignKey('server_table.id', ondelete='CASCADE'), nullable=True)
+    game_id: Mapped[UUID] = mapped_column(ForeignKey('game_table.id', ondelete='CASCADE'), unique=True)
 
-    server: Mapped[Server] = relationship(back_populates='role_set')
+    game: Mapped[Game] = relationship(back_populates='role_set', lazy="selectin")
 
     game_roles: Mapped[list[GameRole]] = relationship(
         back_populates='role_set',

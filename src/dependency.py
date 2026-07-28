@@ -125,22 +125,25 @@ async def get_server_role_repository(
 async def get_game_service(
     game_repo: Annotated[GameRepository, Depends(get_game_repository)],
     server_repo: Annotated[ServerRepository, Depends(get_server_repository)],
+    game_role_set_repo: Annotated[
+        GameRoleSetRepository, Depends(get_game_role_set_repository)
+    ],
+    rating_set_repo: Annotated[RatingSetRepository, Depends(get_rating_set_repository)],
+    game_role_repo: Annotated[GameRoleRepository, Depends(get_game_role_repository)],
+    rating_repo: Annotated[RatingRepository, Depends(get_rating_repository)],
 ) -> GameService:
     return GameService(
         game_repo=game_repo,
         server_repo=server_repo,
+        game_role_set_repo=game_role_set_repo,
+        rating_set_repo=rating_set_repo,
+        game_role_repo=game_role_repo,
+        rating_repo=rating_repo,
     )
 
 
 async def get_core_service(
     server_repo: Annotated[ServerRepository, Depends(get_server_repository)],
-    game_repo: Annotated[GameRepository, Depends(get_game_repository)],
-    game_role_repo: Annotated[GameRoleRepository, Depends(get_game_role_repository)],
-    game_role_set_repo: Annotated[
-        GameRoleSetRepository, Depends(get_game_role_set_repository)
-    ],
-    rating_repo: Annotated[RatingRepository, Depends(get_rating_repository)],
-    rating_set_repo: Annotated[RatingSetRepository, Depends(get_rating_set_repository)],
     permission_repo: Annotated[
         PermissionRepository, Depends(get_permission_repository)
     ],
@@ -151,11 +154,6 @@ async def get_core_service(
 ) -> CoreService:
     return CoreService(
         server_repo=server_repo,
-        game_repo=game_repo,
-        game_role_repo=game_role_repo,
-        game_role_set_repo=game_role_set_repo,
-        rating_repo=rating_repo,
-        rating_set_repo=rating_set_repo,
         permission_repo=permission_repo,
         restriction_repo=restriction_repo,
         member_repo=member_repo,
@@ -164,6 +162,7 @@ async def get_core_service(
 
 async def get_game_role_service(
     server_repo: Annotated[ServerRepository, Depends(get_server_repository)],
+    game_repo: Annotated[GameRepository, Depends(get_game_repository)],
     game_role_set_repo: Annotated[
         GameRoleSetRepository, Depends(get_game_role_set_repository)
     ],
@@ -171,6 +170,7 @@ async def get_game_role_service(
 ) -> GameRoleService:
     return GameRoleService(
         server_repo=server_repo,
+        game_repo=game_repo,
         role_set_repo=game_role_set_repo,
         role_repo=game_role_repo,
     )
@@ -192,11 +192,13 @@ async def get_rating_service(
     rating_repo: Annotated[RatingRepository, Depends(get_rating_repository)],
     rating_set_repo: Annotated[RatingSetRepository, Depends(get_rating_set_repository)],
     server_repo: Annotated[ServerRepository, Depends(get_server_repository)],
+    game_repo: Annotated[GameRepository, Depends(get_game_repository)],
 ) -> RatingService:
     return RatingService(
         rating_repo=rating_repo,
         rating_set_repo=rating_set_repo,
         server_repo=server_repo,
+        game_repo=game_repo,
     )
 
 
@@ -225,6 +227,10 @@ async def get_member_custom_service(
     rating_set_repo: Annotated[
         RatingSetRepository, Depends(get_rating_set_repository)
     ],
+    game_role_set_repo: Annotated[
+        GameRoleSetRepository, Depends(get_game_role_set_repository)
+    ],
+    game_repo: Annotated[GameRepository, Depends(get_game_repository)],
 ) -> MemberCustomService:
     return MemberCustomService(
         custom_repo=custom_repo,
@@ -233,6 +239,8 @@ async def get_member_custom_service(
         game_role_repo=game_role_repo,
         server_repo=server_repo,
         rating_set_repo=rating_set_repo,
+        game_role_set_repo=game_role_set_repo,
+        game_repo=game_repo,
     )
 
 

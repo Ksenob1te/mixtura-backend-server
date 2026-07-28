@@ -1,4 +1,3 @@
-from collections.abc import Sequence
 from uuid import UUID
 
 from sqlalchemy import select
@@ -6,7 +5,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.interfaces.repo.game_role_set import GameRoleSetRepositoryProtocol
 from src.core.models.game_role_set import GameRoleSet as GameRoleSetDTO
-from src.core.models.game_role_set import GameRoleSetCreate, GameRoleSetUpdate
+from src.core.models.game_role_set import (
+    GameRoleSetCreate,
+    GameRoleSetDetail,
+    GameRoleSetUpdate,
+)
 
 from ..models import GameRoleSet as GameRoleSetModel
 from .base import BaseRepository
@@ -22,24 +25,15 @@ class GameRoleSetRepository(
     def __init__(self, session: AsyncSession):
         super().__init__(session)
 
-    async def get_by_name(self, name: str) -> GameRoleSetDTO | None:
-        stmt = select(GameRoleSetModel).where(GameRoleSetModel.name == name).limit(1)
+    @staticmethod
+    def _to_detail_dto(obj: GameRoleSetModel) -> GameRoleSetDetail:
+        return GameRoleSetDetail.model_validate(obj, from_attributes=True)
+
+    async def get_by_game_id(self, game_id: UUID) -> GameRoleSetDTO | None:
+        stmt = select(GameRoleSetModel).where(GameRoleSetModel.game_id == game_id).limit(1)
         result = await self._session.scalar(stmt)
         return self._to_dto(result) if result else None
 
-    async def get_by_server_id(self, server_id: UUID) -> GameRoleSetDTO | None:
-        stmt = select(GameRoleSetModel).where(GameRoleSetModel.server_id == server_id).limit(1)
-        result = await self._session.scalar(stmt)
-        return self._to_dto(result) if result else None
-
-    async def get_global(self) -> Sequence[GameRoleSetDTO]:
-        stmt = select(GameRoleSetModel).where(GameRoleSetModel.is_global.is_(True))
-        res = await self._session.scalars(stmt)
-        return [self._to_dto(item) for item in res.all()]
-
-    async def copy_global(self, global_role_set: GameRoleSetDTO, server_id: UUID | None = None) -> GameRoleSetDTO:
-        return await self.create(GameRoleSetCreate(
-            name=global_role_set.name,
-            is_global=False,
-            server_id=server_id,
-        ))
+    async def get_detail(self, role_set_id: UUID) -> GameRoleSetDetail | None:
+        obj = await self._get_model(role_set_id)
+        return self._to_detail_dto(obj) if obj else None

@@ -2,6 +2,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
+from .rating import Rating
+
 
 class RatingSet(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -10,16 +12,18 @@ class RatingSet(BaseModel):
     name: str
     min_rating: int
     max_rating: int
-    is_global: bool
-    server_id: UUID | None = None
+    game_id: UUID
+
+
+class RatingSetDetail(RatingSet):
+    ratings: list[Rating] = []
 
 
 class RatingSetCreate(BaseModel):
     name: str
     min_rating: int
     max_rating: int
-    is_global: bool = False
-    server_id: UUID | None = None
+    game_id: UUID
 
 
 class RatingSetUpdate(BaseModel):

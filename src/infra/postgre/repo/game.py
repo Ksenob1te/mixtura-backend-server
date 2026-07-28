@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from uuid import UUID
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.exceptions import IntegrityForeignException, IntegrityUnknownException
 from src.core.interfaces.repo.game import GameRepositoryProtocol
 from src.core.models.game import Game as GameDTO
-from src.core.models.game import GameCreate, GameUpdate
+from src.core.models.game import GameCreate, GameDetail, GameUpdate
 from src.core.models.server_game import ServerGame as ServerGameDTO
 
 from ..models import Game as GameModel
@@ -27,22 +27,45 @@ class GameRepository(
     def __init__(self, session: AsyncSession):
         super().__init__(session)
 
-    async def get_by_name(self, name: str) -> GameDTO | None:
-        stmt = select(GameModel).where(GameModel.name == name).limit(1)
-        result = await self._session.scalar(stmt)
+    @staticmethod
+    def _to_detail_dto(obj: GameModel) -> GameDetail:
+        return GameDetail.model_validate(obj, from_attributes=True)
+
+    async def get_detail(self, game_id: UUID) -> GameDetail | None:
+        obj = await self._get_model(game_id)
+        return self._to_detail_dto(obj) if obj else None
+
+    async def get_by_name(self, name: str, server_id: UUID | None = None) -> GameDTO | None:
+        stmt = select(GameModel).where(GameModel.name == name)
+        stmt = stmt.where(GameModel.server_id.is_(None)) if server_id is None else stmt.where(
+            GameModel.server_id == server_id
+        )
+        result = await self._session.scalar(stmt.limit(1))
         return self._to_dto(result) if result else None
 
-    async def get_all(self) -> Sequence[GameDTO]:
-        stmt = select(GameModel)
+    async def list_global(self) -> Sequence[GameDetail]:
+        stmt = select(GameModel).where(GameModel.server_id.is_(None))
         res = await self._session.scalars(stmt)
-        return [self._to_dto(item) for item in res.all()]
+        return [self._to_detail_dto(item) for item in res.all()]
 
-    async def list_for_server(self, server_id: UUID) -> Sequence[GameDTO]:
+    async def list_owned_by_server(self, server_id: UUID) -> Sequence[GameDetail]:
+        stmt = select(GameModel).where(GameModel.server_id == server_id)
+        res = await self._session.scalars(stmt)
+        return [self._to_detail_dto(item) for item in res.all()]
+
+    async def list_for_server(self, server_id: UUID) -> Sequence[GameDetail]:
         stmt = select(GameModel).join(
             ServerGameModel, GameModel.id == ServerGameModel.game_id
         ).where(ServerGameModel.server_id == server_id)
         res = await self._session.scalars(stmt)
-        return [self._to_dto(item) for item in res.all()]
+        return [self._to_detail_dto(item) for item in res.all()]
+
+    async def is_enabled_on_server(self, server_id: UUID, game_id: UUID) -> bool:
+        stmt = select(func.count()).select_from(ServerGameModel).where(
+            ServerGameModel.server_id == server_id, ServerGameModel.game_id == game_id
+        )
+        count = await self._session.scalar(stmt)
+        return (count or 0) > 0
 
     @staticmethod
     def _to_server_game_dto(obj: ServerGameModel) -> ServerGameDTO:

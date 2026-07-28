@@ -13,9 +13,9 @@
 |-------|---------|--------|-------------|
 | `server.public_server_list` | `GetPublicServersRequest` | `list[ServerListResponse]` | Список публичных серверов |
 | `server.user_server_list` | `GetUserServersRequest` | `list[ServerListResponse]` | Список серверов пользователя |
-| `server.create` | `ServerCreateRequest` | `ServerDetailResponse` | Создание сервера |
-| `server.get_info` | `ServerGetRequest` | `ServerDetailResponse` | Получение информации о сервере |
-| `server.update` | `ServerUpdateRequest` | `ServerDetailResponse` | Обновление сервера |
+| `server.create` | `ServerCreateRequest` | `ServerListResponse` | Создание сервера |
+| `server.get_info` | `ServerGetRequest` | `ServerListResponse` | Получение информации о сервере |
+| `server.update` | `ServerUpdateRequest` | `ServerListResponse` | Обновление сервера |
 | `server.banner.delete` | `ServerDeleteRequest` | `StatusResponse` | Удаление баннера |
 | `server.icon.delete` | `ServerDeleteRequest` | `StatusResponse` | Удаление иконки |
 | `server.delete` | `ServerDeleteRequest` | `StatusResponse` | Удаление сервера |
@@ -71,21 +71,13 @@
 | `name` | `str` | Yes | Название сервера (max 128) |
 | `description` | `str` | No | Описание |
 | `public` | `bool` | Yes | Публичность |
-| `rating_set_id` | `UUID \| None` | No | Шаблон рейтинга |
-| `role_set_id` | `UUID \| None` | No | Шаблон ролей |
 
-### Result: `ServerDetailResponse`
-| Field | Type | Description |
-|-------|------|-------------|
-| *(поля ServerListResponse)* | | |
-| `rating_set` | `RatingSetResponse \| None` | Набор рейтингов |
-| `role_set` | `GameRoleSetResponse \| None` | Набор ролей |
-| `games` | `list[GameResponse]` | Игры сервера |
+### Result: `ServerListResponse`
+→ См. таблицу в контракте `server.public_server_list`.
 
 ### Behavior
-- Если role_set_id указан — копирует глобальный шаблон ролей на сервер
-- Если rating_set_id указан — копирует глобальный шаблон рейтингов на сервер
 - Автоматически создаёт владельца как первого участника
+- Игра, набор ролей и набор рейтингов больше не связаны с созданием сервера — ими управляет `GameService` ([game/api.md](../game/api.md))
 
 ---
 
@@ -96,7 +88,7 @@
 |-------|------|----------|-------------|
 | `access_data` | `AccessDataRequest` | Yes | Блок авторизации |
 
-### Result: `ServerDetailResponse`
+### Result: `ServerListResponse`
 → Как в `server.create`.
 
 ### Exceptions
@@ -118,7 +110,7 @@
 | `banner_id` | `UUID \| None` | No | ID баннера |
 | `icon_id` | `UUID \| None` | No | ID иконки |
 
-### Result: `ServerDetailResponse`
+### Result: `ServerListResponse`
 
 ### Exceptions
 | Exception | Condition |

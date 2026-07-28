@@ -9,7 +9,6 @@ from src.app.rabbit.models.server import (
     GetUserServersRequest,
     ServerCreateRequest,
     ServerDeleteRequest,
-    ServerDetailResponse,
     ServerGetRequest,
     ServerListResponse,
     ServerUpdateRequest,
@@ -45,28 +44,27 @@ async def get_user_servers(
 @router.subscriber(queue="server.create")
 async def create_server(
     data: ServerCreateRequest, core_service: CoreServiceDependency
-) -> ResponseMessage[ServerDetailResponse]:
+) -> ResponseMessage[ServerListResponse]:
     server = await core_service.create_server(
         data.name, data.user_id, data.user_name, data.description, data.public,
-        data.rating_set_id, data.role_set_id,
     )
-    return ResponseMessage(status=200, message=ServerDetailResponse.model_validate(server))
+    return ResponseMessage(status=200, message=ServerListResponse.model_validate(server))
 
 
 @router.subscriber(queue="server.get_info")
 async def get_server(
     data: ServerGetRequest, core_service: CoreServiceDependency
-) -> ResponseMessage[ServerDetailResponse]:
+) -> ResponseMessage[ServerListResponse]:
     server = await core_service.get_server(data.access_data.server_id)
     return ResponseMessage(
-        status=200, message=ServerDetailResponse.model_validate(server)
+        status=200, message=ServerListResponse.model_validate(server)
     )
 
 
 @router.subscriber(queue="server.update")
 async def update_server(
     data: ServerUpdateRequest, core_service: CoreServiceDependency
-) -> ResponseMessage[ServerDetailResponse]:
+) -> ResponseMessage[ServerListResponse]:
     server = await core_service.update_server(
         data.access_data.server_id,
         data.name,
@@ -76,7 +74,7 @@ async def update_server(
         data.icon_id,
         data.access_data.permission_mask,
     )
-    return ResponseMessage(status=200, message=ServerDetailResponse.model_validate(server))
+    return ResponseMessage(status=200, message=ServerListResponse.model_validate(server))
 
 
 @router.subscriber(queue="server.banner.delete")

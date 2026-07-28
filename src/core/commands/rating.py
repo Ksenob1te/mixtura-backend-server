@@ -26,3 +26,22 @@ class RatingUpdateCommand(BaseModel):
     threshold: int | None = None
     icon_id: UUID | None = None
     permission_mask: int = 0
+
+
+class GlobalRatingSetUpdateCommand(BaseModel):
+    rating_set_id: UUID
+    name: str | None = None
+    min_rating: int | None = None
+    max_rating: int | None = None
+
+
+class GlobalRatingCreateCommand(BaseModel):
+    rating_set_id: UUID
+    threshold: int
+    icon_id: UUID | None = None
+
+
+class GlobalRatingUpdateCommand(BaseModel):
+    rating_id: UUID
+    threshold: int | None = None
+    icon_id: UUID | None = None

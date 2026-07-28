@@ -11,7 +11,9 @@ from src.core.exceptions import (
 )
 from src.core.interfaces.repo.custom import CustomRepositoryProtocol
 from src.core.interfaces.repo.custom_rating import CustomRatingRepositoryProtocol
+from src.core.interfaces.repo.game import GameRepositoryProtocol
 from src.core.interfaces.repo.game_role import GameRoleRepositoryProtocol
+from src.core.interfaces.repo.game_role_set import GameRoleSetRepositoryProtocol
 from src.core.interfaces.repo.member import MemberRepositoryProtocol
 from src.core.interfaces.repo.rating_set import RatingSetRepositoryProtocol
 from src.core.interfaces.repo.server import ServerRepositoryProtocol
@@ -29,6 +31,8 @@ class MemberCustomService:
             game_role_repo: GameRoleRepositoryProtocol,
             server_repo: ServerRepositoryProtocol,
             rating_set_repo: RatingSetRepositoryProtocol,
+            game_role_set_repo: GameRoleSetRepositoryProtocol,
+            game_repo: GameRepositoryProtocol,
     ) -> None:
         self.custom_repo = custom_repo
         self.custom_rating_repo = custom_rating_repo
@@ -36,6 +40,8 @@ class MemberCustomService:
         self.game_role_repo = game_role_repo
         self.server_repo = server_repo
         self.rating_set_repo = rating_set_repo
+        self.game_role_set_repo = game_role_set_repo
+        self.game_repo = game_repo
 
     async def list_customs(self, server_id: UUID, member_id: UUID) -> list[Custom]:
         member_field = await self.member_repo.get(member_id)
@@ -100,9 +106,17 @@ class MemberCustomService:
         server_field = await self.server_repo.get(member_field.server_id)
         if server_field is None:
             raise InternalLogicException("Server for member not found")
-        rating_set_field = await self.rating_set_repo.get_by_server_id(server_field.id)
+        game_role = await self.game_role_repo.get(game_role_id)
+        if game_role is None:
+            raise NotFoundException("Game role not found")
+        role_set = await self.game_role_set_repo.get(game_role.role_set_id)
+        if role_set is None:
+            raise InternalLogicException("Role set for game role not found")
+        if not await self.game_repo.is_enabled_on_server(server_field.id, role_set.game_id):
+            raise NotFoundException("Game is not enabled on server")
+        rating_set_field = await self.rating_set_repo.get_by_game_id(role_set.game_id)
         if rating_set_field is None:
-            raise InternalLogicException("Rating set for server not found")
+            raise InternalLogicException("Rating set for game not found")
 
         if rating_set_field.min_rating > rating or rating > rating_set_field.max_rating:
             raise BadRequestException("Rating value is out of bounds")

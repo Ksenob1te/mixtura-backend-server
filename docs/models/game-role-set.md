@@ -3,10 +3,10 @@
 - **Pydantic file:** `src/core/models/game_role_set.py`
 - **ORM file:** `src/infra/postgre/models/game_role_set.py`
 - **Repo protocol:** `GameRoleSetRepositoryProtocol`
-- **Used by services:** `CoreService`, `GameRoleService`
+- **Used by services:** `GameService`, `GameRoleService`, `MemberCustomService`
 
 ## Role
-Представляет набор ролей для игры. Может быть глобальным шаблоном или принадлежать конкретному серверу.
+Набор ролей, принадлежащий ровно одной игре (`Game`). Игра владеет своим набором ролей 1:1 — набор создаётся вместе с игрой и каскадно удаляется вместе с ней.
 
 ## Fields
 
@@ -14,14 +14,13 @@
 |-------|------|-------------|
 | `id` | `UUID` | Уникальный идентификатор |
 | `name` | `str` | Название набора |
-| `is_global` | `bool` | Флаг глобального шаблона |
-| `server_id` | `UUID \| None` | ID сервера (если не глобальный) |
+| `game_id` | `UUID` | ID игры-владельца (уникально — один набор ролей на игру) |
 
 ## Relations
 
 | Relation | Type | Description |
 |----------|------|-------------|
-| `server` | `Server \| None` | Сервер набора |
+| `game` | `Game` | Игра-владелец набора |
 | `game_roles` | `list[GameRole]` | Роли в наборе |
 
 ## Create/Update Models
@@ -31,8 +30,7 @@
 | Field | Type | Required | Default | Notes |
 |-------|------|----------|---------|-------|
 | `name` | `str` | Yes | — | |
-| `is_global` | `bool` | No | `False` | |
-| `server_id` | `UUID \| None` | No | `None` | |
+| `game_id` | `UUID` | Yes | — | |
 
 ### Update — `GameRoleSetUpdate` (`src/core/models/game_role_set.py`)
 
@@ -40,7 +38,7 @@
 |-------|------|----------|---------|-------|
 | `name` | `str \| None` | No | `None` | |
 
-> Поля `id`, `is_global`, `server_id` неизменяемы после создания.
+> Поля `id` и `game_id` неизменяемы после создания.
 
 ### Read — `GameRoleSet` (`src/core/models/game_role_set.py`)
 
@@ -48,5 +46,11 @@
 |-------|------|-------|
 | `id` | `UUID` | |
 | `name` | `str` | |
-| `is_global` | `bool` | |
-| `server_id` | `UUID \| None` | |
+| `game_id` | `UUID` | |
+
+#### `GameRoleSetDetail` (`src/core/models/game_role_set.py`)
+
+| Field | Type | Notes |
+|-------|------|-------|
+| *(поля `GameRoleSet`)* | | |
+| `game_roles` | `list[GameRole]` | Навигационное свойство |

@@ -4,9 +4,6 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.app.rabbit.models.base import AccessDataRequest, PaginationRequest
-from src.app.rabbit.models.game import GameResponse
-from src.app.rabbit.models.game_role import GameRoleSetResponse
-from src.app.rabbit.models.rating import RatingSetResponse
 
 
 class GetUserServersRequest(BaseModel):
@@ -34,8 +31,6 @@ class ServerCreateRequest(BaseModel):
     name: str = Field(..., max_length=128)
     description: str = Field(default="")
     public: bool
-    rating_set_id: UUID | None = None
-    role_set_id: UUID | None = None
 
 
 class ServerUpdateRequest(BaseModel):
@@ -57,9 +52,3 @@ class ServerListResponse(BaseModel):
     owner_id: UUID
     public: bool
     created_at: datetime
-
-
-class ServerDetailResponse(ServerListResponse):
-    rating_set: RatingSetResponse | None = None
-    role_set: GameRoleSetResponse | None = None
-    games: list[GameResponse] = []

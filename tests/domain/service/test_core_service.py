@@ -1,34 +1,27 @@
 import uuid
+
 import pytest
 import pytest_asyncio
-from sqlalchemy.ext.asyncio import async_session
 
+from src.core.exceptions import ForbiddenException, NotFoundException
+from src.core.models.member import MemberUpdate
 from src.core.services.core import CoreService
-from src.core.exceptions import NotFoundException, ForbiddenException
-from src.infra.postgre.static import PERMISSION
 from src.infra.postgre.repo import (
-    MemberRepository,
-    ServerRepository,
-    GameRoleRepository,
+    GameRepository,
     GameRoleSetRepository,
-    RatingRepository,
-    RatingSetRepository,
+    MemberRepository,
     PermissionRepository,
+    RatingSetRepository,
     RestrictionRepository,
-    GameRepository
+    ServerRepository,
 )
-from src.infra.postgre.models import Server
+from src.infra.postgre.static import PERMISSION
 
 
 @pytest_asyncio.fixture(loop_scope="session")
 async def core_service(async_session):
     return CoreService(
         server_repo=ServerRepository(async_session),
-        game_repo=GameRepository(async_session),
-        game_role_repo=GameRoleRepository(async_session),
-        game_role_set_repo=GameRoleSetRepository(async_session),
-        rating_repo=RatingRepository(async_session),
-        rating_set_repo=RatingSetRepository(async_session),
         permission_repo=PermissionRepository(async_session),
         restriction_repo=RestrictionRepository(async_session),
         member_repo=MemberRepository(async_session),
@@ -37,22 +30,6 @@ async def core_service(async_session):
 
 @pytest.mark.asyncio(loop_scope="session")
 class TestCoreService:
-
-    async def test_get_global_role_templates(self, core_service, factory):
-        await factory.create_role_set(is_global=True)
-        await factory.create_role_set(is_global=False)
-
-        res = await core_service.get_global_role_templates()
-        assert len(res) >= 1
-        assert all(rs.is_global for rs in res)
-
-    async def test_get_global_rating_templates(self, core_service, factory):
-        await factory.create_rating_set(is_global=True)
-        await factory.create_rating_set(is_global=False)
-
-        res = await core_service.get_global_rating_templates()
-        assert len(res) >= 1
-        assert all(rts.is_global for rts in res)
 
     async def test_get_global_permissions(self, core_service, factory):
         await factory.create_permission(code="P1")
@@ -69,14 +46,6 @@ class TestCoreService:
         res = await core_service.get_global_restrictions()
         codes = {r.code for r in res}
         assert "R1" in codes and "R2" in codes
-
-    async def test_get_global_games(self, core_service, factory):
-        g1 = await factory.create_game(name="G1")
-        g2 = await factory.create_game(name="G2")
-
-        res = await core_service.get_global_games()
-        ids = {g.id for g in res}
-        assert {g1.id, g2.id}.issubset(ids)
 
     async def test_list_servers_returns_only_public(self, core_service, factory):
         await factory.create_server(public=True)
@@ -111,7 +80,7 @@ class TestCoreService:
         await factory.create_member(active_server.id, user_id=user_id)
         inactive_member = await factory.create_member(inactive_server.id, user_id=user_id)
 
-        await core_service.member_repo.deactivate(inactive_member)
+        await core_service.member_repo.update(MemberUpdate(id=inactive_member.id, active=False))
 
         res = await core_service.list_user_servers(user_id)
         assert len(res) == 1
@@ -149,67 +118,8 @@ class TestCoreService:
         ids = {s.id for s in res_page1 + res_page2 + res_page3}
         assert len(ids) == 5
 
-    async def test_create_server_raises_when_role_set_not_found(self, core_service, factory):
-        rating = await factory.create_rating_set()
-
-        with pytest.raises(NotFoundException):
-            await core_service.create_server(
-                owner_id=uuid.uuid4(),
-                username="Owner",
-                name="NewServer",
-                description="Desc",
-                public=True,
-                role_set_id=uuid.uuid4(),
-                rating_set_id=rating.id
-            )
-
-    async def test_create_server_raises_when_rating_set_not_found(self, core_service, factory):
-        role_set = await factory.create_role_set()
-
-        with pytest.raises(NotFoundException):
-            await core_service.create_server(
-                owner_id=uuid.uuid4(),
-                username="Owner",
-                name="NewServer",
-                description="Desc",
-                public=True,
-                role_set_id=role_set.id,
-                rating_set_id=uuid.uuid4()
-            )
-
-    async def test_create_server_raises_when_template_is_not_global(self, core_service, factory):
+    async def test_create_server_success_persists(self, core_service):
         owner_id = uuid.uuid4()
-        global_role_set = await factory.create_role_set(is_global=True)
-        local_role_set = await factory.create_role_set(is_global=False)
-        global_rating_set = await factory.create_rating_set(is_global=True)
-        local_rating_set = await factory.create_rating_set(is_global=False)
-
-        with pytest.raises(NotFoundException):
-            await core_service.create_server(
-                owner_id=owner_id,
-                username="Owner",
-                name="BadRole",
-                description="Desc",
-                public=True,
-                role_set_id=local_role_set.id,
-                rating_set_id=global_rating_set.id
-            )
-
-        with pytest.raises(NotFoundException):
-            await core_service.create_server(
-                owner_id=owner_id,
-                username="Owner",
-                name="BadRating",
-                description="Desc",
-                public=True,
-                role_set_id=global_role_set.id,
-                rating_set_id=local_rating_set.id
-            )
-
-    async def test_create_server_success_persists(self, core_service, factory):
-        owner_id = uuid.uuid4()
-        global_role_set = await factory.create_role_set(is_global=True)
-        global_rating_set = await factory.create_rating_set(is_global=True)
 
         server = await core_service.create_server(
             owner_id=owner_id,
@@ -217,27 +127,16 @@ class TestCoreService:
             name="ServerName",
             description="Desc",
             public=True,
-            role_set_id=global_role_set.id,
-            rating_set_id=global_rating_set.id
         )
         assert server is not None
         assert server.name == "ServerName"
+        assert server.description == "Desc"
+        assert server.public is True
         assert server.owner_id == owner_id
 
         member = await core_service.member_repo.get_by_user_in_server(server.id, owner_id)
         assert member is not None
         assert member.nickname == "OwnerNickname"
-
-        assert server.role_set != global_role_set
-        assert server.rating_set != global_rating_set
-
-        new_role_set = await core_service.game_role_set_repo.get(server.role_set.id)
-        new_rating_set = await core_service.rating_set_repo.get(server.rating_set.id)
-
-        assert new_role_set is not None
-        assert new_role_set.is_global is False
-        assert new_rating_set is not None
-        assert new_rating_set.is_global is False
 
     async def test_get_server_permission(self, core_service, factory):
         public_server = await factory.create_server(public=True)
@@ -340,27 +239,27 @@ class TestCoreService:
                 permission_mask=helpers.perm_mask(PERMISSION.EDIT_SERVER_ICON)
             )
 
-    async def test_delete_server_cascades_to_sets(self, core_service, factory, helpers):
-        owner_id = uuid.uuid4()
-        global_role_set = await factory.create_role_set(is_global=True)
-        global_rating_set = await factory.create_rating_set(is_global=True)
+    async def test_delete_server_cascades_to_local_game_but_not_global(
+        self, core_service, factory, helpers, async_session
+    ):
+        server = await factory.create_server(public=True)
+        local_game = await factory.create_game(name="LocalGame", server_id=server.id)
+        global_game = await factory.create_game(name="GlobalGame")
+        await factory.attach_game(server.id, local_game.id)
 
-        server = await core_service.create_server(
-            owner_id=owner_id,
-            username="Owner",
-            name="ToDelete",
-            description="Desc",
-            public=True,
-            role_set_id=global_role_set.id,
-            rating_set_id=global_rating_set.id
-        )
+        game_repo = GameRepository(async_session)
+        role_set_repo = GameRoleSetRepository(async_session)
+        rating_set_repo = RatingSetRepository(async_session)
 
-        role_set_id = server.role_set.id
-        rating_set_id = server.rating_set.id
+        local_detail = await game_repo.get_detail(local_game.id)
+        assert local_detail is not None
+        local_role_set_id = local_detail.role_set.id
+        local_rating_set_id = local_detail.rating_set.id
 
         # Verify existence before delete
-        assert await core_service.game_role_set_repo.get(role_set_id) is not None
-        assert await core_service.rating_set_repo.get(rating_set_id) is not None
+        assert await game_repo.get(local_game.id) is not None
+        assert await role_set_repo.get(local_role_set_id) is not None
+        assert await rating_set_repo.get(local_rating_set_id) is not None
 
         await core_service.delete_server(
             server.id,
@@ -369,6 +268,10 @@ class TestCoreService:
         # Verify server is gone
         assert await core_service.server_repo.get(server.id) is None
 
-        # Verify sets are gone
-        assert await core_service.game_role_set_repo.get(role_set_id) is None
-        assert await core_service.rating_set_repo.get(rating_set_id) is None
+        # Verify the local game and its sets are gone
+        assert await game_repo.get(local_game.id) is None
+        assert await role_set_repo.get(local_role_set_id) is None
+        assert await rating_set_repo.get(local_rating_set_id) is None
+
+        # Verify the global game survives
+        assert await game_repo.get(global_game.id) is not None

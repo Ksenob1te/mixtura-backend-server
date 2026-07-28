@@ -5,10 +5,8 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .game import Game
-    from .game_role_set import GameRoleSet
     from .invite import Invite
     from .member import Member
-    from .rating_set import RatingSet
     from .server_game import ServerGame
     from .server_role import ServerRole
 
@@ -35,10 +33,8 @@ class Server(Base):
     public: Mapped[bool] = mapped_column()
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    role_set: Mapped[GameRoleSet] = relationship(back_populates='server', uselist=False, lazy="selectin",
-                                                   cascade="all, delete-orphan")
-    rating_set: Mapped[RatingSet] = relationship(back_populates='server', uselist=False, lazy="selectin",
-                                                   cascade="all, delete-orphan")
+    owned_games: Mapped[list[Game]] = relationship(back_populates='server', cascade='all, delete-orphan',
+                                                      lazy="selectin")
     members: Mapped[list[Member]] = relationship(back_populates='server', cascade='all, delete-orphan',
                                                    lazy="selectin")
     server_games: Mapped[list[ServerGame]] = relationship(back_populates='server', cascade='all, delete-orphan',

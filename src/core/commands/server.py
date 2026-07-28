@@ -15,8 +15,6 @@ class ServerCreateCommand(BaseModel):
     username: str
     description: str
     public: bool
-    rating_set_id: UUID | None = None
-    role_set_id: UUID | None = None
 
 
 class ServerUpdateCommand(BaseModel):

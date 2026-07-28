@@ -2,127 +2,205 @@
 
 ## Overview
 - **File:** `src/core/services/game_role.py`
-- **Private helper:** `_check_role_belongs_to_server(role_id: UUID, server_id: UUID) -> GameRole` — проверяет, что роль принадлежит серверу: получает сервер и роль, сверяет `role_set_id` роли с `id` набора сервера
+- **Private helpers:**
+  - `_set_and_game(role_set_id) -> tuple[GameRoleSet, Game]` — получает набор ролей и игру-владельца; `NotFoundException`, если набор не найден, `InternalLogicException`, если игра-владелец не найдена
+  - `_require_local_set(server_id, role_set_id) -> GameRoleSet` — через `_set_and_game`, проверяет, что игра локальная и принадлежит `server_id`
+  - `_require_global_set(role_set_id) -> GameRoleSet` — через `_set_and_game`, проверяет, что игра глобальная
+  - `_require_local_role(server_id, role_id) -> GameRole` / `_require_global_role(role_id) -> GameRole` — получают роль и делегируют проверку набора соответствующему `_require_*_set()`
+  - `_apply_role_update(role, name, min_in_team, max_in_team, icon_id, hidden) -> GameRole` — общее тело обновления, переиспользуемое `update_role` и `update_global_role`
 
 ## Dependencies
 
 ### Repositories
-- `ServerRepositoryProtocol` — получение сервера и его набора ролей
-- `GameRoleSetRepositoryProtocol` — изменение названия набора ролей (`set_name`)
-- `GameRoleRepositoryProtocol` — CRUD игровых ролей и точечное обновление полей (`set_name`, `set_hidden`, `set_min`, `set_max`, `set_icon`)
+- `GameRoleSetRepositoryProtocol` — чтение набора ролей и его игры-владельца, обновление названия набора
+- `GameRoleRepositoryProtocol` — CRUD игровых ролей
+- `GameRepositoryProtocol` — определение, глобальная или локальная игра владеет набором ролей
+- `ServerRepositoryProtocol` — принимается в конструкторе, но не используется в текущей реализации (принадлежность серверу определяется через `game.server_id`, а не запрос к репозиторию сервера)
 
 ---
 
-## Method: `get_role_set_for_server(server_id: UUID) -> GameRoleSet`
+## Method: `update_role_set(server_id, role_set_id, name=None, permission_mask=0) -> GameRoleSetDetail`
 
 ### Purpose
-Возвращает набор ролей сервера.
+Обновляет название набора ролей локальной игры сервера.
 
 ### Algorithm
-1. Получить сервер по `server_id` → `NotFoundException`, если не найден
-2. Вернуть `server.role_set`
+1. Проверить `EDIT_ROLE_SET` permission → `ForbiddenException` ("Unable to edit role set")
+2. `_require_local_set(server_id, role_set_id)`
+3. Если `name` передан и отличается от текущего — `role_set_repo.update(GameRoleSetUpdate(id=role_set_id, name=name))`
+4. Вернуть `role_set_repo.get_detail(role_set_id)` → `InternalLogicException`, если `None`
 
 ### Exceptions
 | Exception | Condition |
 |-----------|-----------|
-| `NotFoundException` | Сервер не найден |
+| `ForbiddenException` | Недостаточно прав; набор принадлежит глобальной игре ("Unable to edit a global game role set") |
+| `NotFoundException` | Набор не найден; набор принадлежит другому серверу ("Role set not found for server") |
+| `InternalLogicException` | Игра-владелец набора не найдена; набор не найден после обновления |
 
 ---
 
-## Method: `update_role_set(role_set_id: UUID, server_id: UUID, name: str | None = None, permission_mask: int = 0) -> GameRoleSet`
+## Method: `update_global_role_set(role_set_id, name=None) -> GameRoleSetDetail`
 
 ### Purpose
-Обновляет название набора ролей сервера.
+Обновляет название набора ролей глобальной игры. Не проверяет права — доступно только через `role_set.global.*` очереди без авторизации.
 
 ### Algorithm
-1. Проверить `EDIT_ROLE_SET` permission через `PERMISSION.check_permission()` → `ForbiddenException`
-2. Получить сервер по `server_id` → `NotFoundException`
-3. Извлечь набор ролей из `server.role_set`; если отсутствует или `id` не совпадает с `role_set_id` → `NotFoundException`
-4. Если `name` указан и отличается от текущего — вызвать `role_set_repo.set_name(role_set_field, name)`
+1. `_require_global_set(role_set_id)` → `ForbiddenException` ("Role set does not belong to a global game"), если набор принадлежит локальной игре
+2. Если `name` передан и отличается от текущего — обновить
+3. Вернуть `role_set_repo.get_detail(role_set_id)` → `InternalLogicException`, если `None`
 
 ### Exceptions
 | Exception | Condition |
 |-----------|-----------|
-| `NotFoundException` | Сервер не найден или набор ролей не найден для сервера |
-| `ForbiddenException` | Недостаточно прав (отсутствует `EDIT_ROLE_SET`) |
+| `ForbiddenException` | Набор принадлежит локальной игре |
+| `NotFoundException` | Набор не найден |
+| `InternalLogicException` | Игра-владелец не найдена; набор не найден после обновления |
 
 ---
 
-## Method: `create_role(role_set_id: UUID, server_id: UUID, name: str, min_in_team: int, max_in_team: int, icon_id: UUID | None = None, hidden: bool = False, permission_mask: int = 0) -> GameRole`
+## Method: `create_role(server_id, role_set_id, name, min_in_team, max_in_team, icon_id=None, hidden=False, permission_mask=0) -> GameRole`
 
 ### Purpose
-Создаёт новую игровую роль в наборе ролей сервера.
-
-### Algorithm
-1. Проверить `EDIT_ROLE_SET` permission → `ForbiddenException`
-2. Получить сервер по `server_id` → `NotFoundException`
-3. Извлечь набор ролей сервера; если отсутствует или `id` не совпадает с `role_set_id` → `NotFoundException`
-4. Вызвать `role_repo.create(name, role_set_id, min_in_team, max_in_team, icon_id, hidden)`
-   - Перехватить `IntegrityForeignException` → `NotFoundException`
-   - Перехватить `IntegrityUnknownException` → `InternalLogicException`
-
-### Exceptions
-| Exception | Condition |
-|-----------|-----------|
-| `NotFoundException` | Сервер не найден, набор ролей не найден, или FK-ограничение (`IntegrityForeignException`) |
-| `ForbiddenException` | Недостаточно прав (отсутствует `EDIT_ROLE_SET`) |
-| `InternalLogicException` | Неизвестная ошибка целостности (`IntegrityUnknownException`) |
-
----
-
-## Method: `update_role(role_id: UUID, server_id: UUID, name: str | None = None, min_in_team: int | None = None, max_in_team: int | None = None, icon_id: UUID | None = None, hidden: bool | None = None, permission_mask: int = 0) -> GameRole`
-
-### Purpose
-Обновляет параметры существующей игровой роли. Изменяются только переданные поля.
+Создаёт новую игровую роль в наборе локальной игры сервера.
 
 ### Algorithm
 1. Проверить `EDIT_ROLE_SET` permission → `ForbiddenException`
-2. Получить роль через `_check_role_belongs_to_server()` → `NotFoundException`
-3. Для каждого переданного поля, если значение изменилось — вызвать соответствующий `role_repo.set_*()`:
-   - `name` — `role_repo.set_name()`
-   - `hidden` — `role_repo.set_hidden()`
-   - `min_in_team` — `role_repo.set_min()`
-   - `max_in_team` — `role_repo.set_max()`
-   - `icon_id` — `role_repo.set_icon()`
+2. `_require_local_set(server_id, role_set_id)`
+3. `role_repo.create(GameRoleCreate(...))` → `IntegrityForeignException` → `NotFoundException`; `IntegrityUnknownException` → `InternalLogicException`
 
 ### Exceptions
 | Exception | Condition |
 |-----------|-----------|
-| `NotFoundException` | Сервер или роль не найдены; роль не принадлежит указанному серверу |
-| `ForbiddenException` | Недостаточно прав (отсутствует `EDIT_ROLE_SET`) |
+| `ForbiddenException` | Недостаточно прав; набор принадлежит глобальной игре |
+| `NotFoundException` | Набор не найден; набор принадлежит другому серверу; FK-ограничение |
+| `InternalLogicException` | Неизвестная ошибка целостности |
 
 ---
 
-## Method: `delete_role(role_id: UUID, server_id: UUID, permission_mask: int = 0) -> None`
+## Method: `create_global_role(role_set_id, name, min_in_team, max_in_team, icon_id=None, hidden=False) -> GameRole`
 
 ### Purpose
-Удаляет игровую роль из набора.
+Создаёт новую игровую роль в наборе глобальной игры. Не проверяет права.
 
 ### Algorithm
-1. Проверить `EDIT_ROLE_SET` permission → `ForbiddenException`
-2. Получить роль через `_check_role_belongs_to_server()` → `NotFoundException`
-3. Вызвать `role_repo.delete(role_id)`. Если удаление не выполнено → `NotFoundException`
+1. `_require_global_set(role_set_id)`
+2. `role_repo.create(GameRoleCreate(...))` → `IntegrityForeignException` → `NotFoundException`; `IntegrityUnknownException` → `InternalLogicException`
 
 ### Exceptions
 | Exception | Condition |
 |-----------|-----------|
-| `NotFoundException` | Сервер или роль не найдены; роль не удалена (не существовала) |
-| `ForbiddenException` | Недостаточно прав (отсутствует `EDIT_ROLE_SET`) |
+| `ForbiddenException` | Набор принадлежит локальной игре |
+| `NotFoundException` | Набор не найден; FK-ограничение |
+| `InternalLogicException` | Неизвестная ошибка целостности |
 
 ---
 
-## Method: `delete_role_icon(role_id: UUID, server_id: UUID, permission_mask: int = 0) -> GameRole`
+## Method: `update_role(server_id, role_id, name=None, min_in_team=None, max_in_team=None, icon_id=None, hidden=None, permission_mask=0) -> GameRole`
 
 ### Purpose
-Удаляет иконку игровой роли (устанавливает `icon_id` в `None`).
+Обновляет параметры роли локальной игры.
 
 ### Algorithm
 1. Проверить `EDIT_ROLE_SET` permission → `ForbiddenException`
-2. Получить роль через `_check_role_belongs_to_server()` → `NotFoundException`
-3. Вызвать `role_repo.set_icon(role_field, None)`
+2. `_require_local_role(server_id, role_id)`
+3. `_apply_role_update(role, name, min_in_team, max_in_team, icon_id, hidden)`:
+   - `name`, `hidden` обновляются, только если переданное значение отличается от текущего
+   - `min_in_team`, `max_in_team`, `icon_id` применяются, если переданы (без сравнения с текущим значением)
+   - Если хотя бы одно поле изменилось — `role_repo.update(GameRoleUpdate(...))`
 
 ### Exceptions
 | Exception | Condition |
 |-----------|-----------|
-| `NotFoundException` | Сервер или роль не найдены; роль не принадлежит серверу |
-| `ForbiddenException` | Недостаточно прав (отсутствует `EDIT_ROLE_SET`) |
+| `ForbiddenException` | Недостаточно прав; роль принадлежит набору глобальной игры |
+| `NotFoundException` | Роль не найдена; набор роли принадлежит другому серверу |
+
+---
+
+## Method: `update_global_role(role_id, name=None, min_in_team=None, max_in_team=None, icon_id=None, hidden=None) -> GameRole`
+
+### Purpose
+Обновляет параметры роли глобальной игры. Не проверяет права.
+
+### Algorithm
+1. `_require_global_role(role_id)`
+2. `_apply_role_update(role, name, min_in_team, max_in_team, icon_id, hidden)` (та же логика, что у `update_role`)
+
+### Exceptions
+| Exception | Condition |
+|-----------|-----------|
+| `ForbiddenException` | Роль принадлежит набору локальной игры |
+| `NotFoundException` | Роль не найдена |
+
+---
+
+## Method: `delete_role(server_id, role_id, permission_mask=0) -> None`
+
+### Purpose
+Удаляет игровую роль из набора локальной игры.
+
+### Algorithm
+1. Проверить `EDIT_ROLE_SET` permission → `ForbiddenException` ("Unable to delete role")
+2. `_require_local_role(server_id, role_id)`
+3. `role_repo.delete(role_id)` → `NotFoundException`, если `False`
+
+### Exceptions
+| Exception | Condition |
+|-----------|-----------|
+| `ForbiddenException` | Недостаточно прав; роль принадлежит набору глобальной игры |
+| `NotFoundException` | Роль не найдена; набор роли принадлежит другому серверу; удаление не выполнено |
+
+---
+
+## Method: `delete_global_role(role_id) -> None`
+
+### Purpose
+Удаляет игровую роль из набора глобальной игры. Не проверяет права.
+
+### Algorithm
+1. `_require_global_role(role_id)`
+2. `role_repo.delete(role_id)` → `NotFoundException`, если `False`
+
+### Exceptions
+| Exception | Condition |
+|-----------|-----------|
+| `ForbiddenException` | Роль принадлежит набору локальной игры |
+| `NotFoundException` | Роль не найдена; удаление не выполнено |
+
+---
+
+## Method: `delete_role_icon(server_id, role_id, permission_mask=0) -> GameRole`
+
+### Purpose
+Удаляет иконку роли локальной игры (устанавливает `icon_id` в `None`).
+
+### Algorithm
+1. Проверить `EDIT_ROLE_SET` permission → `ForbiddenException`
+2. `_require_local_role(server_id, role_id)`
+3. `role_repo.update(GameRoleUpdate(id=role.id, icon_id=None))`
+
+### Exceptions
+| Exception | Condition |
+|-----------|-----------|
+| `ForbiddenException` | Недостаточно прав; роль принадлежит набору глобальной игры |
+| `NotFoundException` | Роль не найдена; набор роли принадлежит другому серверу |
+
+---
+
+## Method: `delete_global_role_icon(role_id) -> GameRole`
+
+### Purpose
+Удаляет иконку роли глобальной игры. Не проверяет права.
+
+### Algorithm
+1. `_require_global_role(role_id)`
+2. `role_repo.update(GameRoleUpdate(id=role.id, icon_id=None))`
+
+### Exceptions
+| Exception | Condition |
+|-----------|-----------|
+| `ForbiddenException` | Роль принадлежит набору локальной игры |
+| `NotFoundException` | Роль не найдена |
+
+---
+
+> Метод `get_role_set_for_server` удалён — набор ролей теперь всегда доставляется вложенным внутри `GameDetail` (см. [modules/game/service.md](../game/service.md)); отдельного пути чтения набора ролей больше нет.

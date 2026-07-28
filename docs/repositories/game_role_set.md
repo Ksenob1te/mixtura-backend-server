@@ -20,20 +20,18 @@ Inherited from `BaseRepository` ([base.md](base.md)):
 
 ## Custom Methods
 
-### `get_by_name(name) -> GameRoleSet | None`
-Получает набор ролей по названию.
+### `get_by_game_id`
 
-### `get_global() -> Sequence[GameRoleSet]`
-Список всех глобальных наборов ролей (шаблонов).
+```python
+async def get_by_game_id(self, game_id: UUID) -> GameRoleSet | None
+```
 
-### `create(name, is_global, server_id) -> GameRoleSet`
-Создаёт новый набор ролей.
+Получает набор ролей по ID игры-владельца (`game_id` уникален — один набор ролей на игру).
 
-### `set_name(role_set, name) -> GameRoleSet`
-Устанавливает название набора ролей.
+### `get_detail`
 
-### `set_global(role_set, is_global) -> GameRoleSet`
-Устанавливает флаг глобальности набора.
+```python
+async def get_detail(self, role_set_id: UUID) -> GameRoleSetDetail | None
+```
 
-### `copy_global(global_role_set, server_id) -> GameRoleSet`
-Копирует глобальный шаблон набора ролей на сервер с is_global=False.
+Получает набор ролей вместе с вложенным списком `game_roles` (загружается `lazy="selectin"`).

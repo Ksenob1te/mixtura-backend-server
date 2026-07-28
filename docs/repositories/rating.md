@@ -34,3 +34,5 @@ Inherited from `BaseRepository` ([base.md](base.md)):
 
 ### `copy_rating(rating, new_rating_set_id) -> Rating`
 Копирует уровень рейтинга в другой набор.
+
+`copy_rating` — единственный кастомный метод, объявленный и в протоколе, и в реализации; используется `GameService.copy_global_game()` при копировании глобальной игры в воркспейс.

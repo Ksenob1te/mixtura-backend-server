@@ -10,6 +10,10 @@
 - `CustomRatingRepositoryProtocol` — CRUD оценок ролей в кастомных списках
 - `MemberRepositoryProtocol` — получение участников
 - `GameRoleRepositoryProtocol` — получение игровых ролей
+- `ServerRepositoryProtocol` — получение сервера участника
+- `RatingSetRepositoryProtocol` — получение набора рейтингов игры по `game_id` (`get_by_game_id`)
+- `GameRoleSetRepositoryProtocol` — получение набора ролей, которому принадлежит игровая роль
+- `GameRepositoryProtocol` — проверка, что игра подключена к серверу участника (`is_enabled_on_server`)
 
 ## Method: `list_customs(server_id, member_id) -> list[Custom]`
 
@@ -96,20 +100,27 @@
 ### Algorithm
 1. Получить custom через `get_custom(server_id, custom_id)` → `NotFoundException`, `InternalLogicException`
 2. Проверить права: `custom.creator_id != issuer_id` и нет `EDIT_ALL_CUSTOMS` → `ForbiddenException`
-3. Получить `custom.member.server`; если `None` → `InternalLogicException`
-4. Получить `server.rating_set`; если `None` → `InternalLogicException`
-5. Проверить `rating` в диапазоне `[rating_set.min_rating, rating_set.max_rating]` → `BadRequestException`
-6. Попробовать получить существующую оценку: `custom_rating_repo.get_by_custom_role(custom_id, game_role_id)`
-7. Если оценка существует: обновить через `custom_rating_repo.set_rating(existing, rating)`
-8. Если не существует: создать `custom_rating_repo.create(custom_id, game_role_id, rating)`
-   - `IntegrityForeignException` → `NotFoundException`
-   - `IntegrityUniqueException` → `InternalLogicException`
-   - `IntegrityUnknownException` → `InternalLogicException`
+3. Получить участника-владельца custom через `member_repo.get(custom.member_id)`; если `None` → `InternalLogicException`
+4. Получить сервер участника через `server_repo.get(member.server_id)`; если `None` → `InternalLogicException`
+5. Получить игровую роль через `game_role_repo.get(game_role_id)` → `NotFoundException`, если не найдена
+6. Получить набор ролей роли через `game_role_set_repo.get(role.role_set_id)` → `InternalLogicException`, если не найден
+7. Проверить, что игра набора ролей подключена к серверу участника через `game_repo.is_enabled_on_server(server_id, role_set.game_id)` → `NotFoundException` ("Game is not enabled on server"), если `False`
+8. Получить набор рейтингов игры через `rating_set_repo.get_by_game_id(role_set.game_id)` → `InternalLogicException`, если `None`
+9. Проверить `rating` в диапазоне `[rating_set.min_rating, rating_set.max_rating]` → `BadRequestException`
+10. Попробовать получить существующую оценку: `custom_rating_repo.get_by_custom_role(custom_id, game_role_id)`
+11. Если оценка существует: обновить через `custom_rating_repo.update(CustomRatingUpdate(id=existing.id, rating=rating))`
+12. Если не существует: создать `custom_rating_repo.create(CustomRatingCreate(custom_id=custom_id, game_role_id=game_role_id, rating=rating))`
+    - `IntegrityForeignException` → `NotFoundException`
+    - `IntegrityUniqueException` → `InternalLogicException`
+    - `IntegrityUnknownException` → `InternalLogicException`
+
+### Behavior
+- Границы рейтинга определяются набором рейтингов **игры**, которой принадлежит `game_role_id` — не сервера. `Custom` не привязан к одной игре: он может хранить оценки ролей из разных игр, подключённых к серверу, каждая проверяется по границам своей игры.
 
 ### Exceptions
 | Exception | Condition |
 |-----------|-----------|
-| `NotFoundException` | Кастомный список или игровая роль не найдены |
+| `NotFoundException` | Кастомный список не найден; игровая роль не найдена; игра роли не подключена к серверу участника ("Game is not enabled on server") |
 | `ForbiddenException` | Участник не является создателем списка и не имеет права `EDIT_ALL_CUSTOMS` |
-| `BadRequestException` | Значение `rating` вне допустимого диапазона рейтинг-сета сервера |
-| `InternalLogicException` | Ошибка целостности данных (сервер/рейтинг-сет отсутствуют, нарушение уникальности) |
+| `BadRequestException` | Значение `rating` вне диапазона `[min_rating, max_rating]` набора рейтингов игры |
+| `InternalLogicException` | Участник или сервер для custom не найдены; набор ролей или набор рейтингов игры не найдены; нарушение уникальности при создании оценки |

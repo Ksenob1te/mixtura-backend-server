@@ -1,11 +1,13 @@
 import logging
 
 from faststream.rabbit import RabbitRouter
-from pydantic import TypeAdapter
 
 from src.app.rabbit.models.base import ResponseMessage, StatusResponse
 from src.app.rabbit.models.rating import (
-    GetServerRatingSetsRequest,
+    GlobalRatingCreateRequest,
+    GlobalRatingDeleteRequest,
+    GlobalRatingSetUpdateRequest,
+    GlobalRatingUpdateRequest,
     RatingItemCreateRequest,
     RatingItemDeleteRequest,
     RatingItemResponse,
@@ -13,27 +15,10 @@ from src.app.rabbit.models.rating import (
     RatingSetResponse,
     RatingSetUpdateRequest,
 )
-from src.dependency import CoreServiceDependency, RatingServiceDependency
+from src.dependency import RatingServiceDependency
 
 router = RabbitRouter()
 logger = logging.getLogger(__name__)
-
-
-@router.subscriber(queue="rating_set.get_global")
-async def get_global_rating_templates(
-    core_service: CoreServiceDependency,
-) -> ResponseMessage[list[RatingSetResponse]]:
-    rating_sets = await core_service.get_global_rating_templates()
-    ta = TypeAdapter(list[RatingSetResponse])
-    return ResponseMessage(status=200, message=ta.validate_python(rating_sets))
-
-
-@router.subscriber("rating_set.get_by_server")
-async def get_rating_set(
-    data: GetServerRatingSetsRequest, rating_service: RatingServiceDependency
-) -> ResponseMessage[RatingSetResponse]:
-    rating_set = await rating_service.get_rating_set(data.access_data.server_id)
-    return ResponseMessage(status=200, message=RatingSetResponse.model_validate(rating_set))
 
 
 @router.subscriber("rating_set.update")
@@ -69,6 +54,16 @@ async def update_rating(
     return ResponseMessage(status=200, message=RatingItemResponse.model_validate(rating))
 
 
+@router.subscriber("rating_set.rating.icon.delete")
+async def delete_rating_icon(
+    data: RatingItemDeleteRequest, rating_service: RatingServiceDependency
+) -> ResponseMessage[StatusResponse]:
+    await rating_service.delete_rating_icon(
+        data.access_data.server_id, data.rating_item_id, data.access_data.permission_mask
+    )
+    return ResponseMessage(status=200, message=StatusResponse())
+
+
 @router.subscriber("rating_set.rating.delete")
 async def delete_rating(
     data: RatingItemDeleteRequest, rating_service: RatingServiceDependency
@@ -76,4 +71,46 @@ async def delete_rating(
     await rating_service.delete_rating(
         data.access_data.server_id, data.rating_item_id, data.access_data.permission_mask
     )
+    return ResponseMessage(status=200, message=StatusResponse())
+
+
+@router.subscriber("rating_set.global.update")
+async def update_global_rating_set(
+    data: GlobalRatingSetUpdateRequest, rating_service: RatingServiceDependency
+) -> ResponseMessage[RatingSetResponse]:
+    rating_set = await rating_service.update_global_rating_set(
+        data.rating_set_id, data.name, data.min_rating, data.max_rating
+    )
+    return ResponseMessage(status=200, message=RatingSetResponse.model_validate(rating_set))
+
+
+@router.subscriber("rating_set.global.rating.create")
+async def create_global_rating(
+    data: GlobalRatingCreateRequest, rating_service: RatingServiceDependency
+) -> ResponseMessage[RatingItemResponse]:
+    rating = await rating_service.create_global_rating(data.rating_set_id, data.threshold, data.icon_id)
+    return ResponseMessage(status=200, message=RatingItemResponse.model_validate(rating))
+
+
+@router.subscriber("rating_set.global.rating.update")
+async def update_global_rating(
+    data: GlobalRatingUpdateRequest, rating_service: RatingServiceDependency
+) -> ResponseMessage[RatingItemResponse]:
+    rating = await rating_service.update_global_rating(data.rating_item_id, data.threshold, data.icon_id)
+    return ResponseMessage(status=200, message=RatingItemResponse.model_validate(rating))
+
+
+@router.subscriber("rating_set.global.rating.icon.delete")
+async def delete_global_rating_icon(
+    data: GlobalRatingDeleteRequest, rating_service: RatingServiceDependency
+) -> ResponseMessage[StatusResponse]:
+    await rating_service.delete_global_rating_icon(data.rating_item_id)
+    return ResponseMessage(status=200, message=StatusResponse())
+
+
+@router.subscriber("rating_set.global.rating.delete")
+async def delete_global_rating(
+    data: GlobalRatingDeleteRequest, rating_service: RatingServiceDependency
+) -> ResponseMessage[StatusResponse]:
+    await rating_service.delete_global_rating(data.rating_item_id)
     return ResponseMessage(status=200, message=StatusResponse())

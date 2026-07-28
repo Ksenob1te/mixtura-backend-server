@@ -25,13 +25,12 @@
 
 | Relation | Type | Description |
 |----------|------|-------------|
-| `role_set` | `GameRoleSet \| None` | Набор ролей сервера (1:1) |
-| `rating_set` | `RatingSet \| None` | Набор рейтингов сервера (1:1) |
+| `owned_games` | `list[Game]` | Локальные игры, созданные на сервере (`cascade="all, delete-orphan"`) |
 | `members` | `list[Member]` | Участники сервера |
 | `server_games` | `list[ServerGame]` | Связи с играми через junction |
 | `server_roles` | `list[ServerRole]` | Роли сервера |
 | `invites` | `list[Invite]` | Приглашения сервера |
-| `games` | `list[Game]` | Игры сервера (many-to-many через ServerGame) |
+| `games` | `list[Game]` | Все подключённые игры сервера — глобальные и локальные (many-to-many через `ServerGame`, `viewonly=True`) |
 
 ## Create/Update Models
 

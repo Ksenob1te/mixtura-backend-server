@@ -48,7 +48,7 @@ class MemberService:
         existing_member = await self.member_repo.get_by_user_in_server(server_id, user_id)
         if existing_member:
             if not existing_member.active:
-                await self.member_repo.update(MemberUpdate(id=existing_member.id, active=True))
+                return await self.member_repo.update(MemberUpdate(id=existing_member.id, active=True))
             return existing_member
         try:
             member_field = await self.member_repo.create(
@@ -187,4 +187,7 @@ class MemberService:
         success = await self.member_repo.set_user_if_none(target_member, user_id)
         if not success:
             raise MigrationException()
-        return target_member
+        updated_target = await self.member_repo.get(target_member_id)
+        if updated_target is None:
+            raise InternalLogicException("Target member not found after migration")
+        return updated_target

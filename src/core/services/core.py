@@ -8,21 +8,12 @@ from src.core.exceptions import (
     InternalLogicException,
     NotFoundException,
 )
-from src.core.interfaces.repo.game import GameRepositoryProtocol
-from src.core.interfaces.repo.game_role import GameRoleRepositoryProtocol
-from src.core.interfaces.repo.game_role_set import GameRoleSetRepositoryProtocol
 from src.core.interfaces.repo.member import MemberRepositoryProtocol
 from src.core.interfaces.repo.permission import PermissionRepositoryProtocol
-from src.core.interfaces.repo.rating import RatingRepositoryProtocol
-from src.core.interfaces.repo.rating_set import RatingSetRepositoryProtocol
 from src.core.interfaces.repo.restriction import RestrictionRepositoryProtocol
 from src.core.interfaces.repo.server import ServerRepositoryProtocol
-from src.core.models.game import Game
-from src.core.models.game_role import GameRoleCreate
-from src.core.models.game_role_set import GameRoleSet
 from src.core.models.member import MemberCreate
 from src.core.models.permission import Permission
-from src.core.models.rating_set import RatingSet
 from src.core.models.restriction import Restriction
 from src.core.models.server import Server, ServerCreate, ServerUpdate
 from src.infra.postgre.static import PERMISSION
@@ -32,39 +23,20 @@ class CoreService:
     def __init__(
             self,
             server_repo: ServerRepositoryProtocol,
-            game_repo: GameRepositoryProtocol,
-            game_role_repo: GameRoleRepositoryProtocol,
-            game_role_set_repo: GameRoleSetRepositoryProtocol,
-            rating_repo: RatingRepositoryProtocol,
-            rating_set_repo: RatingSetRepositoryProtocol,
             permission_repo: PermissionRepositoryProtocol,
             restriction_repo: RestrictionRepositoryProtocol,
             member_repo: MemberRepositoryProtocol
     ) -> None:
         self.server_repo = server_repo
-        self.game_repo = game_repo
-        self.game_role_repo = game_role_repo
-        self.game_role_set_repo = game_role_set_repo
-        self.rating_repo = rating_repo
-        self.rating_set_repo = rating_set_repo
         self.permission_repo = permission_repo
         self.restriction_repo = restriction_repo
         self.member_repo = member_repo
-
-    async def get_global_role_templates(self) -> list[GameRoleSet]:
-        return list(await self.game_role_set_repo.get_global())
-
-    async def get_global_rating_templates(self) -> list[RatingSet]:
-        return list(await self.rating_set_repo.get_global())
 
     async def get_global_permissions(self) -> list[Permission]:
         return list(await self.permission_repo.list_all())
 
     async def get_global_restrictions(self) -> list[Restriction]:
         return list(await self.restriction_repo.list_all())
-
-    async def get_global_games(self) -> list[Game]:
-        return list(await self.game_repo.get_all())
 
     async def list_servers(
             self, page: int | None = None,
@@ -83,44 +55,11 @@ class CoreService:
         servers = await self.server_repo.list_by_user(user_id, page, name_filter, page_size)
         return list(servers)
 
-    async def _copy_role_set(self, global_role_set: GameRoleSet, server_id: UUID) -> GameRoleSet:
-        new_role_set = await self.game_role_set_repo.copy_global(global_role_set, server_id=server_id)
-        if new_role_set is None:
-            raise InternalLogicException("Failed to copy role set")
-        await self.game_role_repo.create(GameRoleCreate(
-            name="Leader",
-            role_set_id=new_role_set.id,
-            min_in_team=1,
-            max_in_team=1,
-            hidden=False,
-        ))
-        return new_role_set
-
-    async def _copy_rating_set(self, global_rating_set: RatingSet, server_id: UUID) -> RatingSet:
-        new_rating_set = await self.rating_set_repo.copy_global(global_rating_set, server_id=server_id)
-        if new_rating_set is None:
-            raise InternalLogicException("Failed to copy rating set")
-        return new_rating_set
-
     async def create_server(
             self, name: str, owner_id: UUID, username: str,
             description: str,
-            public: bool,
-            rating_set_id: UUID | None = None,
-            role_set_id: UUID | None = None
+            public: bool
     ) -> Server:
-        if role_set_id is None:
-            raise NotFoundException("Role set ID must be provided")
-        if rating_set_id is None:
-            raise NotFoundException("Rating set ID must be provided")
-
-        global_role_set = await self.game_role_set_repo.get(role_set_id)
-        global_rating_set = await self.rating_set_repo.get(rating_set_id)
-        if not global_role_set or not global_role_set.is_global:
-            raise NotFoundException("Role set not found")
-        if not global_rating_set or not global_rating_set.is_global:
-            raise NotFoundException("Rating set not found")
-
         try:
             server = await self.server_repo.create(
                 ServerCreate(name=name, owner_id=owner_id, public=public, description=description)
@@ -129,9 +68,6 @@ class CoreService:
             raise NotFoundException(exc.message)
         except (IntegrityUniqueException, IntegrityUnknownException) as exc:
             raise InternalLogicException(exc.message)
-
-        await self._copy_rating_set(global_rating_set, server.id)
-        await self._copy_role_set(global_role_set, server.id)
 
         try:
             await self.member_repo.create(

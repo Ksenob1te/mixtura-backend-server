@@ -4,8 +4,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from .game import Game
     from .rating import Rating
-    from .server import Server
 
 
 import uuid
@@ -24,10 +24,9 @@ class RatingSet(Base):
     name: Mapped[str] = mapped_column(String(128))
     min_rating: Mapped[int] = mapped_column()
     max_rating: Mapped[int] = mapped_column()
-    is_global: Mapped[bool] = mapped_column()
-    server_id: Mapped[UUID | None] = mapped_column(ForeignKey('server_table.id', ondelete='CASCADE'), nullable=True)
+    game_id: Mapped[UUID] = mapped_column(ForeignKey('game_table.id', ondelete='CASCADE'), unique=True)
 
-    server: Mapped[Server] = relationship(back_populates='rating_set')
+    game: Mapped[Game] = relationship(back_populates='rating_set', lazy="selectin")
 
     ratings: Mapped[list[Rating]] = relationship(
         back_populates='rating_set',
